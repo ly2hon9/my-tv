@@ -173,12 +173,12 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部控制条：VLC排在第一个，图标换成官方交通锥标准图标 -->
+    <!-- 底部控制条 -->
     <div id="custom-controls">
       <div class="ctrl-left">
         <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()" title="播放/暂停">
           <svg id="play-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff"><polygon points="6,4 20,12 6,20"/></svg>
-          <svg id="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <svg id="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="display:none;"><rect x="6" y="4" width="4" height="16"/></svg>
         </button>
         <span class="ctrl-time" id="stream-time">直播</span>
       </div>
@@ -190,7 +190,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
 
-          <!-- 2. VLC 播放器 (排在首位，标准路障锥形矢量图标) -->
+          <!-- 2. VLC 播放器 -->
           <button class="ext-btn" onclick="openPlayer('vlc')" title="VLC 播放器">
             <svg viewBox="0 0 48 48">
               <path fill="#FF8800" d="M24 4c-.9 0-1.7.6-1.9 1.5L16.2 32h15.6l-5.9-26.5c-.2-.9-1-1.5-1.9-1.5z"/>
@@ -227,7 +227,6 @@
           <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
 
-        <!-- 全屏按钮 (支持 PC 原生全屏、iOS Safari 原生全屏以及手机网页全屏兜底) -->
         <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
@@ -290,17 +289,14 @@
       volIcon.setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
     }
 
-    // 适配所有移动端与电脑的全屏函数
     function toggleFullScreen() {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-      // 1. iOS Safari 专用处理
       if (isIOS && video.webkitEnterFullscreen) {
         video.webkitEnterFullscreen();
         return;
       }
 
-      // 2. PC 及 Android Chrome 原生 Fullscreen API
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         if (wrap.requestFullscreen) {
           wrap.requestFullscreen().catch(() => enterPseudoFullscreen());
@@ -320,7 +316,6 @@
       }
     }
 
-    // 针对移动端非标准 Webview (如微信/百度/QQ内置浏览器) 的网页全屏保底
     function enterPseudoFullscreen() {
       if (!wrap.classList.contains('pseudo-fullscreen')) {
         wrap.classList.add('pseudo-fullscreen');
@@ -329,7 +324,7 @@
       }
     }
 
-    // 唤醒第三方播放器
+    // 唤醒第三方播放器逻辑 (针对 PotPlayer 剔除重复的 http:// 协议头)
     function openPlayer(type) {
       if (!currentStreamUrl) {
         alert("请先点击选择一条频道线路！");
@@ -340,13 +335,14 @@
 
       switch (type) {
         case 'vlc':
-          // VLC 统一调用格式
           targetScheme = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) 
             ? `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(rawUrl)}`
             : `vlc://${rawUrl}`;
           break;
         case 'potplayer':
-          targetScheme = `potplayer://${rawUrl}`;
+          // 剔除 http:// 或 https://，直接将域名/IP与参数拼在 potplayer:// 之后
+          const cleanUrl = rawUrl.replace(/^https?:\/\//i, '');
+          targetScheme = `potplayer://${cleanUrl}`;
           break;
         case 'iina':
           targetScheme = `iina://weblink?url=${encodeURIComponent(rawUrl)}`;
