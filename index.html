@@ -9,7 +9,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
-    /* 播放器区域容器 */
     #player-wrap { 
       width: 100%; 
       height: 42vh; 
@@ -24,7 +23,6 @@
     }
     video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
-    /* 顶部频道与线路提示 */
     #top-bar { 
       position: absolute; top: 0; left: 0; right: 0; 
       padding: 12px 18px; 
@@ -35,7 +33,6 @@
     #current-title { font-size: 16px; font-weight: bold; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
     #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
 
-    /* 居中美化提示卡片 */
     #status-layer { 
       position: absolute; 
       top: 50%; left: 50%; 
@@ -57,7 +54,6 @@
     }
     #status-layer .icon { font-size: 20px; margin-bottom: 4px; display: block; }
 
-    /* 底部专属统一控制条 */
     #custom-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -75,7 +71,6 @@
     .ctrl-btn:hover { opacity: 1; }
     .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; }
 
-    /* 右侧控制组（第三方跳转按钮 + 音量 + 全屏） */
     .ctrl-right { display: flex; align-items: center; gap: 10px; }
 
     .external-group {
@@ -105,7 +100,6 @@
     .ext-btn:active { transform: scale(0.92); }
     .ext-btn svg { width: 15px; height: 15px; }
 
-    /* 频道列表侧边栏 */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
     #search-box { padding: 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; }
     #search-box input { width: 100%; padding: 8px 14px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
@@ -148,14 +142,12 @@
 </head>
 <body>
 
-  <!-- 播放区 -->
   <div id="player-wrap">
     <div id="top-bar">
       <div id="current-title">请选择频道</div>
       <div id="current-route-badge"></div>
     </div>
     
-    <!-- 正中提示卡片 -->
     <div id="status-layer">
       <span class="icon">📺</span>
       <div id="status-text">正在连接直播源...</div>
@@ -163,7 +155,6 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部控制条 -->
     <div id="custom-controls">
       <div class="ctrl-left">
         <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()" title="播放/暂停">
@@ -174,40 +165,31 @@
       </div>
 
       <div class="ctrl-right">
-        <!-- 第三方播放器跳转按钮组 -->
         <div class="external-group" title="使用第三方播放器打开该流">
-          <!-- 复制链接 -->
           <button class="ext-btn" onclick="copyCurrentUrl()" title="复制直链">
             <svg viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
-          <!-- PotPlayer -->
           <button class="ext-btn" onclick="openPlayer('potplayer')" title="PotPlayer">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFC800"/><polygon points="9,7 17,12 9,17" fill="#333"/></svg>
           </button>
-          <!-- VLC -->
           <button class="ext-btn" onclick="openPlayer('vlc')" title="VLC 播放器">
             <svg viewBox="0 0 24 24"><path d="M12 2L4 19h16L12 2z" fill="#FF8800"/><polygon points="12,7 7,17 17,17" fill="#fff"/></svg>
           </button>
-          <!-- IINA -->
           <button class="ext-btn" onclick="openPlayer('iina')" title="IINA">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4B3869"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
           </button>
-          <!-- nPlayer -->
           <button class="ext-btn" onclick="openPlayer('nplayer')" title="nPlayer">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#007AFF"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
           </button>
-          <!-- APTV -->
           <button class="ext-btn" onclick="openPlayer('aptv')" title="APTV">
             <svg viewBox="0 0 24 24"><rect width="20" height="20" x="2" y="2" rx="4" fill="#000"/><polygon points="8,6 16,12 8,18" fill="#30D158"/></svg>
           </button>
         </div>
 
-        <!-- 音量/静音开关 -->
         <button class="ctrl-btn" onclick="toggleMute()" title="音量/静音">
           <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
 
-        <!-- 全屏按钮 -->
         <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
@@ -215,7 +197,6 @@
     </div>
   </div>
 
-  <!-- 频道列表侧边栏 -->
   <div id="sidebar">
     <div id="search-box">
       <input type="text" id="filter" placeholder="搜索频道或分类..." oninput="handleSearch()">
@@ -280,7 +261,7 @@
       }
     }
 
-    // 修复后的唤醒逻辑：确保保留完整 http/https 协议头并进行 URI 编码传递
+    // 唤醒逻辑：直连原始 URL，绝不编码，避免 PotPlayer 识别为本地路径
     function openPlayer(type) {
       if (!currentStreamUrl) {
         alert("请先点击选择一条频道线路！");
@@ -291,8 +272,8 @@
 
       switch (type) {
         case 'potplayer':
-          // 对完整 URL（包含 http:// 或 https://）进行标准编码，防止协议头丢失导致 Pin 渲染失败
-          targetScheme = `potplayer://${encodeURIComponent(rawUrl)}`;
+          // PotPlayer 官方原生支持：potplayer://http://... 直接传原始字符串
+          targetScheme = `potplayer://${rawUrl}`;
           break;
         case 'vlc':
           targetScheme = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) 
@@ -321,7 +302,7 @@
         return;
       }
       navigator.clipboard.writeText(currentStreamUrl).then(() => {
-        alert("已复制当前视频直链，可粘贴至任意播放器播放：\n" + currentStreamUrl);
+        alert("已复制当前视频直链，可粘贴至播放器：\n" + currentStreamUrl);
       }).catch(() => {
         prompt("请手动复制链接：", currentStreamUrl);
       });
