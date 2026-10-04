@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>我的电视直播</title>
+  <title>我的超级解码电视</title>
+  <!-- 引入标准 HLS 解码库 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <!-- 引入网页版底层流媒体超级解码器 (支持 TS/非标流) -->
+  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
@@ -16,10 +19,10 @@
     /* 顶部当前播放提示 */
     #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
     #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
-    #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
+    #engine-badge { font-size: 11px; background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; display: none; }
 
     /* 状态提示层 */
-    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; }
+    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.75); padding: 8px 16px; border-radius: 6px; font-size: 13px; pointer-events: none; display: none; text-align: center; }
 
     /* 频道列表与搜索 */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
@@ -57,9 +60,9 @@
     /* 延迟测试标签 */
     .ping-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: none; font-weight: 500; }
     .ping-testing { background: #444; color: #fff; }
-    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
-    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
-    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 无法连通 */
+    .ping-fast { background: #238636; color: #fff; }
+    .ping-medium { background: #d29922; color: #fff; }
+    .ping-slow { background: #cf222e; color: #fff; }
 
     @media (min-width: 768px) {
       body { flex-direction: row; }
@@ -73,9 +76,9 @@
   <div id="player-wrap">
     <div id="top-bar">
       <div id="current-title">请选择频道</div>
-      <div id="current-route-badge"></div>
+      <div id="engine-badge">超级软解</div>
     </div>
-    <div id="status-layer">正在连接直播源...</div>
+    <div id="status-layer">正在启动超级解码引擎...</div>
     <video id="video" controls autoplay playsinline webkit-playsinline></video>
   </div>
 
@@ -84,21 +87,23 @@
       <input type="text" id="filter" placeholder="搜索频道或分类..." oninput="handleSearch()">
     </div>
     <div id="channel-list">
-      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单...</div>
+      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单，请稍候...</div>
     </div>
   </div>
 
   <script>
+    // 你的专属酒店源地址
     const DEFAULT_M3U_URL = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
 
     let groups = {};
     let activeChannelRow = null;
     let activeSourceItem = null;
     let hls = null;
+    let mpegtsPlayer = null;
     const video = document.getElementById('video');
     const statusLayer = document.getElementById('status-layer');
     const currentTitle = document.getElementById('current-title');
-    const routeBadge = document.getElementById('current-route-badge');
+    const engineBadge = document.getElementById('engine-badge');
 
     function setStatus(text, show = true) {
       if (show) {
@@ -109,21 +114,30 @@
       }
     }
 
+    // 备用抓取通道（防跨域/防源挂）
+    async function fetchWithFallback(url) {
+      const mirrors = [
+        url,
+        "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+        "https://corsproxy.io/?" + encodeURIComponent(url)
+      ];
+      for (let target of mirrors) {
+        try {
+          const res = await fetch(target, { cache: "no-store" });
+          if (res.ok) return await res.text();
+        } catch (_) {}
+      }
+      throw new Error("节目单同步失败");
+    }
+
     async function init() {
       try {
-        let res;
-        try {
-          res = await fetch(DEFAULT_M3U_URL);
-          if (!res.ok) throw new Error();
-        } catch (_) {
-          res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(DEFAULT_M3U_URL));
-        }
-        const text = await res.text();
+        const text = await fetchWithFallback(DEFAULT_M3U_URL);
         parseM3U(text);
         renderList(groups);
       } catch (e) {
         document.getElementById('channel-list').innerHTML = 
-          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">节目单加载失败，请检查网络</div>`;
+          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">节目单加载失败，请检查网络后刷新</div>`;
       }
     }
 
@@ -226,7 +240,6 @@
             if (!rowEl.classList.contains('expanded')) {
               rowEl.classList.add('expanded');
             }
-            // 触发该频道全部线路测速
             pingTags.forEach(item => {
               measureStreamLatency(item.url, item.tag);
             });
@@ -263,58 +276,28 @@
       }
     }
 
-    // 核心改进：结合原生媒体预握手与跨域探测技术
+    // 测速
     function measureStreamLatency(url, tagElement) {
       tagElement.style.display = 'inline-block';
       tagElement.textContent = '测速中...';
       tagElement.className = 'ping-tag ping-testing';
 
       const startTime = performance.now();
-      let finished = false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
 
-      // 设置 4 秒绝对超时
-      const timer = setTimeout(() => {
-        if (!finished) {
-          finished = true;
-          tagElement.textContent = "无法连通";
-          tagElement.className = 'ping-tag ping-slow';
-        }
-      }, 4000);
-
-      // 方法：利用浏览器底层的媒体对象探测握手时长，绕过 fetch 对响应体的跨域强制阻断
-      const probeVideo = document.createElement('video');
-      probeVideo.preload = 'metadata';
-
-      const done = (isSuccess) => {
-        if (finished) return;
-        finished = true;
-        clearTimeout(timer);
-        probeVideo.src = '';
-        probeVideo.remove();
-
-        const duration = Math.round(performance.now() - startTime);
-
-        if (isSuccess) {
+      fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache', signal: controller.signal })
+        .then(() => {
+          clearTimeout(timer);
+          const duration = Math.round(performance.now() - startTime);
           tagElement.textContent = `${duration}ms`;
           tagElement.className = 'ping-tag ' + (duration < 400 ? 'ping-fast' : duration < 900 ? 'ping-medium' : 'ping-slow');
-        } else {
-          // 如果连接失败，再尝试进行一次轻量无凭据握手验证是否存在网络通畅但仅为鉴权拦截
-          fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache' })
-            .then(() => {
-              const fetchDuration = Math.round(performance.now() - startTime);
-              tagElement.textContent = `${fetchDuration}ms`;
-              tagElement.className = 'ping-tag ' + (fetchDuration < 400 ? 'ping-fast' : fetchDuration < 900 ? 'ping-medium' : 'ping-slow');
-            })
-            .catch(() => {
-              tagElement.textContent = "无法连通";
-              tagElement.className = 'ping-tag ping-slow';
-            });
-        }
-      };
-
-      probeVideo.onloadedmetadata = () => done(true);
-      probeVideo.onerror = () => done(false);
-      probeVideo.src = url;
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          tagElement.textContent = "无法连通";
+          tagElement.className = 'ping-tag ping-slow';
+        });
     }
 
     function playSelectedSource(chName, routeIndex, url, rowEl, itemEl) {
@@ -328,35 +311,84 @@
       if (itemEl) itemEl.classList.add('active-source');
 
       currentTitle.textContent = chName;
-      routeBadge.style.display = 'inline-block';
-      routeBadge.textContent = `线 ${routeIndex}`;
-
       playStream(url);
     }
 
+    // 核心改造：超级解码调度引擎
     function playStream(url) {
-      setStatus("正在建立连接...");
+      setStatus("正在启动超级解码...");
+      engineBadge.style.display = 'inline-block';
 
+      // 1. 清理已有实例
+      if (hls) { hls.destroy(); hls = null; }
+      if (mpegtsPlayer) { mpegtsPlayer.destroy(); mpegtsPlayer = null; }
+
+      // 2. 策略一：尝试使用超级软解引擎 (mpegts.js - 解决广播 TS/非标流与老旧编码)
+      if (window.mpegts && mpegts.isSupported()) {
+        try {
+          mpegtsPlayer = mpegts.createPlayer({
+            type: 'mse',
+            isLive: true,
+            url: url
+          }, {
+            enableWorker: true,
+            lazyLoad: false,
+            liveBufferLatencyChasing: true
+          });
+          mpegtsPlayer.attachMediaElement(video);
+          mpegtsPlayer.load();
+          mpegtsPlayer.play().then(() => {
+            setStatus("", false);
+          }).catch(() => {
+            fallbackToHls(url);
+          });
+
+          mpegtsPlayer.on(mpegts.Events.ERROR, () => {
+            fallbackToHls(url);
+          });
+          return;
+        } catch (_) {
+          fallbackToHls(url);
+        }
+      } else {
+        fallbackToHls(url);
+      }
+    }
+
+    // 策略二：降级到 HLS.js 引擎
+    function fallbackToHls(url) {
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
-        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true
+        });
         hls.loadSource(url);
         hls.attachMedia(video);
-
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setStatus("", false);
-          video.play().catch(() => setStatus("请轻触视频画面以开始播放"));
+          video.play().catch(() => setStatus("请轻触画面开始播放"));
         });
-
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            setStatus("线路连接失败，请切换其他线路");
+            fallbackToNative(url);
           }
         });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      } else {
+        fallbackToNative(url);
+      }
+    }
+
+    // 策略三：降级到浏览器原生硬件播放
+    function fallbackToNative(url) {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
         video.load();
-        video.play().then(() => setStatus("", false)).catch(() => setStatus("请轻触视频画面以开始播放"));
+        video.play().then(() => setStatus("", false)).catch(() => {
+          setStatus("当前线路被限制，请切换线路或点击画面播放");
+        });
+      } else {
+        setStatus("该线路无法解码，请尝试切换线路");
       }
     }
 
