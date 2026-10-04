@@ -71,14 +71,6 @@
     const video = document.getElementById('video');
     const tip = document.getElementById('loading-tip');
 
-    // 核心转换：把 HTTP 链接转为走 Cloudflare 同域代理，绕过 Safari 混合内容拦截
-    function getProxyUrl(target) {
-      if (target.startsWith("http://")) {
-        return "/proxy?url=" + encodeURIComponent(target);
-      }
-      return target;
-    }
-
     async function init() {
       try {
         let res;
@@ -183,30 +175,55 @@
       playStream(urls[0]);
     }
 
-    function playStream(rawUrl) {
-      tip.style.display = 'none';
-      const url = getProxyUrl(rawUrl);
+    // 核心修改：让手机直接请求源链接，避免海外节点被源端拦截
+    function playStream(url) {
+      tip.textContent = "加载中...";
+      tip.style.display = 'block';
 
-      if (Hls.isSupported()) {
+      // 1. 优先调用 Safari 原生硬件解码（直接播放，绕过 Cloudflare 节点）
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+        video.src = url;
+        video.load();
+        
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            tip.style.display = 'none';
+          }).catch(() => {
+            // Safari 自动播放策略拦截时提示用户手动点屏幕
+            tip.textContent = "请点击播放按钮开启播放";
+          });
+        }
+      } 
+      // 2. 安卓/PC 浏览器降级使用 Hls.js
+      else if (Hls.isSupported()) {
         if (hls) hls.destroy();
         hls = new Hls({ enableWorker: true });
         hls.loadSource(url);
         hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          tip.style.display = 'none';
+          video.play().catch(() => {
+            tip.textContent = "请点击播放按钮开启播放";
+          });
+        });
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
             tip.textContent = "当前线路不可用，请尝试切换线路";
             tip.style.display = 'block';
           }
         });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.play().catch(() => {
-          tip.textContent = "当前线路不可用，请尝试切换线路";
-          tip.style.display = 'block';
-        });
       }
     }
+
+    // 监听视频正在播放时隐藏加载文字
+    video.addEventListener('playing', () => {
+      tip.style.display = 'none';
+    });
 
     function handleSearch() {
       const kw = document.getElementById('filter').value.trim().toLowerCase();
