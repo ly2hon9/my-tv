@@ -39,20 +39,23 @@
     .channel-row.expanded .channel-arrow { transform: rotate(90deg); color: #0070f3; }
     .channel-row.playing .channel-title { color: #0070f3; font-weight: bold; }
 
+    /* 频道行右侧控制区域（路线数 + 测速按钮） */
+    .channel-right-tools { display: flex; align-items: center; gap: 8px; }
+    .badge-lines { font-size: 11px; background: #333; color: #bbb; padding: 2px 7px; border-radius: 10px; }
+    .btn-ping-channel { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; }
+    .btn-ping-channel:active { background: #2ea043; }
+
     /* 线路展开面板 */
-    .sources-panel { display: none; background: #111; padding: 6px 12px 10px 16px; border-top: 1px solid #252525; }
+    .sources-panel { display: none; background: #111; padding: 4px 12px 10px 16px; border-top: 1px solid #242424; }
     .channel-row.expanded .sources-panel { display: block; }
     
-    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; margin-top: 6px; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; cursor: pointer; }
-    .source-item:active { background: #2a2a2a; }
+    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
+    .source-item:active { background: #242424; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
-    .source-name { font-size: 13px; font-weight: 500; color: #eee; display: flex; align-items: center; gap: 6px; }
-    .source-actions { display: flex; align-items: center; gap: 8px; }
+    .source-name { font-size: 13px; font-weight: 500; color: #ddd; }
 
-    /* 测速按钮与测速标签 */
-    .ping-btn { background: #2a2a2a; border: 1px solid #444; color: #ccc; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
-    .ping-btn:active { background: #444; }
-    .ping-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: none; }
+    /* 延迟测试标签 */
+    .ping-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: none; font-weight: 500; }
     .ping-testing { background: #444; color: #fff; }
     .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
     .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
@@ -173,20 +176,10 @@
           const rowEl = document.createElement('div');
           rowEl.className = 'channel-row';
 
-          // 频道主行
-          const mainEl = document.createElement('div');
-          mainEl.className = 'channel-main';
-          mainEl.innerHTML = `
-            <div class="channel-title">
-              <span class="channel-arrow">▶</span>
-              <span>${chName}</span>
-            </div>
-            <span style="font-size: 11px; background: #333; color: #bbb; padding: 2px 6px; border-radius: 10px;">${urls.length} 路线</span>
-          `;
-
-          // 展开面板
+          // 展开面板（存放每条线路和各自的测速标签）
           const panelEl = document.createElement('div');
           panelEl.className = 'sources-panel';
+          const pingTags = [];
 
           urls.forEach((url, idx) => {
             const itemEl = document.createElement('div');
@@ -194,31 +187,17 @@
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'source-name';
-            nameSpan.innerHTML = `<span>线路 ${idx + 1}</span>`;
-
-            const actionBox = document.createElement('div');
-            actionBox.className = 'source-actions';
+            nameSpan.textContent = `线路 ${idx + 1}`;
 
             // 测速状态标签
             const pingTag = document.createElement('span');
             pingTag.className = 'ping-tag';
-
-            // 测速按钮
-            const pingBtn = document.createElement('button');
-            pingBtn.className = 'ping-btn';
-            pingBtn.textContent = '测速';
-            pingBtn.onclick = (e) => {
-              e.stopPropagation();
-              pingSingleSource(url, pingTag);
-            };
-
-            actionBox.appendChild(pingTag);
-            actionBox.appendChild(pingBtn);
+            pingTags.push({ url, tag: pingTag });
 
             itemEl.appendChild(nameSpan);
-            itemEl.appendChild(actionBox);
+            itemEl.appendChild(pingTag);
 
-            // 点击该线路直接切换播放
+            // 点击特定线路直接播放
             itemEl.onclick = (e) => {
               e.stopPropagation();
               playSelectedSource(chName, idx + 1, url, rowEl, itemEl);
@@ -227,7 +206,46 @@
             panelEl.appendChild(itemEl);
           });
 
-          // 点击频道主行展开/折叠路线，并默认播放第一条线路
+          // 频道主行
+          const mainEl = document.createElement('div');
+          mainEl.className = 'channel-main';
+
+          // 左侧：箭头与频道名字
+          const leftEl = document.createElement('div');
+          leftEl.className = 'channel-title';
+          leftEl.innerHTML = `<span class="channel-arrow">▶</span><span>${chName}</span>`;
+
+          // 右侧：X 路线徽章 + 测速按钮
+          const rightEl = document.createElement('div');
+          rightEl.className = 'channel-right-tools';
+
+          const badgeEl = document.createElement('span');
+          badgeEl.className = 'badge-lines';
+          badgeEl.textContent = `${urls.length} 路线`;
+
+          const pingBtn = document.createElement('button');
+          pingBtn.className = 'btn-ping-channel';
+          pingBtn.innerHTML = `⚡ 测速`;
+          
+          // 点击“测速”按钮：展开并并发测当前频道的所有线路
+          pingBtn.onclick = (e) => {
+            e.stopPropagation(); // 阻止触发整行的默认点击
+            if (!rowEl.classList.contains('expanded')) {
+              rowEl.classList.add('expanded');
+            }
+            // 该频道下所有线路并发测速
+            pingTags.forEach(item => {
+              pingSingleSource(item.url, item.tag);
+            });
+          };
+
+          rightEl.appendChild(badgeEl);
+          rightEl.appendChild(pingBtn);
+
+          mainEl.appendChild(leftEl);
+          mainEl.appendChild(rightEl);
+
+          // 点击频道本身：折叠/展开并默认播放线路 1
           mainEl.onclick = () => {
             const isExpanded = rowEl.classList.contains('expanded');
             document.querySelectorAll('.channel-row.expanded').forEach(el => {
@@ -236,7 +254,6 @@
 
             if (!isExpanded) {
               rowEl.classList.add('expanded');
-              // 自动切换为播放第一条线
               const firstItem = panelEl.querySelector('.source-item');
               playSelectedSource(chName, 1, urls[0], rowEl, firstItem);
             } else {
@@ -254,7 +271,7 @@
       }
     }
 
-    // 针对单个源进行测速
+    // 单条线路并发测速方法
     function pingSingleSource(url, tagElement) {
       tagElement.style.display = 'inline-block';
       tagElement.textContent = '...';
