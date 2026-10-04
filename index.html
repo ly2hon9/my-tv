@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>我的电视直播</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { display: flex; flex-direction: column; height: 100vh; background-color: #111; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    
+    #player-wrap { width: 100%; height: 35vh; background: #000; position: relative; display: flex; flex-direction: column; }
+    #video-container { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+    video { width: 100%; height: 100%; outline: none; }
+    
+    #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 14px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
+    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+    #sources-list { display: flex; gap: 6px; pointer-events: auto; }
+    .route-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    .route-btn.active { background: #0070f3; border-color: #0070f3; font-weight: bold; }
+
+    #loading-tip { position: absolute; color: #bbb; font-size: 14px; pointer-events: none; text-align: center; }
+
+    #sidebar { flex: 1; display: flex; flex-direction: column; background: #181818; border-top: 1px solid #282828; }
+    #search-box { padding: 10px 12px; background: #202020; border-bottom: 1px solid #2e2e2e; }
+    #search-box input { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
+    #channel-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    .group-header { padding: 10px 16px; background: #252525; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1f1f1f; user-select: none; }
+    .channel-item { padding: 12px 16px; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+    .channel-item:active { background: #2a2a2a; }
+    .channel-item.active { background: #0070f3; color: #fff; font-weight: bold; }
+    .source-badge { font-size: 11px; background: #333; color: #bbb; padding: 2px 6px; border-radius: 10px; }
+    .channel-item.active .source-badge { background: rgba(255,255,255,0.25); color: #fff; }
+
+    @media (min-width: 768px) or (orientation: landscape) {
+      body { flex-direction: row; }
+      #sidebar { width: 320px; border-top: none; border-right: 1px solid #282828; height: 100vh; }
+      #player-wrap { flex: 1; height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="player-wrap">
+    <div id="top-bar">
+      <div id="current-title">请选择频道</div>
+      <div id="sources-list"></div>
+    </div>
+    <div id="video-container">
+      <div id="loading-tip">请从下方选择频道</div>
+      <video id="video" controls autoplay playsinline webkit-playsinline></video>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div id="search-box">
+      <input type="text" id="filter" placeholder="搜索频道或分类..." oninput="handleSearch()">
+    </div>
+    <div id="channel-list">
+      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单，请稍候...</div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_M3U_URL = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
+
+    let groups = {};
+    let activeElement = null;
+    let hls = null;
+    const video = document.getElementById('video');
+    const tip = document.getElementById('loading-tip');
+
+    async function init() {
+      try {
+        let res;
+        try {
+          res = await fetch(DEFAULT_M3U_URL);
+          if (!res.ok) throw new Error();
+        } catch (_) {
+          res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(DEFAULT_M3U_URL));
+        }
+        const text = await res.text();
+        parseM3U(text);
+        renderList(groups);
+      } catch (e) {
+        document.getElementById('channel-list').innerHTML = 
+          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">源解析失败，请检查网络连接</div>`;
+      }
+    }
+
+    function parseM3U(content) {
+      groups = {};
+      const lines = content.split('\n');
+      let temp = null;
+
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('#EXTINF:')) {
+          const name = (line.split(',')[1] || '未命名频道').trim();
+          const groupMatch = line.match(/group-title="([^"]+)"/);
+          const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
+          temp = { name, group };
+        } else if (line && !line.startsWith('#') && temp) {
+          if (!groups[temp.group]) groups[temp.group] = {};
+          if (!groups[temp.group][temp.name]) groups[temp.group][temp.name] = [];
+          if (!groups[temp.group][temp.name].includes(line)) {
+            groups[temp.group][temp.name].push(line);
+          }
+          temp = null;
+        }
+      }
+    }
+
+    function renderList(targetGroups) {
+      const container = document.getElementById('channel-list');
+      container.innerHTML = '';
+
+      for (let groupName in targetGroups) {
+        const channels = targetGroups[groupName];
+        if (Object.keys(channels).length === 0) continue;
+
+        const groupEl = document.createElement('div');
+        groupEl.className = 'group-header';
+        groupEl.innerHTML = `<span>${groupName}</span><span>▼</span>`;
+
+        const subList = document.createElement('div');
+        subList.className = 'group-channels';
+
+        groupEl.onclick = () => {
+          const isHide = subList.style.display === 'none';
+          subList.style.display = isHide ? 'block' : 'none';
+          groupEl.querySelector('span:last-child').textContent = isHide ? '▼' : '▶';
+        };
+
+        for (let chName in channels) {
+          const urls = channels[chName];
+          const chEl = document.createElement('div');
+          chEl.className = 'channel-item';
+          chEl.innerHTML = `
+            <span>${chName}</span>
+            <span class="source-badge">${urls.length} 路线</span>
+          `;
+          chEl.onclick = () => selectChannel(chName, urls, chEl);
+          subList.appendChild(chEl);
+        }
+
+        container.appendChild(groupEl);
+        container.appendChild(subList);
+      }
+    }
+
+    function selectChannel(name, urls, element) {
+      if (activeElement) activeElement.classList.remove('active');
+      activeElement = element;
+      activeElement.classList.add('active');
+
+      document.getElementById('current-title').textContent = name;
+
+      const sourcesBox = document.getElementById('sources-list');
+      sourcesBox.innerHTML = '';
+      urls.forEach((url, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `route-btn ${idx === 0 ? 'active' : ''}`;
+        btn.textContent = `线 ${idx + 1}`;
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          playStream(url);
+        };
+        sourcesBox.appendChild(btn);
+      });
+
+      playStream(urls[0]);
+    }
+
+    function playStream(url) {
+      tip.style.display = 'none';
+
+      if (Hls.isSupported()) {
+        if (hls) hls.destroy();
+        hls = new Hls({ enableWorker: true });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            tip.textContent = "当前线路无法连接，请尝试切换线路";
+            tip.style.display = 'block';
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.play().catch(() => {});
+      }
+    }
+
+    function handleSearch() {
+      const kw = document.getElementById('filter').value.trim().toLowerCase();
+      if (!kw) {
+        renderList(groups);
+        return;
+      }
+      const filtered = {};
+      for (let g in groups) {
+        for (let ch in groups[g]) {
+          if (ch.toLowerCase().includes(kw) || g.toLowerCase().includes(kw)) {
+            if (!filtered[g]) filtered[g] = {};
+            filtered[g][ch] = groups[g][ch];
+          }
+        }
+      }
+      renderList(filtered);
+    }
+
+    init();
+  </script>
+</body>
+</html>
