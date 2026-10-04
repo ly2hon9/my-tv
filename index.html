@@ -39,7 +39,7 @@
     .channel-row.expanded .channel-arrow { transform: rotate(90deg); color: #0070f3; }
     .channel-row.playing .channel-title { color: #0070f3; font-weight: bold; }
 
-    /* 频道行右侧控制区域（路线数 + 测速按钮） */
+    /* 频道行右侧控制区域 */
     .channel-right-tools { display: flex; align-items: center; gap: 8px; }
     .badge-lines { font-size: 11px; background: #333; color: #bbb; padding: 2px 7px; border-radius: 10px; }
     .btn-ping-channel { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; }
@@ -59,7 +59,7 @@
     .ping-testing { background: #444; color: #fff; }
     .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
     .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
-    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 超时 */
+    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 无法连通 */
 
     @media (min-width: 768px) {
       body { flex-direction: row; }
@@ -176,7 +176,6 @@
           const rowEl = document.createElement('div');
           rowEl.className = 'channel-row';
 
-          // 展开面板（存放每条线路和各自的测速标签）
           const panelEl = document.createElement('div');
           panelEl.className = 'sources-panel';
           const pingTags = [];
@@ -189,7 +188,6 @@
             nameSpan.className = 'source-name';
             nameSpan.textContent = `线路 ${idx + 1}`;
 
-            // 测速状态标签
             const pingTag = document.createElement('span');
             pingTag.className = 'ping-tag';
             pingTags.push({ url, tag: pingTag });
@@ -197,7 +195,6 @@
             itemEl.appendChild(nameSpan);
             itemEl.appendChild(pingTag);
 
-            // 点击特定线路直接播放
             itemEl.onclick = (e) => {
               e.stopPropagation();
               playSelectedSource(chName, idx + 1, url, rowEl, itemEl);
@@ -206,16 +203,13 @@
             panelEl.appendChild(itemEl);
           });
 
-          // 频道主行
           const mainEl = document.createElement('div');
           mainEl.className = 'channel-main';
 
-          // 左侧：箭头与频道名字
           const leftEl = document.createElement('div');
           leftEl.className = 'channel-title';
           leftEl.innerHTML = `<span class="channel-arrow">▶</span><span>${chName}</span>`;
 
-          // 右侧：X 路线徽章 + 测速按钮
           const rightEl = document.createElement('div');
           rightEl.className = 'channel-right-tools';
 
@@ -227,15 +221,14 @@
           pingBtn.className = 'btn-ping-channel';
           pingBtn.innerHTML = `⚡ 测速`;
           
-          // 点击“测速”按钮：展开并并发测当前频道的所有线路
           pingBtn.onclick = (e) => {
-            e.stopPropagation(); // 阻止触发整行的默认点击
+            e.stopPropagation();
             if (!rowEl.classList.contains('expanded')) {
               rowEl.classList.add('expanded');
             }
-            // 该频道下所有线路并发测速
+            // 触发该频道全部线路测速
             pingTags.forEach(item => {
-              pingSingleSource(item.url, item.tag);
+              measureStreamLatency(item.url, item.tag);
             });
           };
 
@@ -245,7 +238,6 @@
           mainEl.appendChild(leftEl);
           mainEl.appendChild(rightEl);
 
-          // 点击频道本身：折叠/展开并默认播放线路 1
           mainEl.onclick = () => {
             const isExpanded = rowEl.classList.contains('expanded');
             document.querySelectorAll('.channel-row.expanded').forEach(el => {
@@ -271,31 +263,60 @@
       }
     }
 
-    // 单条线路并发测速方法
-    function pingSingleSource(url, tagElement) {
+    // 核心改进：结合原生媒体预握手与跨域探测技术
+    function measureStreamLatency(url, tagElement) {
       tagElement.style.display = 'inline-block';
-      tagElement.textContent = '...';
+      tagElement.textContent = '测速中...';
       tagElement.className = 'ping-tag ping-testing';
 
-      const start = Date.now();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const startTime = performance.now();
+      let finished = false;
 
-      fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal })
-        .then(() => {
-          clearTimeout(timeoutId);
-          const duration = Date.now() - start;
-          tagElement.textContent = `${duration}ms`;
-          tagElement.className = 'ping-tag ' + (duration < 350 ? 'ping-fast' : duration < 800 ? 'ping-medium' : 'ping-slow');
-        })
-        .catch(() => {
-          clearTimeout(timeoutId);
-          tagElement.textContent = "超时";
+      // 设置 4 秒绝对超时
+      const timer = setTimeout(() => {
+        if (!finished) {
+          finished = true;
+          tagElement.textContent = "无法连通";
           tagElement.className = 'ping-tag ping-slow';
-        });
+        }
+      }, 4000);
+
+      // 方法：利用浏览器底层的媒体对象探测握手时长，绕过 fetch 对响应体的跨域强制阻断
+      const probeVideo = document.createElement('video');
+      probeVideo.preload = 'metadata';
+
+      const done = (isSuccess) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        probeVideo.src = '';
+        probeVideo.remove();
+
+        const duration = Math.round(performance.now() - startTime);
+
+        if (isSuccess) {
+          tagElement.textContent = `${duration}ms`;
+          tagElement.className = 'ping-tag ' + (duration < 400 ? 'ping-fast' : duration < 900 ? 'ping-medium' : 'ping-slow');
+        } else {
+          // 如果连接失败，再尝试进行一次轻量无凭据握手验证是否存在网络通畅但仅为鉴权拦截
+          fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache' })
+            .then(() => {
+              const fetchDuration = Math.round(performance.now() - startTime);
+              tagElement.textContent = `${fetchDuration}ms`;
+              tagElement.className = 'ping-tag ' + (fetchDuration < 400 ? 'ping-fast' : fetchDuration < 900 ? 'ping-medium' : 'ping-slow');
+            })
+            .catch(() => {
+              tagElement.textContent = "无法连通";
+              tagElement.className = 'ping-tag ping-slow';
+            });
+        }
+      };
+
+      probeVideo.onloadedmetadata = () => done(true);
+      probeVideo.onerror = () => done(false);
+      probeVideo.src = url;
     }
 
-    // 播放指定线路
     function playSelectedSource(chName, routeIndex, url, rowEl, itemEl) {
       if (activeChannelRow) activeChannelRow.classList.remove('playing');
       if (activeSourceItem) activeSourceItem.classList.remove('active-source');
