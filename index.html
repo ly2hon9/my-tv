@@ -15,17 +15,22 @@
 
     /* 顶部频道与选线栏 */
     #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
-    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #sources-list { display: flex; gap: 6px; pointer-events: auto; overflow-x: auto; max-width: 60%; padding-bottom: 2px; }
+    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sources-list { display: flex; gap: 6px; pointer-events: auto; overflow-x: auto; max-width: 65%; padding-bottom: 2px; align-items: center; }
     
-    /* 线路按钮与测速延迟样式 */
+    /* 测速按钮与线路按钮 */
+    .ping-action-btn { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: 500; }
+    .ping-action-btn:hover { background: #2ea043; }
+    
     .route-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
     .route-btn.active { background: #0070f3; border-color: #0070f3; font-weight: bold; }
+    
+    /* 测速标签 */
     .ping-tag { font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: normal; }
-    .ping-testing { color: #aaa; }
-    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <300ms */
-    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 300-800ms */
-    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 超时/不可达 */
+    .ping-testing { background: #555; color: #fff; }
+    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
+    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
+    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 超时 */
 
     /* 状态提示层 */
     #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; }
@@ -76,6 +81,7 @@
 
     let groups = {};
     let activeElement = null;
+    let currentUrls = [];
     let hls = null;
     const video = document.getElementById('video');
     const statusLayer = document.getElementById('status-layer');
@@ -168,11 +174,15 @@
       }
     }
 
-    // 核心新增：线路测速函数
+    // 单条测速逻辑
     function testPing(url, tagElement) {
+      tagElement.style.display = 'inline-block';
+      tagElement.textContent = '...';
+      tagElement.className = 'ping-tag ping-testing';
+
       const start = Date.now();
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
       fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal })
         .then(() => {
@@ -188,16 +198,38 @@
         });
     }
 
+    // 手动触发当前频道所有线路的测速
+    function runManualPing() {
+      const pingTags = document.querySelectorAll('.ping-tag');
+      currentUrls.forEach((url, idx) => {
+        if (pingTags[idx]) {
+          testPing(url, pingTags[idx]);
+        }
+      });
+    }
+
     function selectChannel(name, urls, element) {
       if (activeElement) activeElement.classList.remove('active');
       activeElement = element;
       activeElement.classList.add('active');
 
       document.getElementById('current-title').textContent = name;
+      currentUrls = urls;
 
       const sourcesBox = document.getElementById('sources-list');
       sourcesBox.innerHTML = '';
 
+      // 1. 添加手动测速按钮
+      const pingBtn = document.createElement('button');
+      pingBtn.className = 'ping-action-btn';
+      pingBtn.innerHTML = '⚡ 测速';
+      pingBtn.onclick = (e) => {
+        e.stopPropagation();
+        runManualPing();
+      };
+      sourcesBox.appendChild(pingBtn);
+
+      // 2. 渲染各线路按钮
       urls.forEach((url, idx) => {
         const btn = document.createElement('button');
         btn.className = `route-btn ${idx === 0 ? 'active' : ''}`;
@@ -206,14 +238,11 @@
         titleSpan.textContent = `线 ${idx + 1}`;
         btn.appendChild(titleSpan);
 
-        // 创建测速结果小标签
+        // 默认隐藏小标签，点击“测速”后才展示
         const pingTag = document.createElement('span');
-        pingTag.className = 'ping-tag ping-testing';
-        pingTag.textContent = '测速中...';
+        pingTag.className = 'ping-tag';
+        pingTag.style.display = 'none';
         btn.appendChild(pingTag);
-
-        // 异步并发对该线路发起测速
-        testPing(url, pingTag);
 
         btn.onclick = (e) => {
           e.stopPropagation();
