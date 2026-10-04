@@ -35,7 +35,7 @@
     #current-title { font-size: 16px; font-weight: bold; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
     #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
 
-    /* 居中美化提示卡片（已解决不居中、丑陋问题） */
+    /* 居中美化提示卡片 */
     #status-layer { 
       position: absolute; 
       top: 50%; left: 50%; 
@@ -57,7 +57,7 @@
     }
     #status-layer .icon { font-size: 20px; margin-bottom: 4px; display: block; }
 
-    /* 底部专属统一控制条（把跳转按钮与音量、全屏放成一排） */
+    /* 底部专属统一控制条 */
     #custom-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -75,7 +75,7 @@
     .ctrl-btn:hover { opacity: 1; }
     .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; }
 
-    /* 右侧控制组（第三方跳转按钮 + 音量 + 全屏并排一整行） */
+    /* 右侧控制组（第三方跳转按钮 + 音量 + 全屏） */
     .ctrl-right { display: flex; align-items: center; gap: 10px; }
 
     .external-group {
@@ -155,16 +155,15 @@
       <div id="current-route-badge"></div>
     </div>
     
-    <!-- 优化后的正中悬浮卡片 -->
+    <!-- 正中提示卡片 -->
     <div id="status-layer">
       <span class="icon">📺</span>
       <div id="status-text">正在连接直播源...</div>
     </div>
 
-    <!-- 去掉原生 controls，使用统一自建控制条，避免错位和重叠 -->
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部控制条：跳转按钮与音量、全屏放成一排 -->
+    <!-- 底部控制条 -->
     <div id="custom-controls">
       <div class="ctrl-left">
         <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()" title="播放/暂停">
@@ -175,7 +174,7 @@
       </div>
 
       <div class="ctrl-right">
-        <!-- 第三方播放器跳转按钮组（音量前面整齐排列） -->
+        <!-- 第三方播放器跳转按钮组 -->
         <div class="external-group" title="使用第三方播放器打开该流">
           <!-- 复制链接 -->
           <button class="ext-btn" onclick="copyCurrentUrl()" title="复制直链">
@@ -251,7 +250,6 @@
       }
     }
 
-    // 控制条功能：播放 / 暂停
     function togglePlay() {
       if (video.paused) {
         video.play().then(() => updatePlayBtn(true)).catch(() => {});
@@ -266,25 +264,23 @@
       pauseIcon.style.display = isPlaying ? 'block' : 'none';
     }
 
-    // 控制条功能：静音 / 打开声音
     function toggleMute() {
       video.muted = !video.muted;
       const volIcon = document.getElementById('volume-icon');
       volIcon.setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
     }
 
-    // 控制条功能：全屏
     function toggleFullScreen() {
       const wrap = document.getElementById('player-wrap');
       if (!document.fullscreenElement) {
         if (wrap.requestFullscreen) wrap.requestFullscreen();
-        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); // iOS 原生全屏
+        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
       } else {
         if (document.exitFullscreen) document.exitFullscreen();
       }
     }
 
-    // 唤醒第三方播放器
+    // 修复后的第三方播放器传参协议
     function openPlayer(type) {
       if (!currentStreamUrl) {
         alert("请先点击选择一条频道线路！");
@@ -295,7 +291,9 @@
 
       switch (type) {
         case 'potplayer':
-          targetScheme = `potplayer://${rawUrl}`;
+          // PotPlayer 必须剥离 http(s):// 协议头，否则会被冒号和斜杠截断导致“文件不存在”
+          const cleanUrl = rawUrl.replace(/^https?:\/\//i, '');
+          targetScheme = `potplayer://${cleanUrl}`;
           break;
         case 'vlc':
           targetScheme = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) 
@@ -318,7 +316,6 @@
       }
     }
 
-    // 复制直链
     function copyCurrentUrl() {
       if (!currentStreamUrl) {
         alert("请先选择频道！");
