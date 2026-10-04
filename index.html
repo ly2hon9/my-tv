@@ -280,7 +280,7 @@
       }
     }
 
-    // 修复后的第三方播放器传参协议
+    // 修复后的唤醒逻辑：确保保留完整 http/https 协议头并进行 URI 编码传递
     function openPlayer(type) {
       if (!currentStreamUrl) {
         alert("请先点击选择一条频道线路！");
@@ -291,9 +291,8 @@
 
       switch (type) {
         case 'potplayer':
-          // PotPlayer 必须剥离 http(s):// 协议头，否则会被冒号和斜杠截断导致“文件不存在”
-          const cleanUrl = rawUrl.replace(/^https?:\/\//i, '');
-          targetScheme = `potplayer://${cleanUrl}`;
+          // 对完整 URL（包含 http:// 或 https://）进行标准编码，防止协议头丢失导致 Pin 渲染失败
+          targetScheme = `potplayer://${encodeURIComponent(rawUrl)}`;
           break;
         case 'vlc':
           targetScheme = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) 
