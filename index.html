@@ -10,30 +10,16 @@
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
     /* 播放器区域 */
-    #player-wrap { width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    #player-wrap { width: 100%; height: 38vh; min-height: 220px; background: #000; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
-    /* 顶部频道与选线栏 */
+    /* 顶部当前播放提示 */
     #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
-    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #sources-list { display: flex; gap: 6px; pointer-events: auto; overflow-x: auto; max-width: 65%; padding-bottom: 2px; align-items: center; }
-    
-    /* 测速按钮与线路按钮 */
-    .ping-action-btn { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: 500; }
-    .ping-action-btn:hover { background: #2ea043; }
-    
-    .route-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
-    .route-btn.active { background: #0070f3; border-color: #0070f3; font-weight: bold; }
-    
-    /* 测速标签 */
-    .ping-tag { font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: normal; }
-    .ping-testing { background: #555; color: #fff; }
-    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
-    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
-    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 超时 */
+    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+    #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
 
     /* 状态提示层 */
-    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; }
+    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; }
 
     /* 频道列表与搜索 */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
@@ -41,17 +27,40 @@
     #search-box input { width: 100%; padding: 8px 14px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 频道列表样式 */
+    /* 分组样式 */
     .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
-    .channel-item { padding: 12px 16px; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-    .channel-item:hover { background: #252525; }
-    .channel-item.active { background: #0070f3; color: #fff; font-weight: bold; }
-    .source-badge { font-size: 11px; background: #333; color: #bbb; padding: 2px 6px; border-radius: 10px; }
-    .channel-item.active .source-badge { background: rgba(255,255,255,0.25); color: #fff; }
+
+    /* 频道行样式 */
+    .channel-row { border-bottom: 1px solid #222; background: #181818; }
+    .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; user-select: none; }
+    .channel-main:active { background: #222; }
+    .channel-title { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+    .channel-arrow { font-size: 11px; color: #777; transition: transform 0.2s; }
+    .channel-row.expanded .channel-arrow { transform: rotate(90deg); color: #0070f3; }
+    .channel-row.playing .channel-title { color: #0070f3; font-weight: bold; }
+
+    /* 线路展开面板 */
+    .sources-panel { display: none; background: #111; padding: 6px 12px 10px 16px; border-top: 1px solid #252525; }
+    .channel-row.expanded .sources-panel { display: block; }
+    
+    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; margin-top: 6px; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; cursor: pointer; }
+    .source-item:active { background: #2a2a2a; }
+    .source-item.active-source { border-color: #0070f3; background: #0d2847; }
+    .source-name { font-size: 13px; font-weight: 500; color: #eee; display: flex; align-items: center; gap: 6px; }
+    .source-actions { display: flex; align-items: center; gap: 8px; }
+
+    /* 测速按钮与测速标签 */
+    .ping-btn { background: #2a2a2a; border: 1px solid #444; color: #ccc; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+    .ping-btn:active { background: #444; }
+    .ping-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: none; }
+    .ping-testing { background: #444; color: #fff; }
+    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
+    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
+    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 超时 */
 
     @media (min-width: 768px) {
       body { flex-direction: row; }
-      #sidebar { width: 340px; border-top: none; border-right: 1px solid #282828; height: 100%; }
+      #sidebar { width: 360px; border-top: none; border-right: 1px solid #282828; height: 100%; }
       #player-wrap { flex: 1; height: 100%; min-height: auto; }
     }
   </style>
@@ -61,7 +70,7 @@
   <div id="player-wrap">
     <div id="top-bar">
       <div id="current-title">请选择频道</div>
-      <div id="sources-list"></div>
+      <div id="current-route-badge"></div>
     </div>
     <div id="status-layer">正在连接直播源...</div>
     <video id="video" controls autoplay playsinline webkit-playsinline></video>
@@ -80,11 +89,13 @@
     const DEFAULT_M3U_URL = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
 
     let groups = {};
-    let activeElement = null;
-    let currentUrls = [];
+    let activeChannelRow = null;
+    let activeSourceItem = null;
     let hls = null;
     const video = document.getElementById('video');
     const statusLayer = document.getElementById('status-layer');
+    const currentTitle = document.getElementById('current-title');
+    const routeBadge = document.getElementById('current-route-badge');
 
     function setStatus(text, show = true) {
       if (show) {
@@ -159,14 +170,83 @@
 
         for (let chName in channels) {
           const urls = channels[chName];
-          const chEl = document.createElement('div');
-          chEl.className = 'channel-item';
-          chEl.innerHTML = `
-            <span>${chName}</span>
-            <span class="source-badge">${urls.length} 路线</span>
+          const rowEl = document.createElement('div');
+          rowEl.className = 'channel-row';
+
+          // 频道主行
+          const mainEl = document.createElement('div');
+          mainEl.className = 'channel-main';
+          mainEl.innerHTML = `
+            <div class="channel-title">
+              <span class="channel-arrow">▶</span>
+              <span>${chName}</span>
+            </div>
+            <span style="font-size: 11px; background: #333; color: #bbb; padding: 2px 6px; border-radius: 10px;">${urls.length} 路线</span>
           `;
-          chEl.onclick = () => selectChannel(chName, urls, chEl);
-          subList.appendChild(chEl);
+
+          // 展开面板
+          const panelEl = document.createElement('div');
+          panelEl.className = 'sources-panel';
+
+          urls.forEach((url, idx) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'source-item';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'source-name';
+            nameSpan.innerHTML = `<span>线路 ${idx + 1}</span>`;
+
+            const actionBox = document.createElement('div');
+            actionBox.className = 'source-actions';
+
+            // 测速状态标签
+            const pingTag = document.createElement('span');
+            pingTag.className = 'ping-tag';
+
+            // 测速按钮
+            const pingBtn = document.createElement('button');
+            pingBtn.className = 'ping-btn';
+            pingBtn.textContent = '测速';
+            pingBtn.onclick = (e) => {
+              e.stopPropagation();
+              pingSingleSource(url, pingTag);
+            };
+
+            actionBox.appendChild(pingTag);
+            actionBox.appendChild(pingBtn);
+
+            itemEl.appendChild(nameSpan);
+            itemEl.appendChild(actionBox);
+
+            // 点击该线路直接切换播放
+            itemEl.onclick = (e) => {
+              e.stopPropagation();
+              playSelectedSource(chName, idx + 1, url, rowEl, itemEl);
+            };
+
+            panelEl.appendChild(itemEl);
+          });
+
+          // 点击频道主行展开/折叠路线，并默认播放第一条线路
+          mainEl.onclick = () => {
+            const isExpanded = rowEl.classList.contains('expanded');
+            document.querySelectorAll('.channel-row.expanded').forEach(el => {
+              if (el !== rowEl) el.classList.remove('expanded');
+            });
+
+            if (!isExpanded) {
+              rowEl.classList.add('expanded');
+              // 自动切换为播放第一条线
+              const firstItem = panelEl.querySelector('.source-item');
+              playSelectedSource(chName, 1, urls[0], rowEl, firstItem);
+            } else {
+              rowEl.classList.remove('expanded');
+            }
+          };
+
+          rowEl.appendChild(mainEl);
+          rowEl.appendChild(panelEl);
+          subList.appendChild(rowEl);
         }
 
         container.appendChild(groupEl);
@@ -174,8 +254,8 @@
       }
     }
 
-    // 单条测速逻辑
-    function testPing(url, tagElement) {
+    // 针对单个源进行测速
+    function pingSingleSource(url, tagElement) {
       tagElement.style.display = 'inline-block';
       tagElement.textContent = '...';
       tagElement.className = 'ping-tag ping-testing';
@@ -198,62 +278,22 @@
         });
     }
 
-    // 手动触发当前频道所有线路的测速
-    function runManualPing() {
-      const pingTags = document.querySelectorAll('.ping-tag');
-      currentUrls.forEach((url, idx) => {
-        if (pingTags[idx]) {
-          testPing(url, pingTags[idx]);
-        }
-      });
-    }
+    // 播放指定线路
+    function playSelectedSource(chName, routeIndex, url, rowEl, itemEl) {
+      if (activeChannelRow) activeChannelRow.classList.remove('playing');
+      if (activeSourceItem) activeSourceItem.classList.remove('active-source');
 
-    function selectChannel(name, urls, element) {
-      if (activeElement) activeElement.classList.remove('active');
-      activeElement = element;
-      activeElement.classList.add('active');
+      activeChannelRow = rowEl;
+      activeSourceItem = itemEl;
 
-      document.getElementById('current-title').textContent = name;
-      currentUrls = urls;
+      if (rowEl) rowEl.classList.add('playing');
+      if (itemEl) itemEl.classList.add('active-source');
 
-      const sourcesBox = document.getElementById('sources-list');
-      sourcesBox.innerHTML = '';
+      currentTitle.textContent = chName;
+      routeBadge.style.display = 'inline-block';
+      routeBadge.textContent = `线 ${routeIndex}`;
 
-      // 1. 添加手动测速按钮
-      const pingBtn = document.createElement('button');
-      pingBtn.className = 'ping-action-btn';
-      pingBtn.innerHTML = '⚡ 测速';
-      pingBtn.onclick = (e) => {
-        e.stopPropagation();
-        runManualPing();
-      };
-      sourcesBox.appendChild(pingBtn);
-
-      // 2. 渲染各线路按钮
-      urls.forEach((url, idx) => {
-        const btn = document.createElement('button');
-        btn.className = `route-btn ${idx === 0 ? 'active' : ''}`;
-        
-        const titleSpan = document.createElement('span');
-        titleSpan.textContent = `线 ${idx + 1}`;
-        btn.appendChild(titleSpan);
-
-        // 默认隐藏小标签，点击“测速”后才展示
-        const pingTag = document.createElement('span');
-        pingTag.className = 'ping-tag';
-        pingTag.style.display = 'none';
-        btn.appendChild(pingTag);
-
-        btn.onclick = (e) => {
-          e.stopPropagation();
-          document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          playStream(url);
-        };
-        sourcesBox.appendChild(btn);
-      });
-
-      playStream(urls[0]);
+      playStream(url);
     }
 
     function playStream(url) {
