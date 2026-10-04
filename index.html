@@ -7,35 +7,46 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100%; height: 100%; height: -webkit-fill-available; background-color: #111; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+    html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
-    #player-wrap { width: 100%; height: 35vh; min-height: 220px; background: #000; position: relative; flex-shrink: 0; }
-    #video-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; background: #000; }
-    video { width: 100%; height: 100%; object-fit: contain; }
+    /* 播放器区域 */
+    #player-wrap { width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
-    #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
-    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #sources-list { display: flex; gap: 6px; pointer-events: auto; overflow-x: auto; max-width: 55%; padding-bottom: 2px; }
-    .route-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    /* 顶部频道与选线栏 */
+    #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
+    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sources-list { display: flex; gap: 6px; pointer-events: auto; overflow-x: auto; max-width: 60%; padding-bottom: 2px; }
+    
+    /* 线路按钮与测速延迟样式 */
+    .route-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
     .route-btn.active { background: #0070f3; border-color: #0070f3; font-weight: bold; }
+    .ping-tag { font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: normal; }
+    .ping-testing { color: #aaa; }
+    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <300ms */
+    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 300-800ms */
+    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 超时/不可达 */
 
-    #loading-tip { position: absolute; color: #bbb; font-size: 13px; pointer-events: none; text-align: center; padding: 0 20px; z-index: 5; }
+    /* 状态提示层 */
+    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; }
 
-    #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #181818; border-top: 1px solid #282828; }
-    #search-box { padding: 10px 12px; background: #202020; border-bottom: 1px solid #2e2e2e; flex-shrink: 0; }
-    #search-box input { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
-    #channel-list { flex: 1; min-height: 0; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; touch-action: pan-y; }
+    /* 频道列表与搜索 */
+    #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
+    #search-box { padding: 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; }
+    #search-box input { width: 100%; padding: 8px 14px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
+    #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    .group-header { padding: 12px 16px; background: #242424; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1c1c1c; user-select: none; }
+    /* 频道列表样式 */
+    .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
     .channel-item { padding: 12px 16px; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-    .channel-item:active { background: #2a2a2a; }
+    .channel-item:hover { background: #252525; }
     .channel-item.active { background: #0070f3; color: #fff; font-weight: bold; }
     .source-badge { font-size: 11px; background: #333; color: #bbb; padding: 2px 6px; border-radius: 10px; }
     .channel-item.active .source-badge { background: rgba(255,255,255,0.25); color: #fff; }
 
-    @media (min-width: 768px) or (orientation: landscape) {
+    @media (min-width: 768px) {
       body { flex-direction: row; }
-      #sidebar { width: 320px; border-top: none; border-right: 1px solid #282828; height: 100%; }
+      #sidebar { width: 340px; border-top: none; border-right: 1px solid #282828; height: 100%; }
       #player-wrap { flex: 1; height: 100%; min-height: auto; }
     }
   </style>
@@ -47,10 +58,8 @@
       <div id="current-title">请选择频道</div>
       <div id="sources-list"></div>
     </div>
-    <div id="video-container">
-      <div id="loading-tip">请从下方列表选择频道</div>
-      <video id="video" controls autoplay playsinline webkit-playsinline></video>
-    </div>
+    <div id="status-layer">正在连接直播源...</div>
+    <video id="video" controls autoplay playsinline webkit-playsinline></video>
   </div>
 
   <div id="sidebar">
@@ -69,7 +78,16 @@
     let activeElement = null;
     let hls = null;
     const video = document.getElementById('video');
-    const tip = document.getElementById('loading-tip');
+    const statusLayer = document.getElementById('status-layer');
+
+    function setStatus(text, show = true) {
+      if (show) {
+        statusLayer.textContent = text;
+        statusLayer.style.display = 'block';
+      } else {
+        statusLayer.style.display = 'none';
+      }
+    }
 
     async function init() {
       try {
@@ -85,7 +103,7 @@
         renderList(groups);
       } catch (e) {
         document.getElementById('channel-list').innerHTML = 
-          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">源解析失败，请检查网络</div>`;
+          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">节目单加载失败，请检查网络</div>`;
       }
     }
 
@@ -150,6 +168,26 @@
       }
     }
 
+    // 核心新增：线路测速函数
+    function testPing(url, tagElement) {
+      const start = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5秒超时
+
+      fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal })
+        .then(() => {
+          clearTimeout(timeoutId);
+          const duration = Date.now() - start;
+          tagElement.textContent = `${duration}ms`;
+          tagElement.className = 'ping-tag ' + (duration < 350 ? 'ping-fast' : duration < 800 ? 'ping-medium' : 'ping-slow');
+        })
+        .catch(() => {
+          clearTimeout(timeoutId);
+          tagElement.textContent = "超时";
+          tagElement.className = 'ping-tag ping-slow';
+        });
+    }
+
     function selectChannel(name, urls, element) {
       if (activeElement) activeElement.classList.remove('active');
       activeElement = element;
@@ -159,10 +197,24 @@
 
       const sourcesBox = document.getElementById('sources-list');
       sourcesBox.innerHTML = '';
+
       urls.forEach((url, idx) => {
         const btn = document.createElement('button');
         btn.className = `route-btn ${idx === 0 ? 'active' : ''}`;
-        btn.textContent = `线 ${idx + 1}`;
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = `线 ${idx + 1}`;
+        btn.appendChild(titleSpan);
+
+        // 创建测速结果小标签
+        const pingTag = document.createElement('span');
+        pingTag.className = 'ping-tag ping-testing';
+        pingTag.textContent = '测速中...';
+        btn.appendChild(pingTag);
+
+        // 异步并发对该线路发起测速
+        testPing(url, pingTag);
+
         btn.onclick = (e) => {
           e.stopPropagation();
           document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
@@ -175,55 +227,33 @@
       playStream(urls[0]);
     }
 
-    // 核心修改：让手机直接请求源链接，避免海外节点被源端拦截
     function playStream(url) {
-      tip.textContent = "加载中...";
-      tip.style.display = 'block';
+      setStatus("正在建立连接...");
 
-      // 1. 优先调用 Safari 原生硬件解码（直接播放，绕过 Cloudflare 节点）
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        if (hls) {
-          hls.destroy();
-          hls = null;
-        }
-        video.src = url;
-        video.load();
-        
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-            tip.style.display = 'none';
-          }).catch(() => {
-            // Safari 自动播放策略拦截时提示用户手动点屏幕
-            tip.textContent = "请点击播放按钮开启播放";
-          });
-        }
-      } 
-      // 2. 安卓/PC 浏览器降级使用 Hls.js
-      else if (Hls.isSupported()) {
+      if (Hls.isSupported()) {
         if (hls) hls.destroy();
-        hls = new Hls({ enableWorker: true });
+        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
         hls.loadSource(url);
         hls.attachMedia(video);
+
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          tip.style.display = 'none';
-          video.play().catch(() => {
-            tip.textContent = "请点击播放按钮开启播放";
-          });
+          setStatus("", false);
+          video.play().catch(() => setStatus("请轻触视频画面以开始播放"));
         });
+
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            tip.textContent = "当前线路不可用，请尝试切换线路";
-            tip.style.display = 'block';
+            setStatus("线路连接失败，请切换其他线路");
           }
         });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.load();
+        video.play().then(() => setStatus("", false)).catch(() => setStatus("请轻触视频画面以开始播放"));
       }
     }
 
-    // 监听视频正在播放时隐藏加载文字
-    video.addEventListener('playing', () => {
-      tip.style.display = 'none';
-    });
+    video.addEventListener('playing', () => setStatus("", false));
 
     function handleSearch() {
       const kw = document.getElementById('filter').value.trim().toLowerCase();
