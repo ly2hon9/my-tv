@@ -2,31 +2,35 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>我的电视直播</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { display: flex; flex-direction: column; height: 100vh; background-color: #111; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
-    
-    #player-wrap { width: 100%; height: 35vh; background: #000; position: relative; display: flex; flex-direction: column; }
-    #video-container { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-    video { width: 100%; height: 100%; outline: none; }
-    
-    #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 14px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
-    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
-    #sources-list { display: flex; gap: 6px; pointer-events: auto; }
-    .route-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; height: -webkit-fill-available; background-color: #111; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* 播放器区域（固定比例高度） */
+    #player-wrap { width: 100%; height: 35vh; min-height: 220px; background: #000; position: relative; flex-shrink: 0; }
+    #video-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; background: #000; }
+    video { width: 100%; height: 100%; object-fit: contain; }
+
+    /* 顶部频道与选线栏 */
+    #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
+    #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sources-list { display: flex; gap: 6px; pointer-events: auto; overflow-x: auto; max-width: 55%; padding-bottom: 2px; }
+    .route-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .route-btn.active { background: #0070f3; border-color: #0070f3; font-weight: bold; }
 
-    #loading-tip { position: absolute; color: #bbb; font-size: 14px; pointer-events: none; text-align: center; }
+    #loading-tip { position: absolute; color: #bbb; font-size: 13px; pointer-events: none; text-align: center; padding: 0 20px; z-index: 5; }
 
-    #sidebar { flex: 1; display: flex; flex-direction: column; background: #181818; border-top: 1px solid #282828; }
-    #search-box { padding: 10px 12px; background: #202020; border-bottom: 1px solid #2e2e2e; }
+    /* 频道列表侧边栏（强制开启 iOS 触摸滚动） */
+    #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #181818; border-top: 1px solid #282828; }
+    #search-box { padding: 10px 12px; background: #202020; border-bottom: 1px solid #2e2e2e; flex-shrink: 0; }
     #search-box input { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
-    #channel-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #channel-list { flex: 1; min-height: 0; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; touch-action: pan-y; }
 
-    .group-header { padding: 10px 16px; background: #252525; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1f1f1f; user-select: none; }
+    /* 分组与单项样式 */
+    .group-header { padding: 12px 16px; background: #242424; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1c1c1c; user-select: none; }
     .channel-item { padding: 12px 16px; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
     .channel-item:active { background: #2a2a2a; }
     .channel-item.active { background: #0070f3; color: #fff; font-weight: bold; }
@@ -35,8 +39,8 @@
 
     @media (min-width: 768px) or (orientation: landscape) {
       body { flex-direction: row; }
-      #sidebar { width: 320px; border-top: none; border-right: 1px solid #282828; height: 100vh; }
-      #player-wrap { flex: 1; height: 100vh; }
+      #sidebar { width: 320px; border-top: none; border-right: 1px solid #282828; height: 100%; }
+      #player-wrap { flex: 1; height: 100%; min-height: auto; }
     }
   </style>
 </head>
@@ -48,7 +52,7 @@
       <div id="sources-list"></div>
     </div>
     <div id="video-container">
-      <div id="loading-tip">请从下方选择频道</div>
+      <div id="loading-tip">请从下方列表选择频道</div>
       <video id="video" controls autoplay playsinline webkit-playsinline></video>
     </div>
   </div>
@@ -58,7 +62,7 @@
       <input type="text" id="filter" placeholder="搜索频道或分类..." oninput="handleSearch()">
     </div>
     <div id="channel-list">
-      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单，请稍候...</div>
+      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单...</div>
     </div>
   </div>
 
@@ -85,7 +89,7 @@
         renderList(groups);
       } catch (e) {
         document.getElementById('channel-list').innerHTML = 
-          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">源解析失败，请检查网络连接</div>`;
+          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">源解析失败，请检查网络</div>`;
       }
     }
 
@@ -178,7 +182,18 @@
     function playStream(url) {
       tip.style.display = 'none';
 
-      if (Hls.isSupported()) {
+      // iOS Safari 原生解码支持最优秀，优先调用原生，解决跨域及播放问题
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+        video.src = url;
+        video.play().catch(() => {
+          tip.textContent = "当前线路不可用或被跨域限制，请切换线路";
+          tip.style.display = 'block';
+        });
+      } else if (Hls.isSupported()) {
         if (hls) hls.destroy();
         hls = new Hls({ enableWorker: true });
         hls.loadSource(url);
@@ -190,9 +205,6 @@
             tip.style.display = 'block';
           }
         });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.play().catch(() => {});
       }
     }
 
