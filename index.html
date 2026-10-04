@@ -3,37 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>我的超级解码电视</title>
-  <!-- 引入标准 HLS 解码库 -->
+  <title>我的电视直播</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <!-- 引入网页版底层流媒体超级解码器 (支持 TS/非标流) -->
-  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
     /* 播放器区域 */
-    #player-wrap { width: 100%; height: 38vh; min-height: 220px; background: #000; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    #player-wrap { width: 100%; height: 42vh; min-height: 250px; background: #000; position: relative; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; }
     video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
-    /* 顶部当前播放提示 */
+    /* 顶部提示 */
     #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
     #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
-    #engine-badge { font-size: 11px; background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; display: none; }
+    #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
 
     /* 状态提示层 */
-    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.75); padding: 8px 16px; border-radius: 6px; font-size: 13px; pointer-events: none; display: none; text-align: center; }
+    #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; text-align: center; max-width: 80%; }
 
-    /* 频道列表与搜索 */
+    /* 图一底部第三方跳转栏 */
+    #external-bar {
+      position: absolute; bottom: 10px; right: 12px; z-index: 15;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 4px 6px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .ext-btn {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      cursor: pointer;
+      padding: 2px;
+      transition: transform 0.1s;
+    }
+    .ext-btn:active { transform: scale(0.9); }
+    .ext-btn svg, .ext-btn img { width: 18px; height: 18px; }
+
+    /* 侧边频道列表 */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
     #search-box { padding: 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; }
     #search-box input { width: 100%; padding: 8px 14px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 分组样式 */
     .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
-
-    /* 频道行样式 */
     .channel-row { border-bottom: 1px solid #222; background: #181818; }
     .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; user-select: none; }
     .channel-main:active { background: #222; }
@@ -42,13 +64,11 @@
     .channel-row.expanded .channel-arrow { transform: rotate(90deg); color: #0070f3; }
     .channel-row.playing .channel-title { color: #0070f3; font-weight: bold; }
 
-    /* 频道行右侧控制区域 */
     .channel-right-tools { display: flex; align-items: center; gap: 8px; }
     .badge-lines { font-size: 11px; background: #333; color: #bbb; padding: 2px 7px; border-radius: 10px; }
     .btn-ping-channel { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; }
     .btn-ping-channel:active { background: #2ea043; }
 
-    /* 线路展开面板 */
     .sources-panel { display: none; background: #111; padding: 4px 12px 10px 16px; border-top: 1px solid #242424; }
     .channel-row.expanded .sources-panel { display: block; }
     
@@ -57,7 +77,6 @@
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
     .source-name { font-size: 13px; font-weight: 500; color: #ddd; }
 
-    /* 延迟测试标签 */
     .ping-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: none; font-weight: 500; }
     .ping-testing { background: #444; color: #fff; }
     .ping-fast { background: #238636; color: #fff; }
@@ -73,37 +92,68 @@
 </head>
 <body>
 
+  <!-- 播放区 -->
   <div id="player-wrap">
     <div id="top-bar">
       <div id="current-title">请选择频道</div>
-      <div id="engine-badge">超级软解</div>
+      <div id="current-route-badge"></div>
     </div>
-    <div id="status-layer">正在启动超级解码引擎...</div>
+    
+    <div id="status-layer">正在连接直播源...</div>
     <video id="video" controls autoplay playsinline webkit-playsinline></video>
+
+    <!-- 图一右下角：唤醒外部第三方播放器栏 -->
+    <div id="external-bar" title="用外部播放器打开当前源">
+      <!-- 复制当前流链接 -->
+      <button class="ext-btn" onclick="copyCurrentUrl()" title="复制当前直播流链接">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+      <!-- PotPlayer (PC) -->
+      <button class="ext-btn" onclick="openPlayer('potplayer')" title="PotPlayer">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FFC800"/><polygon points="9.5,7.5 16.5,12 9.5,16.5" fill="#333"/></svg>
+      </button>
+      <!-- VLC (全平台) -->
+      <button class="ext-btn" onclick="openPlayer('vlc')" title="VLC 播放器">
+        <svg viewBox="0 0 24 24"><path d="M12 2L3 19h18L12 2z" fill="#FF8800"/><polygon points="12,6 6.5,17 17.5,17" fill="#fff"/><polygon points="12,10 8.5,16 15.5,16" fill="#FF8800"/></svg>
+      </button>
+      <!-- IINA (Mac) -->
+      <button class="ext-btn" onclick="openPlayer('iina')" title="IINA 播放器">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#4B3869"/><circle cx="12" cy="12" r="6" fill="#fff"/><polygon points="11,9.5 14.5,12 11,14.5" fill="#4B3869"/></svg>
+      </button>
+      <!-- nPlayer (移动端) -->
+      <button class="ext-btn" onclick="openPlayer('nplayer')" title="nPlayer">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#007AFF"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
+      </button>
+      <!-- APTV (iOS) -->
+      <button class="ext-btn" onclick="openPlayer('aptv')" title="APTV">
+        <svg viewBox="0 0 24 24"><rect width="22" height="22" x="1" y="1" rx="5" fill="#000"/><polygon points="9,6 17,12 9,18" fill="#30D158"/></svg>
+      </button>
+    </div>
   </div>
 
+  <!-- 频道列表侧边栏 -->
   <div id="sidebar">
     <div id="search-box">
       <input type="text" id="filter" placeholder="搜索频道或分类..." oninput="handleSearch()">
     </div>
     <div id="channel-list">
-      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单，请稍候...</div>
+      <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单...</div>
     </div>
   </div>
 
   <script>
-    // 你的专属酒店源地址
+    // 支持直接使用你的酒店源或自建源
     const DEFAULT_M3U_URL = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
 
     let groups = {};
     let activeChannelRow = null;
     let activeSourceItem = null;
+    let currentStreamUrl = "";
     let hls = null;
-    let mpegtsPlayer = null;
     const video = document.getElementById('video');
     const statusLayer = document.getElementById('status-layer');
     const currentTitle = document.getElementById('current-title');
-    const engineBadge = document.getElementById('engine-badge');
+    const routeBadge = document.getElementById('current-route-badge');
 
     function setStatus(text, show = true) {
       if (show) {
@@ -114,30 +164,70 @@
       }
     }
 
-    // 备用抓取通道（防跨域/防源挂）
-    async function fetchWithFallback(url) {
-      const mirrors = [
-        url,
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
-        "https://corsproxy.io/?" + encodeURIComponent(url)
-      ];
-      for (let target of mirrors) {
-        try {
-          const res = await fetch(target, { cache: "no-store" });
-          if (res.ok) return await res.text();
-        } catch (_) {}
+    // 唤醒第三方播放器逻辑 (URL Scheme)
+    function openPlayer(type) {
+      if (!currentStreamUrl) {
+        alert("请先点击选择一个频道线路！");
+        return;
       }
-      throw new Error("节目单同步失败");
+
+      let targetScheme = "";
+      const rawUrl = currentStreamUrl.trim();
+
+      switch (type) {
+        case 'potplayer':
+          targetScheme = `potplayer://${rawUrl}`;
+          break;
+        case 'vlc':
+          // 兼容移动端和桌面端的 VLC 唤醒协议
+          targetScheme = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) 
+            ? `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(rawUrl)}`
+            : `vlc://${rawUrl}`;
+          break;
+        case 'iina':
+          targetScheme = `iina://weblink?url=${encodeURIComponent(rawUrl)}`;
+          break;
+        case 'nplayer':
+          targetScheme = `nplayer-${rawUrl}`;
+          break;
+        case 'aptv':
+          targetScheme = `aptv://install?url=${encodeURIComponent(rawUrl)}`;
+          break;
+      }
+
+      if (targetScheme) {
+        window.location.href = targetScheme;
+      }
+    }
+
+    // 快捷复制当前流链接
+    function copyCurrentUrl() {
+      if (!currentStreamUrl) {
+        alert("请先选择频道！");
+        return;
+      }
+      navigator.clipboard.writeText(currentStreamUrl).then(() => {
+        alert("已复制当前视频直链，可直接粘贴到任意播放器播放！\n" + currentStreamUrl);
+      }).catch(() => {
+        prompt("请手动复制链接：", currentStreamUrl);
+      });
     }
 
     async function init() {
       try {
-        const text = await fetchWithFallback(DEFAULT_M3U_URL);
+        let res;
+        try {
+          res = await fetch(DEFAULT_M3U_URL);
+          if (!res.ok) throw new Error();
+        } catch (_) {
+          res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(DEFAULT_M3U_URL));
+        }
+        const text = await res.text();
         parseM3U(text);
         renderList(groups);
       } catch (e) {
         document.getElementById('channel-list').innerHTML = 
-          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">节目单加载失败，请检查网络后刷新</div>`;
+          `<div style="padding: 20px; color: #ff6b6b; font-size: 13px; text-align: center;">节目单加载失败，请检查网络</div>`;
       }
     }
 
@@ -276,7 +366,6 @@
       }
     }
 
-    // 测速
     function measureStreamLatency(url, tagElement) {
       tagElement.style.display = 'inline-block';
       tagElement.textContent = '测速中...';
@@ -311,84 +400,38 @@
       if (itemEl) itemEl.classList.add('active-source');
 
       currentTitle.textContent = chName;
+      routeBadge.style.display = 'inline-block';
+      routeBadge.textContent = `线 ${routeIndex}`;
+      currentStreamUrl = url;
+
       playStream(url);
     }
 
-    // 核心改造：超级解码调度引擎
     function playStream(url) {
-      setStatus("正在启动超级解码...");
-      engineBadge.style.display = 'inline-block';
+      setStatus("正在建立连接，若黑屏可点击右下角用外部播放器直接观看...");
 
-      // 1. 清理已有实例
-      if (hls) { hls.destroy(); hls = null; }
-      if (mpegtsPlayer) { mpegtsPlayer.destroy(); mpegtsPlayer = null; }
-
-      // 2. 策略一：尝试使用超级软解引擎 (mpegts.js - 解决广播 TS/非标流与老旧编码)
-      if (window.mpegts && mpegts.isSupported()) {
-        try {
-          mpegtsPlayer = mpegts.createPlayer({
-            type: 'mse',
-            isLive: true,
-            url: url
-          }, {
-            enableWorker: true,
-            lazyLoad: false,
-            liveBufferLatencyChasing: true
-          });
-          mpegtsPlayer.attachMediaElement(video);
-          mpegtsPlayer.load();
-          mpegtsPlayer.play().then(() => {
-            setStatus("", false);
-          }).catch(() => {
-            fallbackToHls(url);
-          });
-
-          mpegtsPlayer.on(mpegts.Events.ERROR, () => {
-            fallbackToHls(url);
-          });
-          return;
-        } catch (_) {
-          fallbackToHls(url);
-        }
-      } else {
-        fallbackToHls(url);
-      }
-    }
-
-    // 策略二：降级到 HLS.js 引擎
-    function fallbackToHls(url) {
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
-        hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true
-        });
+        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
         hls.loadSource(url);
         hls.attachMedia(video);
+
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setStatus("", false);
-          video.play().catch(() => setStatus("请轻触画面开始播放"));
+          video.play().catch(() => setStatus("请轻触视频画面以开始播放"));
         });
+
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            fallbackToNative(url);
+            setStatus("网页无法硬解该流格式，请直接点击右下角图标调用外部播放器", true);
           }
         });
-      } else {
-        fallbackToNative(url);
-      }
-    }
-
-    // 策略三：降级到浏览器原生硬件播放
-    function fallbackToNative(url) {
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
         video.load();
         video.play().then(() => setStatus("", false)).catch(() => {
-          setStatus("当前线路被限制，请切换线路或点击画面播放");
+          setStatus("网页无法硬解该流格式，请直接点击右下角图标调用外部播放器", true);
         });
-      } else {
-        setStatus("该线路无法解码，请尝试切换线路");
       }
     }
 
