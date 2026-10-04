@@ -9,28 +9,22 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
-    /* 播放器区域 */
     #player-wrap { width: 100%; height: 38vh; min-height: 220px; background: #000; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
-    /* 顶部当前播放提示 */
     #top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
     #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
 
-    /* 状态提示层 */
     #status-layer { position: absolute; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 6px; font-size: 14px; pointer-events: none; display: none; }
 
-    /* 频道列表与搜索 */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
     #search-box { padding: 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; }
     #search-box input { width: 100%; padding: 8px 14px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; }
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 分组样式 */
     .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
 
-    /* 频道行样式 */
     .channel-row { border-bottom: 1px solid #222; background: #181818; }
     .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; user-select: none; }
     .channel-main:active { background: #222; }
@@ -39,13 +33,11 @@
     .channel-row.expanded .channel-arrow { transform: rotate(90deg); color: #0070f3; }
     .channel-row.playing .channel-title { color: #0070f3; font-weight: bold; }
 
-    /* 频道行右侧控制区域 */
     .channel-right-tools { display: flex; align-items: center; gap: 8px; }
     .badge-lines { font-size: 11px; background: #333; color: #bbb; padding: 2px 7px; border-radius: 10px; }
     .btn-ping-channel { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; }
     .btn-ping-channel:active { background: #2ea043; }
 
-    /* 线路展开面板 */
     .sources-panel { display: none; background: #111; padding: 4px 12px 10px 16px; border-top: 1px solid #242424; }
     .channel-row.expanded .sources-panel { display: block; }
     
@@ -54,12 +46,11 @@
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
     .source-name { font-size: 13px; font-weight: 500; color: #ddd; }
 
-    /* 延迟测试标签 */
     .ping-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: none; font-weight: 500; }
     .ping-testing { background: #444; color: #fff; }
-    .ping-fast { background: #238636; color: #fff; }     /* 绿色: <350ms */
-    .ping-medium { background: #d29922; color: #fff; }   /* 黄色: 350-800ms */
-    .ping-slow { background: #cf222e; color: #fff; }     /* 红色: >800ms 或 无法连通 */
+    .ping-fast { background: #238636; color: #fff; }
+    .ping-medium { background: #d29922; color: #fff; }
+    .ping-slow { background: #cf222e; color: #fff; }
 
     @media (min-width: 768px) {
       body { flex-direction: row; }
@@ -89,7 +80,7 @@
   </div>
 
   <script>
-    const DEFAULT_M3U_URL = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
+    const DEFAULT_M3U_URL = "https://live.fanmingming.com/tv/m3u/ipv6.m3u";
 
     let groups = {};
     let activeChannelRow = null;
@@ -226,7 +217,6 @@
             if (!rowEl.classList.contains('expanded')) {
               rowEl.classList.add('expanded');
             }
-            // 触发该频道全部线路测速
             pingTags.forEach(item => {
               measureStreamLatency(item.url, item.tag);
             });
@@ -263,58 +253,27 @@
       }
     }
 
-    // 核心改进：结合原生媒体预握手与跨域探测技术
     function measureStreamLatency(url, tagElement) {
       tagElement.style.display = 'inline-block';
       tagElement.textContent = '测速中...';
       tagElement.className = 'ping-tag ping-testing';
 
       const startTime = performance.now();
-      let finished = false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
 
-      // 设置 4 秒绝对超时
-      const timer = setTimeout(() => {
-        if (!finished) {
-          finished = true;
-          tagElement.textContent = "无法连通";
-          tagElement.className = 'ping-tag ping-slow';
-        }
-      }, 4000);
-
-      // 方法：利用浏览器底层的媒体对象探测握手时长，绕过 fetch 对响应体的跨域强制阻断
-      const probeVideo = document.createElement('video');
-      probeVideo.preload = 'metadata';
-
-      const done = (isSuccess) => {
-        if (finished) return;
-        finished = true;
-        clearTimeout(timer);
-        probeVideo.src = '';
-        probeVideo.remove();
-
-        const duration = Math.round(performance.now() - startTime);
-
-        if (isSuccess) {
+      fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache', signal: controller.signal })
+        .then(() => {
+          clearTimeout(timer);
+          const duration = Math.round(performance.now() - startTime);
           tagElement.textContent = `${duration}ms`;
           tagElement.className = 'ping-tag ' + (duration < 400 ? 'ping-fast' : duration < 900 ? 'ping-medium' : 'ping-slow');
-        } else {
-          // 如果连接失败，再尝试进行一次轻量无凭据握手验证是否存在网络通畅但仅为鉴权拦截
-          fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache' })
-            .then(() => {
-              const fetchDuration = Math.round(performance.now() - startTime);
-              tagElement.textContent = `${fetchDuration}ms`;
-              tagElement.className = 'ping-tag ' + (fetchDuration < 400 ? 'ping-fast' : fetchDuration < 900 ? 'ping-medium' : 'ping-slow');
-            })
-            .catch(() => {
-              tagElement.textContent = "无法连通";
-              tagElement.className = 'ping-tag ping-slow';
-            });
-        }
-      };
-
-      probeVideo.onloadedmetadata = () => done(true);
-      probeVideo.onerror = () => done(false);
-      probeVideo.src = url;
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          tagElement.textContent = "无法连通";
+          tagElement.className = 'ping-tag ping-slow';
+        });
     }
 
     function playSelectedSource(chName, routeIndex, url, rowEl, itemEl) {
