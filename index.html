@@ -17,7 +17,9 @@
       position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999 !important; max-height: none !important;
     }
 
-    video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
+    video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; transition: object-fit 0.2s; }
+    video.fit-cover { object-fit: cover; }
+    video.fit-fill { object-fit: fill; }
 
     #top-bar { 
       position: absolute; top: 0; left: 0; right: 0; padding: 12px 18px; 
@@ -36,6 +38,13 @@
       border: 1px solid rgba(255,255,255,0.12); padding: 14px 22px; border-radius: 12px; 
       font-size: 13px; pointer-events: none; display: none; text-align: center; max-width: 85%; 
       box-shadow: 0 10px 30px rgba(0,0,0,0.6); line-height: 1.6;
+    }
+
+    /* 手势操作提示浮层 */
+    #gesture-tip {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.75); color: #fff; padding: 8px 16px; border-radius: 20px;
+      font-size: 13px; z-index: 9; pointer-events: none; opacity: 0; transition: opacity 0.2s;
     }
 
     #custom-controls {
@@ -64,12 +73,27 @@
     #progress-container:hover #progress-thumb { transform: translateY(-50%) scale(1); }
 
     .controls-inner { height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; }
-    .ctrl-left { display: flex; align-items: center; gap: 10px; }
+    .ctrl-left { display: flex; align-items: center; gap: 8px; }
     .ctrl-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; opacity: 0.85; transition: opacity 0.2s; font-size: 13px; }
     .ctrl-btn:hover { opacity: 1; }
     .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; white-space: nowrap; user-select: none; }
-    .speed-btn { font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
-    .speed-btn:hover { background: rgba(255,255,255,0.25); }
+    
+    .pill-btn {
+      font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ddd;
+    }
+    .pill-btn:hover { background: rgba(255,255,255,0.25); color: #fff; }
+
+    /* 音量条滑块容器 */
+    .volume-box {
+      display: flex; align-items: center; gap: 4px; position: relative;
+    }
+    .volume-slider {
+      width: 55px; height: 4px; -webkit-appearance: none; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; cursor: pointer;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #fff;
+    }
 
     .ctrl-right { display: flex; align-items: center; gap: 8px; }
     .external-group { display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(8px); padding: 3px 6px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15); }
@@ -80,7 +104,10 @@
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
     #search-box { padding: 10px 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
     .search-row { display: flex; align-items: center; gap: 6px; }
-    #search-box input { flex: 1; min-width: 0; padding: 8px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
+    .search-input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+    #search-box input { width: 100%; padding: 8px 28px 8px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
+    .btn-clear-kw { position: absolute; right: 8px; color: #777; cursor: pointer; font-size: 14px; display: none; }
+
     .btn-search { background: #0070f3; border: none; color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer; font-weight: 500; white-space: nowrap; }
     .btn-tool-mid { background: #2b2b2b; border: 1px solid #444; color: #eee; border-radius: 6px; padding: 8px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
     .btn-tool-mid:hover { background: #383838; }
@@ -169,6 +196,9 @@
       <div id="status-text">正在连接直播源...</div>
     </div>
 
+    <!-- 触摸与操作提示 -->
+    <div id="gesture-tip"></div>
+
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
     <!-- 底部控制栏 -->
@@ -188,11 +218,26 @@
             <svg id="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
           </button>
           
-          <button class="ctrl-btn speed-btn" id="speed-btn" onclick="cyclePlaybackRate()" title="切换播放倍速">1.0倍</button>
+          <button class="ctrl-btn pill-btn" id="speed-btn" onclick="cyclePlaybackRate()" title="切换倍速">1.0倍</button>
+          <button class="ctrl-btn pill-btn" id="ratio-btn" onclick="cycleAspectRatio()" title="切换画面比例">适应</button>
+          
+          <div class="volume-box">
+            <button class="ctrl-btn" onclick="toggleMute()" title="静音切换">
+              <svg id="volume-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            </button>
+            <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.05" value="1" oninput="changeVolume(this.value)">
+          </div>
+
           <span class="ctrl-time" id="stream-time">00:00 / 00:00</span>
         </div>
 
         <div class="ctrl-right">
+          <!-- 画中画小窗播放 -->
+          <button class="ctrl-btn" onclick="togglePiP()" title="画中画小窗播放">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="8" height="7" rx="1"/></svg>
+          </button>
+
+          <!-- 外部播放器直连调起 -->
           <div class="external-group" title="使用第三方播放器打开该流">
             <button class="ext-btn" onclick="copyCurrentUrl()" title="复制直链">
               <svg viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -221,10 +266,7 @@
             </button>
           </div>
 
-          <button class="ctrl-btn" onclick="toggleMute()" title="静音切换">
-            <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-          </button>
-          <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏模式 (快捷键 F)">
+          <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏模式 (F)">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
         </div>
@@ -235,7 +277,10 @@
   <div id="sidebar">
     <div id="search-box">
       <div class="search-row">
-        <input type="text" id="filter" placeholder="搜索片名、视频、电视频道..." onkeydown="handleEnterSearch(event)">
+        <div class="search-input-wrap">
+          <input type="text" id="filter" placeholder="搜索片名、视频、电视频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
+          <span class="btn-clear-kw" id="clear-kw" onclick="clearSearchInput()">✕</span>
+        </div>
         <button class="btn-search" onclick="triggerSearch()">搜索</button>
         <button class="btn-tool-mid" id="btn-show-fav" onclick="switchSidebarView('fav')">⭐ 收藏</button>
         <button class="btn-tool-mid" id="btn-show-history" onclick="switchSidebarView('history')">🕒 历史</button>
@@ -252,6 +297,7 @@
     </div>
   </div>
 
+  <!-- 配置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
@@ -273,7 +319,6 @@
   </div>
 
   <script>
-    // D1 API 统一存取函数
     async function getD1Data(key, defaultVal = '') {
       try {
         const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
@@ -303,10 +348,9 @@
     const KEY_M3U = "custom_tv_m3u_url";
     const KEY_SUB = "custom_vod_sub_url";
     const KEY_SITES = "cached_parsed_sites";
-    const KEY_HISTORY = "history_list_v2"; // 统一规范化历史记录键
-    const KEY_FAVS = "favorites_list_v2";  // 统一规范化收藏夹键
+    const KEY_HISTORY = "history_list_v2";
+    const KEY_FAVS = "favorites_list_v2";
 
-    // Base58 快速解码器
     const B58_MAP = {};
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
@@ -339,7 +383,7 @@
     let groups = {};
     let currentStreamUrl = "";
     let currentVodResults = [];
-    let currentActiveIndex = 0;
+    let currentActiveSiteName = ""; // 锁定当前正在播放的源站名称，防止重排冲突
     let currentActiveEp = 0;
     let isLiveMode = false;
     let hls = null;
@@ -352,6 +396,13 @@
 
     const RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
     let currentRateIdx = 0;
+
+    const RATIOS = [
+      { text: "适应", class: "" },
+      { text: "裁剪", class: "fit-cover" },
+      { text: "拉伸", class: "fit-fill" }
+    ];
+    let currentRatioIdx = 0;
 
     const video = document.getElementById('video');
     const wrap = document.getElementById('player-wrap');
@@ -367,6 +418,9 @@
     const progressBar = document.getElementById('progress-bar');
     const progressTrack = document.getElementById('progress-track');
     const speedBtn = document.getElementById('speed-btn');
+    const ratioBtn = document.getElementById('ratio-btn');
+    const gestureTip = document.getElementById('gesture-tip');
+    const volSlider = document.getElementById('vol-slider');
 
     function setStatus(text, show = true) {
       if (show) {
@@ -375,6 +429,12 @@
       } else {
         statusLayer.style.display = 'none';
       }
+    }
+
+    function showGestureTip(text) {
+      gestureTip.textContent = text;
+      gestureTip.style.opacity = '1';
+      setTimeout(() => { gestureTip.style.opacity = '0'; }, 800);
     }
 
     function formatTime(sec) {
@@ -396,24 +456,90 @@
 
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('pointerdown', showControls);
-    wrap.addEventListener('touchstart', showControls, { passive: true });
+
+    /* 手机端手势交互（双击快进/后退/暂停） */
+    let lastTapTime = 0;
+    wrap.addEventListener('touchend', (e) => {
+      const now = performance.now();
+      const rect = wrap.getBoundingClientRect();
+      const touch = e.changedTouches[0];
+      if (now - lastTapTime < 300) {
+        const xRatio = (touch.clientX - rect.left) / rect.width;
+        if (xRatio < 0.35) {
+          if (!isLiveMode) {
+            video.currentTime = Math.max(0, video.currentTime - 10);
+            showGestureTip("⏪ 快退 10 秒");
+          }
+        } else if (xRatio > 0.65) {
+          if (!isLiveMode) {
+            video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+            showGestureTip("⏩ 快进 10 秒");
+          }
+        } else {
+          togglePlay();
+          showGestureTip(video.paused ? "⏸ 暂停" : "▶ 播放");
+        }
+      }
+      lastTapTime = now;
+      showControls();
+    }, { passive: true });
 
     function cyclePlaybackRate() {
       currentRateIdx = (currentRateIdx + 1) % RATES.length;
       const rate = RATES[currentRateIdx];
       video.playbackRate = rate;
       speedBtn.textContent = `${rate}倍`;
+      showGestureTip(`倍速：${rate}x`);
     }
 
-    /* 规范的收藏与历史数据读取 */
+    function cycleAspectRatio() {
+      currentRatioIdx = (currentRatioIdx + 1) % RATIOS.length;
+      const item = RATIOS[currentRatioIdx];
+      video.className = item.class;
+      ratioBtn.textContent = item.text;
+      showGestureTip(`画面比例：${item.text}`);
+    }
+
+    function changeVolume(val) {
+      video.volume = parseFloat(val);
+      video.muted = (val == 0);
+      document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
+    }
+
+    async function togglePiP() {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else if (video.requestPictureInPicture) {
+          await video.requestPictureInPicture();
+        }
+      } catch (err) {
+        alert("当前设备或浏览器暂不支持画中画功能");
+      }
+    }
+
+    /* 剧集自动连播下一集（核心体验提升） */
+    video.addEventListener('ended', () => {
+      if (isLiveMode || !currentPlayingMeta) return;
+      const currentItem = currentVodResults.find(r => r.siteName === currentActiveSiteName) || currentVodResults[0];
+      const episodes = getEpisodesList(currentItem);
+      if (episodes.length > 0 && currentActiveEp < episodes.length - 1) {
+        const nextEpIdx = currentActiveEp + 1;
+        setStatus(`🎉 本集播放完毕，即将自动连播第 ${nextEpIdx + 1} 集...`, true);
+        setTimeout(() => {
+          currentActiveEp = nextEpIdx;
+          renderMoonTvStyleSources(currentVodResults);
+          playCurrentVodSource(currentItem, nextEpIdx);
+        }, 1500);
+      }
+    });
+
     async function getFavoritesList() {
       const data = await getD1Data(KEY_FAVS, '[]');
       try { 
         const res = typeof data === 'object' ? data : JSON.parse(data);
         return Array.isArray(res) ? res : [];
-      } catch (_) { 
-        return []; 
-      }
+      } catch (_) { return []; }
     }
 
     async function getHistoryList() {
@@ -421,9 +547,7 @@
       try { 
         const res = typeof data === 'object' ? data : JSON.parse(data);
         return Array.isArray(res) ? res : [];
-      } catch (_) { 
-        return []; 
-      }
+      } catch (_) { return []; }
     }
 
     function updateFavIconState() {
@@ -464,7 +588,6 @@
       if (currentView === 'fav') renderFavoritesView();
     }
 
-    /* 播放中自动记录历史 */
     let lastSavedTime = 0;
     async function savePlaybackProgress() {
       if (isLiveMode || !currentPlayingMeta || !video.duration || video.currentTime < 2) return;
@@ -559,6 +682,7 @@
             manualPlayOnly(item.url);
           } else {
             document.getElementById('filter').value = item.title;
+            toggleClearBtn(item.title);
             switchMode('vod');
             triggerSearch();
           }
@@ -575,7 +699,6 @@
       renderFavoritesView();
     }
 
-    /* 修复历史记录列表渲染，彻底消灭 undefined */
     async function renderHistoryView() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">正在读取历史...</div>';
@@ -696,14 +819,16 @@
     progressContainer.addEventListener('pointerup', onPointerUp);
     progressContainer.addEventListener('pointercancel', onPointerUp);
 
+    /* 快捷键库扩充 */
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT') return;
       switch (e.code) {
-        case 'Space': e.preventDefault(); togglePlay(); break;
-        case 'ArrowLeft': e.preventDefault(); if (!isLiveMode) { video.currentTime = Math.max(0, video.currentTime - 5); showControls(); } break;
-        case 'ArrowRight': e.preventDefault(); if (!isLiveMode) { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); showControls(); } break;
-        case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); showControls(); break;
-        case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); showControls(); break;
+        case 'Space': case 'KeyK': e.preventDefault(); togglePlay(); break;
+        case 'ArrowLeft': case 'KeyJ': e.preventDefault(); if (!isLiveMode) { video.currentTime = Math.max(0, video.currentTime - 10); showControls(); } break;
+        case 'ArrowRight': case 'KeyL': e.preventDefault(); if (!isLiveMode) { video.currentTime = Math.min(video.duration || 0, video.currentTime + 10); showControls(); } break;
+        case 'ArrowUp': e.preventDefault(); changeVolume(Math.min(1, video.volume + 0.1)); volSlider.value = video.volume; showControls(); break;
+        case 'ArrowDown': e.preventDefault(); changeVolume(Math.max(0, video.volume - 0.1)); volSlider.value = video.volume; showControls(); break;
+        case 'KeyM': e.preventDefault(); toggleMute(); break;
         case 'KeyF': e.preventDefault(); toggleFullScreen(); break;
       }
     });
@@ -721,6 +846,7 @@
     function toggleMute() {
       video.muted = !video.muted;
       document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
+      volSlider.value = video.muted ? 0 : video.volume;
     }
 
     function toggleFullScreen() {
@@ -758,6 +884,17 @@
       navigator.clipboard.writeText(currentStreamUrl).then(() => {
         alert("已复制当前视频直链：\n" + currentStreamUrl);
       }).catch(() => prompt("请手动复制链接：", currentStreamUrl));
+    }
+
+    function toggleClearBtn(val) {
+      document.getElementById('clear-kw').style.display = val.trim() ? 'block' : 'none';
+    }
+
+    function clearSearchInput() {
+      const input = document.getElementById('filter');
+      input.value = '';
+      toggleClearBtn('');
+      input.focus();
     }
 
     async function openSourceModal() {
@@ -868,6 +1005,7 @@
       }
     }
 
+    /* 修复并发排序冲突 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源检索《${keyword}》...</div>`;
@@ -899,11 +1037,14 @@
 
             currentVodResults.push(itemResult);
             currentVodResults.sort((a, b) => a.ping - b.ping);
-            if (currentView === 'normal') renderMoonTvStyleSources(currentVodResults);
+            
+            if (currentView === 'normal') {
+              renderMoonTvStyleSources(currentVodResults);
+            }
 
             if (!isFirstRendered) {
               isFirstRendered = true;
-              currentActiveIndex = 0;
+              currentActiveSiteName = currentVodResults[0].siteName;
               currentActiveEp = 0;
               playCurrentVodSource(currentVodResults[0], 0);
             }
@@ -927,7 +1068,8 @@
         return;
       }
 
-      const currentItem = results[currentActiveIndex];
+      // 锁定当前选中的源，避免重排串源
+      const currentItem = results.find(r => r.siteName === currentActiveSiteName) || results[0];
       const episodes = getEpisodesList(currentItem);
 
       if (episodes.length > 0) {
@@ -978,10 +1120,10 @@
       `;
       container.appendChild(headerBar);
 
-      results.forEach((item, idx) => {
+      results.forEach((item) => {
+        const isCurrentActive = (item.siteName === currentActiveSiteName);
         const card = document.createElement('div');
-        card.className = 'source-card ' + (idx === currentActiveIndex ? 'active' : '');
-        card.id = `source-card-${idx}`;
+        card.className = 'source-card ' + (isCurrentActive ? 'active' : '');
 
         const thumbUrl = item.vod.vod_pic || 'https://via.placeholder.com/50x68?text=TV';
         const title = item.vod.vod_name || '未知片名';
@@ -1005,7 +1147,7 @@
         `;
 
         card.onclick = () => {
-          currentActiveIndex = idx;
+          currentActiveSiteName = item.siteName;
           renderMoonTvStyleSources(results);
           playCurrentVodSource(item, currentActiveEp);
         };
