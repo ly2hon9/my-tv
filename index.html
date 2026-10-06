@@ -61,6 +61,7 @@
       line-height: 1.6;
     }
 
+    /* 播放器控制栏 */
     #custom-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -70,13 +71,16 @@
       z-index: 15;
     }
 
+    /* 丝滑手势拖拽进度条容器（扩大触摸热区） */
     #progress-container {
       width: 100%;
-      height: 14px;
+      height: 20px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      padding: 0 10px;
+      padding: 0 12px;
+      touch-action: none; /* 禁止手机页面默认滚动，确保拖拽丝滑 */
+      user-select: none;
     }
     #progress-track {
       width: 100%;
@@ -84,9 +88,12 @@
       background: rgba(255,255,255,0.25);
       border-radius: 2px;
       position: relative;
-      transition: height 0.15s;
+      transition: height 0.15s ease;
     }
-    #progress-container:hover #progress-track { height: 6px; }
+    #progress-container.dragging #progress-track,
+    #progress-container:hover #progress-track {
+      height: 6px;
+    }
     #progress-bar {
       height: 100%;
       width: 0%;
@@ -95,18 +102,22 @@
       position: relative;
     }
     #progress-thumb {
-      width: 12px;
-      height: 12px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
       background: #fff;
       position: absolute;
-      right: -6px;
+      right: -7px;
       top: 50%;
       transform: translateY(-50%) scale(0);
-      transition: transform 0.15s;
-      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      transition: transform 0.15s ease;
+      box-shadow: 0 0 6px rgba(0,0,0,0.8);
+      pointer-events: none;
     }
-    #progress-container:hover #progress-thumb { transform: translateY(-50%) scale(1); }
+    #progress-container.dragging #progress-thumb,
+    #progress-container:hover #progress-thumb {
+      transform: translateY(-50%) scale(1);
+    }
 
     .controls-inner {
       height: 42px;
@@ -119,7 +130,7 @@
     .ctrl-left { display: flex; align-items: center; gap: 10px; }
     .ctrl-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; opacity: 0.85; transition: opacity 0.2s; }
     .ctrl-btn:hover { opacity: 1; }
-    .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; white-space: nowrap; }
+    .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; white-space: nowrap; user-select: none; }
 
     .ctrl-right { display: flex; align-items: center; gap: 8px; }
 
@@ -186,7 +197,7 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* MoonTV 选集面板 */
+    /* 电视选集折叠框 */
     .episodes-collapse-box {
       background: #191919;
       border-bottom: 1px solid #2a2a2a;
@@ -286,7 +297,7 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
-    /* 弹窗 */
+    /* 订阅配置弹窗 */
     #modal-mask {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
@@ -330,9 +341,9 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部控制栏 -->
+    <!-- 底部控制栏（集成平滑拖拽进度条） -->
     <div id="custom-controls">
-      <div id="progress-container" onclick="seek(event)">
+      <div id="progress-container">
         <div id="progress-track">
           <div id="progress-bar">
             <div id="progress-thumb"></div>
@@ -413,7 +424,7 @@
         <span>订阅与配置</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
-      <label class="input-label">影视订阅 URL：</label>
+      <label class="input-label">影视订阅 URL（自动静默保持更新）：</label>
       <input type="text" id="sub-url-input" placeholder="https://pz.v88.qzz.io?format=2&source=jingjian">
       <div class="sub-stats" id="sub-stats-label">每次打开网页将自动同步最新配置</div>
 
@@ -484,8 +495,12 @@
     let currentActiveIndex = 0;
     let currentActiveEp = 0;
     let isLiveMode = false;
-    let autoFailoverCount = 0; // 自动故障转移计数器
+    let autoFailoverCount = 0;
     let hls = null;
+
+    // 拖拽进度条核心状态
+    let isDraggingProgress = false;
+    let dragTargetTime = 0;
 
     const video = document.getElementById('video');
     const wrap = document.getElementById('player-wrap');
@@ -496,7 +511,9 @@
     const playIcon = document.getElementById('play-icon');
     const pauseIcon = document.getElementById('pause-icon');
     const streamTimeEl = document.getElementById('stream-time');
+    const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
+    const progressTrack = document.getElementById('progress-track');
 
     function setStatus(text, show = true) {
       if (show) {
@@ -514,7 +531,10 @@
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
+    /* 播放中自动更新进度条（拖拽中自动阻断回弹） */
     video.addEventListener('timeupdate', () => {
+      if (isDraggingProgress) return; // 正在拖拽时不被视频回弹覆盖
+
       if (isLiveMode || !video.duration || !isFinite(video.duration)) {
         streamTimeEl.textContent = "直播";
         progressBar.style.width = "100%";
@@ -527,14 +547,48 @@
       progressBar.style.width = `${pct}%`;
     });
 
-    function seek(e) {
-      if (isLiveMode || !video.duration || !isFinite(video.duration)) return;
-      const rect = document.getElementById('progress-track').getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const width = rect.width;
-      const targetPercent = Math.max(0, Math.min(1, clickX / width));
-      video.currentTime = targetPercent * video.duration;
+    /* ================= 重点重构：丝滑跟手拖拽引擎 ================= */
+    function calcProgressRatio(clientX) {
+      const rect = progressTrack.getBoundingClientRect();
+      const clickX = clientX - rect.left;
+      return Math.max(0, Math.min(1, clickX / rect.width));
     }
+
+    function onPointerDown(e) {
+      if (isLiveMode || !video.duration || !isFinite(video.duration)) return;
+      isDraggingProgress = true;
+      progressContainer.classList.add('dragging');
+      progressContainer.setPointerCapture(e.pointerId);
+
+      const ratio = calcProgressRatio(e.clientX);
+      progressBar.style.width = `${ratio * 100}%`;
+      dragTargetTime = ratio * video.duration;
+      streamTimeEl.textContent = `${formatTime(dragTargetTime)} / ${formatTime(video.duration)}`;
+    }
+
+    function onPointerMove(e) {
+      if (!isDraggingProgress) return;
+      const ratio = calcProgressRatio(e.clientX);
+      progressBar.style.width = `${ratio * 100}%`;
+      dragTargetTime = ratio * video.duration;
+      streamTimeEl.textContent = `${formatTime(dragTargetTime)} / ${formatTime(video.duration)}`;
+    }
+
+    function onPointerUp(e) {
+      if (!isDraggingProgress) return;
+      isDraggingProgress = false;
+      progressContainer.classList.remove('dragging');
+      try { progressContainer.releasePointerCapture(e.pointerId); } catch (_) {}
+
+      // 手指/鼠标抬起的一瞬间执行跳帧起播，绝对丝滑无撕裂
+      video.currentTime = dragTargetTime;
+    }
+
+    progressContainer.addEventListener('pointerdown', onPointerDown);
+    progressContainer.addEventListener('pointermove', onPointerMove);
+    progressContainer.addEventListener('pointerup', onPointerUp);
+    progressContainer.addEventListener('pointercancel', onPointerUp);
+    /* ============================================================ */
 
     function togglePlay() {
       if (video.paused) {
@@ -877,7 +931,7 @@
 
         card.onclick = () => {
           currentActiveIndex = idx;
-          autoFailoverCount = 0; // 重置故障转移计数
+          autoFailoverCount = 0;
           renderMoonTvStyleSources(results);
           playCurrentVodSource(item, currentActiveEp);
         };
@@ -923,13 +977,11 @@
       robustMoonTvPlayback(rawUrl);
     }
 
-    /* 核心：复刻 MoonTV 级智能容错与自动无缝切换可用源 (Auto-Failover) */
     function robustMoonTvPlayback(url) {
       setStatus("正在建立连接...");
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
-      // 1. iOS / Safari 优先原生流硬件加速
       if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         if (hls) {
           hls.destroy();
@@ -950,7 +1002,6 @@
         return;
       }
 
-      // 2. PC / Android 极速加载与故障转移拦截
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
 
@@ -959,7 +1010,6 @@
           lowLatencyMode: true,
           backBufferLength: 60,
           xhrSetup: function(xhr, u) {
-            // 剥离敏感请求头，避免源站拦截
             xhr.withCredentials = false;
           }
         });
@@ -993,7 +1043,6 @@
       }
     }
 
-    /* 复刻 MoonTV：当前源无法访问时，自动切换至下一个可用源 */
     function triggerAutoFailover() {
       if (currentVodResults.length > 1 && autoFailoverCount < currentVodResults.length - 1) {
         autoFailoverCount++;
@@ -1001,7 +1050,6 @@
         const nextSource = currentVodResults[currentActiveIndex];
         setStatus(`当前源受限，已自动切换备用源：${nextSource.siteName}...`);
         
-        // 重新同步 UI 激活状态
         renderMoonTvStyleSources(currentVodResults);
         setTimeout(() => {
           playCurrentVodSource(nextSource, currentActiveEp);
