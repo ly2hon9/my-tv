@@ -20,6 +20,7 @@
       align-items: center; 
       justify-content: center; 
       overflow: hidden;
+      cursor: default;
     }
     
     #player-wrap.pseudo-fullscreen {
@@ -31,12 +32,14 @@
 
     video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
+    /* 顶部栏（支持自动淡出） */
     #top-bar { 
       position: absolute; top: 0; left: 0; right: 0; 
       padding: 12px 18px; 
       background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); 
       display: flex; justify-content: space-between; align-items: center; 
-      z-index: 10; pointer-events: none; 
+      z-index: 10; pointer-events: none;
+      transition: opacity 0.3s ease;
     }
     #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
     #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
@@ -61,7 +64,7 @@
       line-height: 1.6;
     }
 
-    /* 播放器控制栏 */
+    /* 底部控制栏（支持自动淡出） */
     #custom-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -69,9 +72,20 @@
       display: flex;
       flex-direction: column;
       z-index: 15;
+      transition: opacity 0.3s ease;
     }
 
-    /* 丝滑手势拖拽进度条容器（扩大触摸热区） */
+    /* 自动隐藏状态 */
+    #player-wrap.controls-hidden #custom-controls,
+    #player-wrap.controls-hidden #top-bar {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #player-wrap.controls-hidden {
+      cursor: none;
+    }
+
+    /* 丝滑拖拽进度条 */
     #progress-container {
       width: 100%;
       height: 20px;
@@ -79,7 +93,7 @@
       display: flex;
       align-items: center;
       padding: 0 12px;
-      touch-action: none; /* 禁止手机页面默认滚动，确保拖拽丝滑 */
+      touch-action: none;
       user-select: none;
     }
     #progress-track {
@@ -128,9 +142,20 @@
     }
 
     .ctrl-left { display: flex; align-items: center; gap: 10px; }
-    .ctrl-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; opacity: 0.85; transition: opacity 0.2s; }
+    .ctrl-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; opacity: 0.85; transition: opacity 0.2s; font-size: 13px; }
     .ctrl-btn:hover { opacity: 1; }
     .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; white-space: nowrap; user-select: none; }
+
+    /* 倍速选择器胶囊 */
+    .speed-btn {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .speed-btn:hover { background: rgba(255,255,255,0.25); }
 
     .ctrl-right { display: flex; align-items: center; gap: 8px; }
 
@@ -197,7 +222,7 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 电视选集折叠框 */
+    /* 选集面板 */
     .episodes-collapse-box {
       background: #191919;
       border-bottom: 1px solid #2a2a2a;
@@ -297,7 +322,7 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
-    /* 订阅配置弹窗 */
+    /* 弹窗 */
     #modal-mask {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
@@ -341,7 +366,7 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部控制栏（集成平滑拖拽进度条） -->
+    <!-- 底部专属控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -353,10 +378,14 @@
 
       <div class="controls-inner">
         <div class="ctrl-left">
-          <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()" title="播放/暂停">
+          <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()" title="播放/暂停 (空格)">
             <svg id="play-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff"><polygon points="6,4 20,12 6,20"/></svg>
             <svg id="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
           </button>
+          
+          <!-- 倍速选择按钮 -->
+          <button class="ctrl-btn speed-btn" id="speed-btn" onclick="cyclePlaybackRate()" title="切换播放倍速">1.0x</button>
+          
           <span class="ctrl-time" id="stream-time">00:00 / 00:00</span>
         </div>
 
@@ -393,7 +422,7 @@
             <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
 
-          <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏">
+          <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏 (F)">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
         </div>
@@ -457,6 +486,7 @@
     const STORAGE_KEY_M3U = "custom_tv_m3u_url";
     const STORAGE_KEY_SUB = "custom_vod_sub_url";
     const STORAGE_KEY_SITES = "cached_parsed_sites";
+    const STORAGE_KEY_HISTORY = "playback_history_v1";
 
     const B58_MAP = {};
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -498,9 +528,15 @@
     let autoFailoverCount = 0;
     let hls = null;
 
-    // 拖拽进度条核心状态
     let isDraggingProgress = false;
     let dragTargetTime = 0;
+    let currentVodUniqueKey = "";
+
+    // 控制栏自动隐藏定时器
+    let controlsHideTimer = null;
+
+    const RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
+    let currentRateIdx = 0;
 
     const video = document.getElementById('video');
     const wrap = document.getElementById('player-wrap');
@@ -514,6 +550,7 @@
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     const progressTrack = document.getElementById('progress-track');
+    const speedBtn = document.getElementById('speed-btn');
 
     function setStatus(text, show = true) {
       if (show) {
@@ -531,9 +568,56 @@
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    /* 播放中自动更新进度条（拖拽中自动阻断回弹） */
+    /* ================= 沉浸式控制栏自动隐藏 ================= */
+    function showControls() {
+      wrap.classList.remove('controls-hidden');
+      clearTimeout(controlsHideTimer);
+      // 只有在正常起播且不是暂停状态时，才在 3.5 秒后自动淡出
+      if (!video.paused && !isDraggingProgress) {
+        controlsHideTimer = setTimeout(() => {
+          wrap.classList.add('controls-hidden');
+        }, 3500);
+      }
+    }
+
+    wrap.addEventListener('mousemove', showControls);
+    wrap.addEventListener('pointerdown', showControls);
+    wrap.addEventListener('touchstart', showControls, { passive: true });
+
+    /* ================= 倍速切换 ================= */
+    function cyclePlaybackRate() {
+      currentRateIdx = (currentRateIdx + 1) % RATES.length;
+      const rate = RATES[currentRateIdx];
+      video.playbackRate = rate;
+      speedBtn.textContent = `${rate}x`;
+    }
+
+    /* ================= 记忆续播存储与恢复 ================= */
+    function savePlaybackProgress() {
+      if (isLiveMode || !currentVodUniqueKey || !video.duration || video.currentTime < 2) return;
+      try {
+        let history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '{}');
+        history[currentVodUniqueKey] = Math.floor(video.currentTime);
+        localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
+      } catch (_) {}
+    }
+
+    function restorePlaybackProgress() {
+      if (isLiveMode || !currentVodUniqueKey) return;
+      try {
+        let history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '{}');
+        const savedTime = history[currentVodUniqueKey];
+        if (savedTime && savedTime > 5 && (!video.duration || savedTime < video.duration - 15)) {
+          video.currentTime = savedTime;
+          setStatus(`已自动跳转至上次进度：${formatTime(savedTime)}`, true);
+          setTimeout(() => setStatus("", false), 1800);
+        }
+      } catch (_) {}
+    }
+
     video.addEventListener('timeupdate', () => {
-      if (isDraggingProgress) return; // 正在拖拽时不被视频回弹覆盖
+      savePlaybackProgress();
+      if (isDraggingProgress) return;
 
       if (isLiveMode || !video.duration || !isFinite(video.duration)) {
         streamTimeEl.textContent = "直播";
@@ -547,7 +631,7 @@
       progressBar.style.width = `${pct}%`;
     });
 
-    /* ================= 重点重构：丝滑跟手拖拽引擎 ================= */
+    /* ================= 丝滑拖拽进度条 ================= */
     function calcProgressRatio(clientX) {
       const rect = progressTrack.getBoundingClientRect();
       const clickX = clientX - rect.left;
@@ -557,6 +641,7 @@
     function onPointerDown(e) {
       if (isLiveMode || !video.duration || !isFinite(video.duration)) return;
       isDraggingProgress = true;
+      showControls();
       progressContainer.classList.add('dragging');
       progressContainer.setPointerCapture(e.pointerId);
 
@@ -568,6 +653,7 @@
 
     function onPointerMove(e) {
       if (!isDraggingProgress) return;
+      showControls();
       const ratio = calcProgressRatio(e.clientX);
       progressBar.style.width = `${ratio * 100}%`;
       dragTargetTime = ratio * video.duration;
@@ -579,23 +665,66 @@
       isDraggingProgress = false;
       progressContainer.classList.remove('dragging');
       try { progressContainer.releasePointerCapture(e.pointerId); } catch (_) {}
-
-      // 手指/鼠标抬起的一瞬间执行跳帧起播，绝对丝滑无撕裂
       video.currentTime = dragTargetTime;
+      showControls();
     }
 
     progressContainer.addEventListener('pointerdown', onPointerDown);
     progressContainer.addEventListener('pointermove', onPointerMove);
     progressContainer.addEventListener('pointerup', onPointerUp);
     progressContainer.addEventListener('pointercancel', onPointerUp);
-    /* ============================================================ */
+
+    /* ================= 键盘快捷键 ================= */
+    window.addEventListener('keydown', (e) => {
+      // 避免在搜索输入框打字时误触快捷键
+      if (e.target.tagName === 'INPUT') return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (!isLiveMode) {
+            video.currentTime = Math.max(0, video.currentTime - 5);
+            showControls();
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (!isLiveMode) {
+            video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+            showControls();
+          }
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          video.volume = Math.min(1, video.volume + 0.1);
+          showControls();
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          video.volume = Math.max(0, video.volume - 0.1);
+          showControls();
+          break;
+        case 'KeyF':
+          e.preventDefault();
+          toggleFullScreen();
+          break;
+      }
+    });
 
     function togglePlay() {
       if (video.paused) {
-        video.play().then(() => updatePlayBtn(true)).catch(() => {});
+        video.play().then(() => {
+          updatePlayBtn(true);
+          showControls();
+        }).catch(() => {});
       } else {
         video.pause();
         updatePlayBtn(false);
+        showControls();
       }
     }
 
@@ -969,6 +1098,7 @@
         rawUrl = rawUrl.replace('http://', 'https://');
       }
 
+      currentVodUniqueKey = `${item.vod.vod_name}_${targetEp.name}`;
       currentTitle.textContent = `${item.vod.vod_name} - ${targetEp.name}`;
       routeBadge.style.display = 'inline-block';
       routeBadge.textContent = item.siteName;
@@ -992,6 +1122,8 @@
         video.play().then(() => {
           setStatus("", false);
           updatePlayBtn(true);
+          restorePlaybackProgress();
+          showControls();
         }).catch(() => {
           setStatus("请轻触画面或播放按钮起播");
         });
@@ -1019,7 +1151,11 @@
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setStatus("", false);
-          video.play().then(() => updatePlayBtn(true)).catch(() => {
+          video.play().then(() => {
+            updatePlayBtn(true);
+            restorePlaybackProgress();
+            showControls();
+          }).catch(() => {
             setStatus("请轻触画面开始播放");
           });
         });
@@ -1036,6 +1172,8 @@
         video.play().then(() => {
           setStatus("", false);
           updatePlayBtn(true);
+          restorePlaybackProgress();
+          showControls();
         }).catch(() => {
           triggerAutoFailover();
           updatePlayBtn(false);
@@ -1138,6 +1276,7 @@
             itemEl.onclick = (e) => {
               e.stopPropagation();
               isLiveMode = true;
+              currentVodUniqueKey = "";
               document.querySelectorAll('.source-item.active-source').forEach(el => el.classList.remove('active-source'));
               itemEl.classList.add('active-source');
               currentTitle.textContent = chName;
@@ -1191,8 +1330,16 @@
       renderList(filtered, true);
     }
 
-    video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); });
-    video.addEventListener('pause', () => updatePlayBtn(false));
+    video.addEventListener('playing', () => {
+      setStatus("", false);
+      updatePlayBtn(true);
+      showControls();
+    });
+
+    video.addEventListener('pause', () => {
+      updatePlayBtn(false);
+      showControls();
+    });
 
     window.addEventListener('DOMContentLoaded', () => {
       initTv();
