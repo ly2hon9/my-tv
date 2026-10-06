@@ -355,7 +355,6 @@
     const DEFAULT_M3U = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
     const DEFAULT_SUB_URL = "https://pz.v88.qzz.io?format=2&source=jingjian";
 
-    // 默认内置的国内最快直连源站
     const BUILTIN_MOONTV_SITES = [
       { name: "暴风资源", api: "https://bfzy.tv/api.php/provide/vod" },
       { name: "量子资源", api: "https://cj.lzycaiji.com/api.php/provide/vod" },
@@ -372,7 +371,6 @@
     const STORAGE_KEY_SUB = "custom_vod_sub_url";
     const STORAGE_KEY_SITES = "cached_parsed_sites";
 
-    // Base58 快速解码
     const B58_MAP = {};
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
@@ -613,7 +611,7 @@
         filterInput.placeholder = "搜索电视频道...";
         renderList(groups, false);
       } else {
-        filterInput.placeholder = "输入片名（如：长津湖、西游记、狂飙）搜索换源...";
+        filterInput.placeholder = "输入片名（如：哪吒、长津湖、狂飙）搜索换源...";
         if (currentVodResults.length > 0) {
           renderMoonTvStyleSources(currentVodResults);
         } else {
@@ -637,7 +635,6 @@
       }
     }
 
-    // 重点：极速流式竞速搜索（哪个快先上哪个，不再卡住）
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源极速竞速检索《${keyword}》...</div>`;
@@ -645,7 +642,6 @@
       currentVodResults = [];
       let isFirstRendered = false;
 
-      // 限制 2.5 秒强行熔断超时的慢接口
       const queryPromises = parsedSites.map(async (site) => {
         let apiUrl = site.api;
         if (!apiUrl.includes('?')) apiUrl += '?';
@@ -654,7 +650,7 @@
 
         const t0 = performance.now();
         try {
-          const resText = await fetchWithTimeout(apiUrl, 2200);
+          const resText = await fetchWithTimeout(apiUrl, 2600);
           const data = JSON.parse(resText);
           const latency = Math.round(performance.now() - t0);
 
@@ -669,11 +665,9 @@
             };
 
             currentVodResults.push(itemResult);
-            // 按照响应速度动态从快到慢排序
             currentVodResults.sort((a, b) => a.ping - b.ping);
             renderMoonTvStyleSources(currentVodResults);
 
-            // 第一个最快的源返回时，立即自动秒播，零等待！
             if (!isFirstRendered) {
               isFirstRendered = true;
               currentActiveIndex = 0;
@@ -691,7 +685,6 @@
       }
     }
 
-    // 渲染 MoonTV 截图风格的换源卡片
     function renderMoonTvStyleSources(results) {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -789,7 +782,7 @@
       wrap.appendChild(bar);
     }
 
-    // 重点：分片直连起播（彻底解决卡在“建立连接”和海外代理限速）
+    // 重点：自动安全协议与双通道起播
     function playCurrentVodSource(item, epIdx = 0) {
       if (!item || !item.vod) return;
 
@@ -805,25 +798,64 @@
       const epName = parts[0] || '正片';
       let rawUrl = (parts[1] || parts[0]).trim();
 
+      // 如果当前是 HTTPS 页面，自动升级 http 直链为 https 避免 Safari 拦截混合内容
+      if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
+        rawUrl = rawUrl.replace('http://', 'https://');
+      }
+
       currentTitle.textContent = `${item.vod.vod_name} - ${epName}`;
       routeBadge.style.display = 'inline-block';
       routeBadge.textContent = item.siteName;
       currentStreamUrl = rawUrl;
 
-      fastDirectPlay(rawUrl);
+      robustUniversalPlay(rawUrl);
     }
 
-    function fastDirectPlay(url) {
-      setStatus("正在高速连接视频源...");
+    // 重点：iOS Safari 原生硬件加速优先 + PC Hls.js 兜底
+    function robustUniversalPlay(url) {
+      setStatus("正在高速载入视频流...");
 
+      const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
+
+      // 1. iOS / Safari 优先走原生硬件解码，避开 Hls.js XHR 跨域报错
+      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+        video.src = url;
+        video.load();
+        video.play().then(() => {
+          setStatus("", false);
+          updatePlayBtn(true);
+        }).catch(() => {
+          setStatus("请轻触画面或播放按钮开始播放");
+        });
+
+        video.onerror = () => {
+          // 如果强制 https 失败，退回尝试直连
+          if (url.startsWith('https://')) {
+            const httpUrl = url.replace('https://', 'http://');
+            video.src = httpUrl;
+            video.load();
+            video.play().catch(() => {
+              showFallbackTip();
+            });
+          } else {
+            showFallbackTip();
+          }
+        };
+        return;
+      }
+
+      // 2. PC / Android 走 Hls.js 极速内核
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
 
-        // 原生极速配置，切片绝对不走海外减速代理
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
-          backBufferLength: 90
+          backBufferLength: 60
         });
 
         hls.loadSource(url);
@@ -838,7 +870,7 @@
 
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            setStatus("当前线路受限<br><span style='color:#aaa;font-size:12px;'>请在右侧换一个源，或点击下方播放器图标一键秒开</span>", true);
+            showFallbackTip();
             updatePlayBtn(false);
           }
         });
@@ -849,14 +881,17 @@
           setStatus("", false);
           updatePlayBtn(true);
         }).catch(() => {
-          setStatus("当前线路受限<br><span style='color:#aaa;font-size:12px;'>请在右侧换一个源，或点击下方播放器图标一键秒开</span>", true);
+          showFallbackTip();
           updatePlayBtn(false);
         });
       }
     }
 
-    // 智能多通道测速请求（只负责获取 JSON，绝不接管视频切片）
-    async function fetchWithTimeout(url, timeout = 2500) {
+    function showFallbackTip() {
+      setStatus("当前源受限，请在下方列表换源<br><span style='color:#aaa;font-size:12px;'>或点击控制条播放器图标一键秒播</span>", true);
+    }
+
+    async function fetchWithTimeout(url, timeout = 2600) {
       const getRes = (target) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeout);
@@ -871,7 +906,6 @@
       throw new Error("超时");
     }
 
-    // 电视直播
     async function initTv() {
       const targetUrl = (localStorage.getItem(STORAGE_KEY_M3U) || DEFAULT_M3U).trim();
       try {
@@ -941,7 +975,7 @@
               routeBadge.style.display = 'inline-block';
               routeBadge.textContent = `线 ${idx + 1}`;
               currentStreamUrl = url;
-              fastDirectPlay(url);
+              robustUniversalPlay(url);
             };
             panelEl.appendChild(itemEl);
           });
