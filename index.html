@@ -132,12 +132,7 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    .episodes-collapse-box { background: #191919; border-bottom: 1px solid #2a2a2a; padding: 10px 14px; }
-    .episodes-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 13px; font-weight: 600; color: #ddd; }
-    .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 6px; margin-top: 10px; max-height: 150px; overflow-y: auto; }
-    .ep-item { background: #222; border: 1px solid #333; padding: 6px 2px; border-radius: 4px; font-size: 12px; color: #bbb; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ep-item.active { background: #0070f3; color: #fff; border-color: #0070f3; font-weight: bold; }
-
+    /* 顶栏控制行 */
     .sources-header-bar { 
       display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; 
       background: #1c1c1c; border-bottom: 1px solid #282828; 
@@ -149,18 +144,84 @@
     }
     .btn-sort-speed:active { background: #1e702e; }
 
-    .source-card { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #222; background: #161616; cursor: pointer; transition: background 0.15s; }
-    .source-card:hover { background: #1f1f1f; }
-    .source-card.active { background: #11253e; border-left: 3px solid #0070f3; }
-    .card-thumb { width: 50px; height: 68px; border-radius: 4px; object-fit: cover; background: #2a2a2a; flex-shrink: 0; }
-    .card-content { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
-    .card-title { font-size: 13px; font-weight: 500; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .card-quality { font-size: 10px; background: #283e2e; color: #4ade80; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
-    .card-sitename { font-size: 11px; color: #aaa; margin: 3px 0; }
-    .card-sitename-tag { background: #262626; padding: 1px 5px; border-radius: 3px; color: #ddd; }
+    /* 同名折叠聚合大卡片 */
+    .title-group-box {
+      border-bottom: 1px solid #252525;
+      background: #161616;
+    }
+    .title-group-header {
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .title-group-header:hover { background: #1f1f1f; }
+    .title-group-box.active-group .title-group-header {
+      background: #152438;
+      border-left: 3px solid #0070f3;
+    }
+    .group-header-left {
+      display: flex; align-items: center; gap: 10px; min-width: 0;
+    }
+    .group-poster {
+      width: 44px; height: 60px; border-radius: 4px; object-fit: cover; background: #222; flex-shrink: 0;
+    }
+    .group-info-wrap {
+      display: flex; flex-direction: column; gap: 4px; min-width: 0;
+    }
+    .group-main-title {
+      font-size: 14px; font-weight: bold; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .group-meta-tag {
+      font-size: 11px; color: #888; display: flex; align-items: center; gap: 6px;
+    }
+    .group-badge-count {
+      background: #2a2a2a; color: #0070f3; padding: 1px 6px; border-radius: 10px; font-weight: 500;
+    }
+    .group-arrow {
+      font-size: 12px; color: #777; transition: transform 0.2s ease;
+    }
+    .title-group-box.expanded .group-arrow {
+      transform: rotate(90deg); color: #0070f3;
+    }
+
+    /* 折叠内部的各源站列表与选集 */
+    .group-body-panel {
+      display: none;
+      background: #111;
+      padding: 6px 10px 12px 10px;
+      border-top: 1px solid #222;
+    }
+    .title-group-box.expanded .group-body-panel {
+      display: block;
+    }
+
+    /* 选集容器 */
+    .episodes-collapse-box { 
+      background: #181818; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #ddd; }
+    .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; margin-top: 8px; max-height: 140px; overflow-y: auto; }
+    .ep-item { background: #222; border: 1px solid #333; padding: 5px 2px; border-radius: 4px; font-size: 11px; color: #bbb; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ep-item.active { background: #0070f3; color: #fff; border-color: #0070f3; font-weight: bold; }
+
+    /* 源站子卡片 */
+    .source-sub-card { 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; margin-top: 6px; background: #191919; border: 1px solid #282828; 
+      border-radius: 6px; cursor: pointer; transition: background 0.15s;
+    }
+    .source-sub-card:hover { background: #222; }
+    .source-sub-card.active-sub { border-color: #0070f3; background: #0e243f; }
     
-    .card-status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #777; font-family: monospace; }
+    .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .card-sitename-tag { background: #2a2a2a; padding: 2px 6px; border-radius: 3px; font-size: 11px; color: #ddd; font-weight: 500; }
+    .source-sub-card.active-sub .card-sitename-tag { background: #0070f3; color: #fff; }
+    .card-quality { font-size: 10px; background: #283e2e; color: #4ade80; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+    .card-status-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #777; font-family: monospace; }
     .metric-speed { color: #4ade80; }
     .metric-ping { color: #facc15; }
 
@@ -172,6 +233,7 @@
     .btn-del-item { background: none; border: none; color: #666; font-size: 14px; cursor: pointer; padding: 4px; }
     .btn-del-item:hover { color: #ef4444; }
 
+    /* 电视直播样式 */
     .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
     .channel-row { border-bottom: 1px solid #222; background: #181818; }
     .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
@@ -200,7 +262,6 @@
     }
 
     @media (min-width: 601px) {
-      .search-box-inner { display: flex; gap: 6px; }
       .search-row-primary { flex: 1; }
       .search-row-secondary { width: auto; flex-shrink: 0; gap: 6px; }
       .btn-tool-mid, .btn-source-mgr { flex: none; padding: 8px 12px; }
@@ -415,8 +476,11 @@
     let currentView = 'normal';
     let groups = {};
     let currentStreamUrl = "";
-    let currentVodResults = [];
-    let currentActiveId = "";
+    
+    // 影视聚合分组存储结构
+    let groupedVodList = [];        // [{ title: "长津湖", poster: "...", items: [...] }]
+    let activeGroupTitle = "";      // 当前选中的片名分组
+    let activeSubItemId = "";       // 当前选中的具体源子项 ID
     let currentActiveEp = 0;
     let isLiveMode = false;
     let hls = null;
@@ -552,14 +616,16 @@
 
     video.addEventListener('ended', () => {
       if (isLiveMode || !currentPlayingMeta) return;
-      const currentItem = currentVodResults.find(r => r.id === currentActiveId) || currentVodResults[0];
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      if (!activeGroup) return;
+      const currentItem = activeGroup.items.find(r => r.id === activeSubItemId) || activeGroup.items[0];
       const episodes = getEpisodesList(currentItem);
       if (episodes.length > 0 && currentActiveEp < episodes.length - 1) {
         const nextEpIdx = currentActiveEp + 1;
         setStatus(`🎉 本集播放完毕，即将自动连播第 ${nextEpIdx + 1} 集...`, true);
         setTimeout(() => {
           currentActiveEp = nextEpIdx;
-          renderMoonTvStyleSources(currentVodResults);
+          renderGroupedVodSources();
           playCurrentVodSource(currentItem, nextEpIdx);
         }, 1500);
       }
@@ -666,7 +732,7 @@
       else if (view === 'history') renderHistoryView();
       else {
         if (currentMode === 'tv') renderList(groups, false);
-        else renderMoonTvStyleSources(currentVodResults);
+        else renderGroupedVodSources();
       }
     }
 
@@ -1014,7 +1080,7 @@
         renderList(groups, false);
       } else {
         filterInput.placeholder = "输入片名（如：长津湖、哪吒、西游记）搜索选集换源...";
-        if (currentVodResults.length > 0) renderMoonTvStyleSources(currentVodResults);
+        if (groupedVodList.length > 0) renderGroupedVodSources();
         else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入片名，自动拉取各源站并排序换源 🔍</div>`;
       }
     }
@@ -1035,7 +1101,6 @@
       }
     }
 
-    // 重点：智能代理抓取器，彻底解开 360资源等接口的 CORS 拦截
     async function fetchWithSmartProxy(targetUrl, timeout = 5000) {
       const fetchWithTimer = (url) => {
         const controller = new AbortController();
@@ -1045,28 +1110,28 @@
           .catch(e => { clearTimeout(timer); throw e; });
       };
 
-      // 1. 直连尝试
       try { return await fetchWithTimer(targetUrl); } catch (_) {}
-
-      // 2. 优先通过 Cloudflare Pages Functions 本地边缘代理穿透 (解决 360资源跨域的关键)
       try { return await fetchWithTimer(`/api/data?action=proxy&proxy_url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
-
-      // 3. 公共代理兜底
       try { return await fetchWithTimer(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
       try { return await fetchWithTimer(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`); } catch (_) {}
-
       throw new Error("抓取超时或跨域被阻断");
     }
 
+    // 格式化片名，用于精准同名归类折叠
+    function normalizeTitle(rawTitle) {
+      if (!rawTitle) return "未知影视";
+      return rawTitle.trim();
+    }
+
+    /* 核心升级：搜索各源并自动按片名进行同名分组（Group by Title） */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源并发检索《${keyword}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源并发检索《${keyword}》并同名归类...</div>`;
       
-      currentVodResults = [];
+      groupedVodList = [];
       let isFirstRendered = false;
 
       const queryPromises = parsedSites.map(async (site) => {
-        // 关键：规范化拼接苹果CMS通用参数，设置 out=json 并将超时拉宽至 5.5 秒，保证 360资源有充足时间返回
         let apiUrl = site.api;
         apiUrl += (apiUrl.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
 
@@ -1078,7 +1143,8 @@
 
           if (Array.isArray(data.list) && data.list.length > 0) {
             data.list.forEach((item, itemIdx) => {
-              const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${item.vod_name}`;
+              const exactTitle = normalizeTitle(item.vod_name);
+              const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${exactTitle}`;
               const itemResult = {
                 id: uniqueId,
                 siteName: site.name,
@@ -1086,18 +1152,34 @@
                 ping: latency,
                 speed: `${(Math.random() * 200 + 150).toFixed(1)} KB/s`
               };
-              currentVodResults.push(itemResult);
+
+              // 查找是否已存在同名分组
+              let group = groupedVodList.find(g => g.title === exactTitle);
+              if (!group) {
+                group = {
+                  title: exactTitle,
+                  poster: item.vod_pic || '',
+                  type: item.type_name || '',
+                  items: []
+                };
+                groupedVodList.push(group);
+              }
+              // 添加该源
+              group.items.push(itemResult);
+              // 源站按速度自排序
+              group.items.sort((a, b) => a.ping - b.ping);
             });
 
             if (currentView === 'normal') {
-              renderMoonTvStyleSources(currentVodResults);
+              renderGroupedVodSources();
             }
 
-            if (!isFirstRendered && currentVodResults.length > 0) {
+            if (!isFirstRendered && groupedVodList.length > 0) {
               isFirstRendered = true;
-              currentActiveId = currentVodResults[0].id;
+              activeGroupTitle = groupedVodList[0].title;
+              activeSubItemId = groupedVodList[0].items[0].id;
               currentActiveEp = 0;
-              playCurrentVodSource(currentVodResults[0], 0);
+              playCurrentVodSource(groupedVodList[0].items[0], 0);
             }
           }
         } catch (_) {}
@@ -1105,14 +1187,15 @@
 
       await Promise.allSettled(queryPromises);
 
-      if (currentVodResults.length === 0 && currentView === 'normal') {
+      if (groupedVodList.length === 0 && currentView === 'normal') {
         container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到《${keyword}》，请更换关键词</div>`;
       }
     }
 
-    /* 顶栏【⚡ 测速】按钮：统一只对各源当前正在看的同一集并发测速，测完静默按速度排序（无需提醒） */
+    /* 顶栏【⚡ 测速】按钮：统一只对当前选中同名剧目当前集数进行并发测速，测完按速度自排序 */
     async function startSpeedTest() {
-      if (!currentVodResults || currentVodResults.length === 0) return;
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      if (!activeGroup || !activeGroup.items || activeGroup.items.length === 0) return;
       
       const sortBtn = document.querySelector('.btn-sort-speed');
       if (sortBtn) {
@@ -1120,9 +1203,9 @@
         sortBtn.disabled = true;
       }
 
-      const pingPromises = currentVodResults.map(async (item) => {
+      const pingPromises = activeGroup.items.map(async (item) => {
         const episodes = getEpisodesList(item);
-        // 精准针对性测速：电视剧只测当前正在看的相同那一集，不测全集
+        // 精准测速：只测当前同一集，杜绝全部测速的性能负担
         const targetEp = episodes[currentActiveEp] || episodes[0];
         const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
         if (!testUrl) return;
@@ -1139,9 +1222,9 @@
 
       await Promise.allSettled(pingPromises);
 
-      // 测完静默排序，不弹多余提示
-      currentVodResults.sort((a, b) => a.ping - b.ping);
-      renderMoonTvStyleSources(currentVodResults);
+      // 该同名分组内的各个源按速度排列
+      activeGroup.items.sort((a, b) => a.ping - b.ping);
+      renderGroupedVodSources();
 
       if (sortBtn) {
         sortBtn.textContent = "⚡ 测速";
@@ -1149,98 +1232,145 @@
       }
     }
 
-    function renderMoonTvStyleSources(results) {
+    /* 核心渲染：同名影视折叠大卡片展示（如《长津湖》、《长津湖之水门桥》各自独立聚合） */
+    function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
 
-      if (!results || results.length === 0) {
+      if (!groupedVodList || groupedVodList.length === 0) {
         container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">请在上方搜索片名</div>`;
         return;
       }
 
-      const currentItem = results.find(r => r.id === currentActiveId) || results[0];
-      const episodes = getEpisodesList(currentItem);
-
-      if (episodes.length > 0) {
-        const collapseBox = document.createElement('div');
-        collapseBox.className = 'episodes-collapse-box';
-
-        const epHeader = document.createElement('div');
-        epHeader.className = 'episodes-header';
-        epHeader.innerHTML = `
-          <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
-          <span id="ep-arrow" style="font-size:12px;color:#888;">▼ 折叠/展开</span>
-        `;
-
-        const epGrid = document.createElement('div');
-        epGrid.className = 'episodes-grid';
-        epGrid.id = 'episodes-grid-list';
-
-        episodes.forEach((ep, epIdx) => {
-          const btn = document.createElement('button');
-          btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-          btn.textContent = ep.name;
-          btn.onclick = (e) => {
-            e.stopPropagation();
-            currentActiveEp = epIdx;
-            document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
-            btn.classList.add('active');
-            playCurrentVodSource(currentItem, epIdx);
-          };
-          epGrid.appendChild(btn);
-        });
-
-        epHeader.onclick = () => {
-          const isHide = epGrid.style.display === 'none';
-          epGrid.style.display = isHide ? 'grid' : 'none';
-          document.getElementById('ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-        };
-
-        collapseBox.appendChild(epHeader);
-        collapseBox.appendChild(epGrid);
-        container.appendChild(collapseBox);
-      }
-
+      // 顶部统计行与测速
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       headerBar.innerHTML = `
-        <span class="sources-header-title">聚合结果 <span>(${results.length} 条)</span></span>
+        <span class="sources-header-title">聚合影视 <span>(${groupedVodList.length} 部不同剧目)</span></span>
         <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       container.appendChild(headerBar);
 
-      results.forEach((item) => {
-        const isCurrentActive = (item.id === currentActiveId);
-        const card = document.createElement('div');
-        card.className = 'source-card ' + (isCurrentActive ? 'active' : '');
+      groupedVodList.forEach((group) => {
+        const isCurrentActiveGroup = (group.title === activeGroupTitle);
 
-        const thumbUrl = item.vod.vod_pic || 'https://via.placeholder.com/50x68?text=TV';
-        const title = item.vod.vod_name || '未知片名';
-        const remarks = item.vod.vod_remarks || '正片';
+        const groupCard = document.createElement('div');
+        groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
 
-        card.innerHTML = `
-          <img class="card-thumb" src="${thumbUrl}" onerror="this.src='https://via.placeholder.com/50x68?text=TV'" />
-          <div class="card-content">
-            <div class="card-top">
-              <div class="card-title" title="${title}">${title}</div>
-              <span class="card-quality">${remarks.includes('4K')?'4K':remarks.includes('1080')?'1080p':'720p'}</span>
-            </div>
-            <div class="card-sitename"><span class="card-sitename-tag">🎬 ${item.siteName}</span></div>
-            <div class="card-status-bar">
-              <div class="status-metrics">
-                <span class="metric-speed">${item.speed}</span>
-                <span class="metric-ping">${item.ping}ms</span>
+        const posterUrl = group.poster || 'https://via.placeholder.com/50x68?text=TV';
+
+        // 1. 同名折叠大卡片头部
+        groupCard.innerHTML = `
+          <div class="title-group-header">
+            <div class="group-header-left">
+              <img class="group-poster" src="${posterUrl}" onerror="this.src='https://via.placeholder.com/50x68?text=TV'" />
+              <div class="group-info-wrap">
+                <div class="group-main-title">${group.title}</div>
+                <div class="group-meta-tag">
+                  <span>${group.type || '影视'}</span>
+                  <span class="group-badge-count">${group.items.length} 个源站</span>
+                </div>
               </div>
             </div>
+            <div class="group-arrow">▶</div>
           </div>
         `;
 
-        card.onclick = () => {
-          currentActiveId = item.id;
-          renderMoonTvStyleSources(results);
-          playCurrentVodSource(item, currentActiveEp);
+        // 2. 点击大卡片：展开/折叠内部各源站及选集
+        const headerEl = groupCard.querySelector('.title-group-header');
+        headerEl.onclick = () => {
+          const isExpanded = groupCard.classList.contains('expanded');
+          document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('expanded'));
+          if (!isExpanded) {
+            groupCard.classList.add('expanded');
+            activeGroupTitle = group.title;
+            // 默认选中该组排在第一的源
+            if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
+              activeSubItemId = group.items[0].id;
+              currentActiveEp = 0;
+              playCurrentVodSource(group.items[0], 0);
+            }
+            renderGroupedVodSources();
+          }
         };
-        container.appendChild(card);
+
+        // 3. 折叠主体区域：仅在当前激活大组时渲染
+        if (isCurrentActiveGroup) {
+          const bodyPanel = document.createElement('div');
+          bodyPanel.className = 'group-body-panel';
+
+          const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+          const episodes = getEpisodesList(currentSubItem);
+
+          // 选集网格
+          if (episodes.length > 0) {
+            const collapseBox = document.createElement('div');
+            collapseBox.className = 'episodes-collapse-box';
+            collapseBox.innerHTML = `
+              <div class="episodes-header">
+                <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
+                <span id="ep-arrow" style="font-size:11px;color:#888;">▼ 折叠/展开</span>
+              </div>
+              <div class="episodes-grid" id="episodes-grid-list"></div>
+            `;
+
+            const epGrid = collapseBox.querySelector('#episodes-grid-list');
+            episodes.forEach((ep, epIdx) => {
+              const btn = document.createElement('button');
+              btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+              btn.textContent = ep.name;
+              btn.onclick = (e) => {
+                e.stopPropagation();
+                currentActiveEp = epIdx;
+                document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+                btn.classList.add('active');
+                playCurrentVodSource(currentSubItem, epIdx);
+              };
+              epGrid.appendChild(btn);
+            });
+
+            collapseBox.querySelector('.episodes-header').onclick = (e) => {
+              e.stopPropagation();
+              const isHide = epGrid.style.display === 'none';
+              epGrid.style.display = isHide ? 'grid' : 'none';
+              collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+            };
+
+            bodyPanel.appendChild(collapseBox);
+          }
+
+          // 该剧目下的各个源站子卡片列表
+          group.items.forEach((item) => {
+            const isSubActive = (item.id === activeSubItemId);
+            const subCard = document.createElement('div');
+            subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
+            const remarks = item.vod.vod_remarks || '正片';
+
+            subCard.innerHTML = `
+              <div class="source-sub-left">
+                <span class="card-sitename-tag">🎬 ${item.siteName}</span>
+                <span class="card-quality">${remarks.includes('4K')?'4K':remarks.includes('1080')?'1080p':'720p'}</span>
+              </div>
+              <div class="card-status-bar">
+                <span class="metric-speed">${item.speed}</span>
+                <span class="metric-ping">${item.ping}ms</span>
+              </div>
+            `;
+
+            subCard.onclick = (e) => {
+              e.stopPropagation();
+              activeSubItemId = item.id;
+              renderGroupedVodSources();
+              playCurrentVodSource(item, currentActiveEp);
+            };
+
+            bodyPanel.appendChild(subCard);
+          });
+
+          groupCard.appendChild(bodyPanel);
+        }
+
+        container.appendChild(groupCard);
       });
     }
 
@@ -1326,7 +1456,6 @@
       setStatus("当前线路受限<br><span style='color:#aaa;font-size:12px;'>请在右侧列表中手动选择其他源，或点击下方播放器图标一键秒播</span>", true);
     }
 
-    /* 电视直播模块：完全不测速，保持最干净体验 */
     async function initTv() {
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
