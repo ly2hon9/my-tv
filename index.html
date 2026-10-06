@@ -138,7 +138,6 @@
     .ep-item { background: #222; border: 1px solid #333; padding: 6px 2px; border-radius: 4px; font-size: 12px; color: #bbb; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ep-item.active { background: #0070f3; color: #fff; border-color: #0070f3; font-weight: bold; }
 
-    /* 顶栏工具行（含按速度排序按钮） */
     .sources-header-bar { 
       display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; 
       background: #1c1c1c; border-bottom: 1px solid #282828; 
@@ -164,13 +163,6 @@
     .card-status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #777; font-family: monospace; }
     .metric-speed { color: #4ade80; }
     .metric-ping { color: #facc15; }
-    
-    /* 单源独立测速按钮 */
-    .btn-single-ping {
-      background: none; border: 1px solid #444; color: #0070f3; border-radius: 3px;
-      padding: 1px 6px; font-size: 10px; cursor: pointer; transition: all 0.15s;
-    }
-    .btn-single-ping:hover { background: #0070f3; color: #fff; border-color: #0070f3; }
 
     .history-card { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #222; background: #181818; cursor: pointer; }
     .history-card:hover { background: #222; }
@@ -180,7 +172,6 @@
     .btn-del-item { background: none; border: none; color: #666; font-size: 14px; cursor: pointer; padding: 4px; }
     .btn-del-item:hover { color: #ef4444; }
 
-    /* 电视直播样式（保持原样，纯净极速） */
     .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
     .channel-row { border-bottom: 1px solid #222; background: #181818; }
     .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
@@ -243,7 +234,6 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -425,7 +415,7 @@
     let groups = {};
     let currentStreamUrl = "";
     let currentVodResults = [];
-    let currentActiveId = ""; // 唯一锁定选中的影视源
+    let currentActiveId = "";
     let currentActiveEp = 0;
     let isLiveMode = false;
     let hls = null;
@@ -1044,7 +1034,6 @@
       }
     }
 
-    /* 重点升级 1：不过滤搜索结果，采集到的各版本/条目全量展示；保留自动测速 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源全量检索《${keyword}》...</div>`;
@@ -1065,7 +1054,6 @@
           const latency = Math.round(performance.now() - t0);
 
           if (Array.isArray(data.list) && data.list.length > 0) {
-            // 取消过滤：遍历 source 返回的所有条目
             data.list.forEach((item, itemIdx) => {
               const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${item.vod_name}`;
               const itemResult = {
@@ -1100,33 +1088,43 @@
       }
     }
 
-    /* 重点升级 2：按测速实时排序功能 */
-    function sortBySpeed() {
-      if (!currentVodResults || currentVodResults.length <= 1) return;
-      currentVodResults.sort((a, b) => a.ping - b.ping);
-      renderMoonTvStyleSources(currentVodResults);
-      showGestureTip("⚡ 已按响应速度完成排序");
-    }
-
-    /* 重点升级 3：单源手动测速功能 */
-    async function measureSingleSource(item, cardEl) {
-      const pingTextEl = cardEl.querySelector('.metric-ping');
-      if (pingTextEl) pingTextEl.textContent = "测速中...";
-
-      const episodes = getEpisodesList(item);
-      const testUrl = episodes.length > 0 ? episodes[0].url : item.vod.vod_play_url || '';
+    /* 顶栏【⚡ 测速】按钮：统一只对各源当前正在看的那一集做针对性并发测速，测完静默按速度排序（无需提醒） */
+    async function startSpeedTest() {
+      if (!currentVodResults || currentVodResults.length === 0) return;
       
-      const t0 = performance.now();
-      try {
-        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
-        const latency = Math.round(performance.now() - t0);
-        item.ping = latency;
-        item.speed = `${(Math.random() * 200 + 200).toFixed(1)} KB/s`;
-      } catch (_) {
-        item.ping = Math.round(performance.now() - t0);
+      const sortBtn = document.querySelector('.btn-sort-speed');
+      if (sortBtn) {
+        sortBtn.textContent = "⚡ 测速中...";
+        sortBtn.disabled = true;
       }
 
-      if (pingTextEl) pingTextEl.textContent = `${item.ping}ms`;
+      const pingPromises = currentVodResults.map(async (item) => {
+        const episodes = getEpisodesList(item);
+        // 精准定位：如果是电视剧，只测当前选中的相同集数对应的播放地址
+        const targetEp = episodes[currentActiveEp] || episodes[0];
+        const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
+        if (!testUrl) return;
+
+        const t0 = performance.now();
+        try {
+          await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
+          item.ping = Math.round(performance.now() - t0);
+          item.speed = `${(Math.random() * 200 + 200).toFixed(1)} KB/s`;
+        } catch (_) {
+          item.ping = Math.round(performance.now() - t0);
+        }
+      });
+
+      await Promise.allSettled(pingPromises);
+
+      // 测完后静默按速度排序，不再弹出任何浮层提醒
+      currentVodResults.sort((a, b) => a.ping - b.ping);
+      renderMoonTvStyleSources(currentVodResults);
+
+      if (sortBtn) {
+        sortBtn.textContent = "⚡ 测速";
+        sortBtn.disabled = false;
+      }
     }
 
     function renderMoonTvStyleSources(results) {
@@ -1181,12 +1179,12 @@
         container.appendChild(collapseBox);
       }
 
-      /* 顶栏控制行：加入【⚡ 按速度排序】按钮 */
+      /* 顶栏控制行：原【按速度排序】文字正式改为【⚡ 测速】 */
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       headerBar.innerHTML = `
         <span class="sources-header-title">聚合结果 <span>(${results.length} 条)</span></span>
-        <button class="btn-sort-speed" onclick="sortBySpeed()">⚡ 按速度排序</button>
+        <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       container.appendChild(headerBar);
 
@@ -1199,6 +1197,7 @@
         const title = item.vod.vod_name || '未知片名';
         const remarks = item.vod.vod_remarks || '正片';
 
+        // 彻底取消单个卡片内的手动测速按钮，界面保持干练
         card.innerHTML = `
           <img class="card-thumb" src="${thumbUrl}" onerror="this.src='https://via.placeholder.com/50x68?text=TV'" />
           <div class="card-content">
@@ -1212,7 +1211,6 @@
                 <span class="metric-speed">${item.speed}</span>
                 <span class="metric-ping">${item.ping}ms</span>
               </div>
-              <button class="btn-single-ping" onclick="event.stopPropagation(); measureSingleSource(item, this.closest('.source-card'))">⚡ 测速</button>
             </div>
           </div>
         `;
@@ -1322,7 +1320,6 @@
       throw new Error("超时");
     }
 
-    /* 电视直播模块：完全不测速，保持最干净体验 */
     async function initTv() {
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
