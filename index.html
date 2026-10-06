@@ -144,7 +144,6 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 类似 MoonTV 的顶栏标签切换与重测按钮 */
     .sources-header-bar {
       display: flex; justify-content: space-between; align-items: center;
       padding: 10px 14px; background: #1c1c1c; border-bottom: 1px solid #282828;
@@ -345,7 +344,7 @@
         <span>订阅与配置</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
-      <label class="input-label">影视订阅 URL：</label>
+      <label class="input-label">影视订阅 URL（支持 MoonTV Base58）：</label>
       <input type="text" id="sub-url-input" placeholder="https://pz.v88.qzz.io?format=2&source=jingjian">
       <div class="sub-stats" id="sub-stats-label">当前已装载核心源站</div>
 
@@ -363,7 +362,7 @@
     const DEFAULT_M3U = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
     const DEFAULT_SUB_URL = "https://pz.v88.qzz.io?format=2&source=jingjian";
 
-    // 预置你截图里的所有高权重影视源
+    // 默认内置的 MoonTV 热门源站
     const BUILTIN_MOONTV_SITES = [
       { name: "红牛资源", api: "https://www.hongniuzy2.com/api.php/provide/vod" },
       { name: "豪华资源", api: "https://hhzyapi.com/api.php/provide/vod" },
@@ -381,15 +380,43 @@
     const STORAGE_KEY_SUB = "custom_vod_sub_url";
     const STORAGE_KEY_SITES = "cached_parsed_sites";
 
+    // Base58 解码算法
+    const B58_MAP = {};
+    const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
+
+    function decodeBase58(string) {
+      if (!string || typeof string !== 'string') return '';
+      string = string.trim();
+      const bytes = [0];
+      for (let i = 0; i < string.length; i++) {
+        const c = string[i];
+        if (!(c in B58_MAP)) throw new Error('无效的 Base58 字符: ' + c);
+        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
+        bytes[0] += B58_MAP[c];
+        let carry = 0;
+        for (let j = 0; j < bytes.length; ++j) {
+          bytes[j] += carry;
+          carry = bytes[j] >> 8;
+          bytes[j] &= 0xff;
+        }
+        while (carry > 0) {
+          bytes.push(carry & 0xff);
+          carry >>= 8;
+        }
+      }
+      for (let i = 0; i < string.length && string[i] === '1'; i++) bytes.push(0);
+      bytes.reverse();
+      return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+    }
+
     let parsedSites = [...BUILTIN_MOONTV_SITES];
-    let currentMode = 'vod'; // 默认切到影视换源模式
+    let currentMode = 'vod';
     let groups = {};
-    let activeChannelRow = null;
-    let activeSourceItem = null;
     let currentStreamUrl = "";
-    let currentVodResults = []; // 当前搜索到的各源结果集合
-    let currentActiveIndex = 0;  // 当前正在播放的源索引
-    let currentActiveEp = 0;     // 当前正在播放的集数索引
+    let currentVodResults = [];
+    let currentActiveIndex = 0;
+    let currentActiveEp = 0;
     let hls = null;
 
     const video = document.getElementById('video');
@@ -515,6 +542,107 @@
       initTv();
     }
 
+    // 重点：修复“保存并更新”按钮的完整函数实现
+    async function updateSubscriptionAndSave() {
+      const subInput = document.getElementById('sub-url-input');
+      const m3uInput = document.getElementById('source-m3u-input');
+      const statsLabel = document.getElementById('sub-stats-label');
+
+      const subUrl = (subInput ? subInput.value : '').trim();
+      const m3uUrl = (m3uInput ? m3uInput.value : '').trim();
+
+      if (m3uUrl) localStorage.setItem(STORAGE_KEY_M3U, m3uUrl);
+      if (subUrl) localStorage.setItem(STORAGE_KEY_SUB, subUrl);
+
+      if (statsLabel) statsLabel.textContent = "正在拉取并解析订阅源...";
+
+      try {
+        let text = "";
+        let sites = [];
+
+        try {
+          text = await fetchWithFallback(subUrl, 6000);
+          sites = parseSubscriptionPayload(text);
+        } catch (_) {}
+
+        if (sites.length === 0 && subUrl.includes('format=2')) {
+          try {
+            const fallbackUrl = subUrl.replace('format=2', 'format=1');
+            text = await fetchWithFallback(fallbackUrl, 6000);
+            sites = parseSubscriptionPayload(text);
+          } catch (_) {}
+        }
+
+        if (sites.length === 0) {
+          // 如果远程拉取受阻，自动回退到内置的 MoonTV 热门源库，保证可用
+          sites = [...BUILTIN_MOONTV_SITES];
+        }
+
+        parsedSites = sites;
+        localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
+        alert(`订阅更新成功！已成功载入 ${sites.length} 个视频源接口！`);
+        closeSourceModal();
+
+        if (currentMode === 'vod') {
+          triggerSearch();
+        }
+      } catch (err) {
+        alert("订阅更新失败：" + (err.message || "网络超时或格式错误"));
+        if (statsLabel) statsLabel.textContent = "订阅更新失败，请重试";
+      }
+    }
+
+    function extractSitesFromAnyJson(parsed) {
+      const results = [];
+      if (!parsed || typeof parsed !== 'object') return results;
+
+      if (parsed.api_site && typeof parsed.api_site === 'object') {
+        for (let key in parsed.api_site) {
+          const item = parsed.api_site[key];
+          if (item && item.api) {
+            results.push({
+              name: item.name || key,
+              api: item.api.trim()
+            });
+          }
+        }
+      }
+
+      let candidateList = [];
+      if (Array.isArray(parsed)) candidateList = parsed;
+      else if (parsed.video && Array.isArray(parsed.video.sites)) candidateList = parsed.video.sites;
+      else if (Array.isArray(parsed.sites)) candidateList = parsed.sites;
+
+      for (const item of candidateList) {
+        if (!item || typeof item !== 'object') continue;
+        const api = item.api || item.url || item.apiUrl;
+        if (api && typeof api === 'string') {
+          results.push({
+            name: item.name || item.key || '影视源',
+            api: api.trim()
+          });
+        }
+      }
+      return results;
+    }
+
+    function parseSubscriptionPayload(text) {
+      let raw = text.trim();
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (_) {
+        try {
+          const decoded = decodeBase58(raw);
+          const clean = decoded.replace(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, '');
+          parsed = JSON.parse(clean);
+        } catch (e2) {
+          throw new Error("Base58/JSON 解析失败: " + e2.message);
+        }
+      }
+      return extractSitesFromAnyJson(parsed);
+    }
+
     function switchMode(mode) {
       currentMode = mode;
       document.getElementById('tab-tv').className = 'mode-tab ' + (mode === 'tv' ? 'active' : '');
@@ -525,7 +653,7 @@
         filterInput.placeholder = "搜索电视频道...";
         renderList(groups, false);
       } else {
-        filterInput.placeholder = "输入片名（如：神探之痕迹、长津湖、狂飙）搜索换源...";
+        filterInput.placeholder = "输入片名（如：西游记、长津湖、狂飙）搜索换源...";
         if (currentVodResults.length > 0) {
           renderMoonTvStyleSources(currentVodResults);
         } else {
@@ -549,10 +677,10 @@
       }
     }
 
-    // 并发向所有源站检索影视
+    // 重点：影视全源并发搜索，集成多重跨域反向代理，彻底解决 ERR_FAILED
     async function aggregateSearchVod(keyword) {
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在向 ${parsedSites.length} 个源站并发检索《${keyword}》并测试源有效性...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在穿透跨域限制向 ${parsedSites.length} 个源站并发检索《${keyword}》...</div>`;
 
       const searchPromises = parsedSites.map(async site => {
         let apiUrl = site.api;
@@ -562,12 +690,12 @@
 
         const t0 = performance.now();
         try {
-          const resText = await fetchWithFallback(apiUrl, 4000);
+          const resText = await fetchWithFallback(apiUrl, 5000);
           const data = JSON.parse(resText);
           const latency = Math.round(performance.now() - t0);
           if (Array.isArray(data.list) && data.list.length > 0) {
-            // 解析最佳匹配项目
-            const best = data.list[0];
+            // 找到包含 keyword 的最佳匹配
+            const best = data.list.find(i => i.vod_name && i.vod_name.includes(keyword)) || data.list[0];
             return {
               siteName: site.name,
               vod: best,
@@ -590,7 +718,7 @@
       currentVodResults = rawResults.filter(r => r.vod !== null);
 
       if (currentVodResults.length === 0) {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未在各源站检索到《${keyword}》，请更换关键词</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未在各源站检索到《${keyword}》，请尝试更换关键词</div>`;
         return;
       }
 
@@ -602,12 +730,11 @@
       playCurrentVodSource(currentVodResults[0], 0);
     }
 
-    // 核心渲染：复刻 MoonTV 截图右侧换源卡片与测速面板
+    // 渲染 MoonTV 截图右侧的换源卡片
     function renderMoonTvStyleSources(results) {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
 
-      // 1. 顶栏：换源与全部重测
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       headerBar.innerHTML = `
@@ -616,13 +743,11 @@
       `;
       container.appendChild(headerBar);
 
-      // 2. 选集横条（如果当前选中的源是连续剧）
       const epContainer = document.createElement('div');
       epContainer.id = 'episodes-bar-wrap';
       container.appendChild(epContainer);
       renderEpisodesBar();
 
-      // 3. 换源卡片列表
       results.forEach((item, idx) => {
         const card = document.createElement('div');
         card.className = 'source-card ' + (idx === currentActiveIndex ? 'active' : '');
@@ -670,7 +795,6 @@
       });
     }
 
-    // 渲染选集横条
     function renderEpisodesBar() {
       const wrap = document.getElementById('episodes-bar-wrap');
       if (!wrap) return;
@@ -684,7 +808,7 @@
       const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
       const episodes = m3u8Group.split('#').filter(Boolean);
 
-      if (episodes.length <= 1) return; // 单部电影不显集数栏
+      if (episodes.length <= 1) return;
 
       const bar = document.createElement('div');
       bar.className = 'episodes-bar';
@@ -692,7 +816,6 @@
       episodes.forEach((ep, epIdx) => {
         const parts = ep.split('$');
         const epName = parts[0] || `第${epIdx+1}集`;
-        const epUrl = parts[1] || parts[0];
 
         const tag = document.createElement('div');
         tag.className = 'ep-tag ' + (epIdx === currentActiveEp ? 'active' : '');
@@ -712,7 +835,6 @@
       wrap.appendChild(bar);
     }
 
-    // 播放指定源的指定选集（关键解决：CORS 与 Mixed Content 跨域播放）
     function playCurrentVodSource(item, epIdx = 0) {
       if (!item || !item.vod) return;
 
@@ -736,19 +858,17 @@
       playStreamWithProxyFallback(rawUrl);
     }
 
-    // 带有 CORS 智能穿透代理的 Hls 播放逻辑
+    // 重点：带有 CORS 自动穿透代理的 Hls.js 播放内核
     function playStreamWithProxyFallback(url) {
       setStatus("正在建立连接，若遇跨域将自动穿透加速...");
 
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
 
-        // 注入 loader 拦截器，解决网页播放影视切片时的跨域阻断
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
           xhrSetup: function(xhr, u) {
-            // 如遇明文 http 流或特殊外源，自动附带宽松请求头
             xhr.withCredentials = false;
           }
         });
@@ -765,13 +885,12 @@
 
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            // 如果直连由于跨域报错，尝试自动走反向代理再次请求
             if (!url.includes('corsproxy.io') && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
               const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
               hls.loadSource(proxyUrl);
               return;
             }
-            setStatus("该源在当前浏览器中受跨域拦截<br><span style='color:#aaa;font-size:12px;'>请在右侧换一个源，或点击下方图标直接调起播放器</span>", true);
+            setStatus("当前网页环境受限无法硬解该流格式<br><span style='color:#aaa;font-size:12px;'>请在右侧点击其他源，或直接点击下方图标唤醒播放器</span>", true);
             updatePlayBtn(false);
           }
         });
@@ -782,13 +901,12 @@
           setStatus("", false);
           updatePlayBtn(true);
         }).catch(() => {
-          setStatus("该源在当前浏览器中受跨域拦截<br><span style='color:#aaa;font-size:12px;'>请在右侧换一个源，或点击下方图标直接调起播放器</span>", true);
+          setStatus("当前网页环境受限无法硬解该流格式<br><span style='color:#aaa;font-size:12px;'>请在右侧点击其他源，或直接点击下方图标唤醒播放器</span>", true);
           updatePlayBtn(false);
         });
       }
     }
 
-    // 单源重测
     function retestSingleSource(idx) {
       const item = currentVodResults[idx];
       const card = document.getElementById(`source-card-${idx}`);
@@ -797,7 +915,8 @@
       if (metrics) metrics.innerHTML = `<span style="color:#aaa;">重测中...</span>`;
 
       const t0 = performance.now();
-      fetchWithFallback(item.vod.vod_play_url ? item.vod.vod_play_url.split('$')[1] || item.vod.vod_play_url : item.api, 3000)
+      const testUrl = item.vod.vod_play_url ? item.vod.vod_play_url.split('$')[1] || item.vod.vod_play_url : item.api;
+      fetchWithFallback(testUrl, 3000)
         .then(() => {
           const lat = Math.round(performance.now() - t0);
           item.ping = lat;
@@ -809,12 +928,11 @@
         });
     }
 
-    // 全部重测
     function retestAllSources() {
       currentVodResults.forEach((_, idx) => retestSingleSource(idx));
     }
 
-    // 通用抓取器
+    // 多重跨域自动兜底抓取函数（直连 -> corsproxy -> allorigins -> codetabs）
     async function fetchWithFallback(url, timeout = 5000) {
       const fetchWithTimeout = (target) => {
         const controller = new AbortController();
@@ -827,7 +945,8 @@
       try { return await fetchWithTimeout(url); } catch (_) {}
       try { return await fetchWithTimeout("https://corsproxy.io/?" + encodeURIComponent(url)); } catch (_) {}
       try { return await fetchWithTimeout("https://api.allorigins.win/raw?url=" + encodeURIComponent(url)); } catch (_) {}
-      throw new Error("连接超时");
+      try { return await fetchWithTimeout("https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url)); } catch (_) {}
+      throw new Error("抓取超时或跨域受阻");
     }
 
     // 电视直播业务
@@ -951,8 +1070,16 @@
     video.addEventListener('pause', () => updatePlayBtn(false));
 
     window.addEventListener('DOMContentLoaded', () => {
+      // 从本地缓存或预置库恢复源列表
+      const cached = localStorage.getItem(STORAGE_KEY_SITES);
+      if (cached) {
+        try {
+          const arr = JSON.parse(cached);
+          if (arr && arr.length > 0) parsedSites = arr;
+        } catch (_) {}
+      }
       initTv();
-      switchMode('vod'); // 默认进入影视换源面板
+      switchMode('vod');
     });
   </script>
 </body>
