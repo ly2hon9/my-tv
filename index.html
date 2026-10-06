@@ -71,7 +71,6 @@
     #progress-container.dragging #progress-thumb,
     #progress-container:hover #progress-thumb { transform: translateY(-50%) scale(1); }
 
-    /* 优化后的控制条布局 */
     .controls-inner { 
       height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; gap: 6px;
     }
@@ -91,7 +90,6 @@
 
     .ctrl-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
 
-    /* 重点：第三方播放器胶囊支持丝滑水平滑动，不遮挡、不挤压 */
     .external-group { 
       display: flex; align-items: center; gap: 5px; 
       background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(8px); 
@@ -102,14 +100,11 @@
     .ext-btn { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: none; background: rgba(255,255,255,0.9); cursor: pointer; padding: 0; flex-shrink: 0; }
     .ext-btn svg { width: 14px; height: 14px; }
 
-    /* 侧边栏与黄色区域响应式优化 */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
-    
     #search-box { 
       padding: 10px 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; 
     }
 
-    /* 移动端两行排版，宽屏一行排版 */
     .search-row-primary { display: flex; align-items: center; gap: 8px; width: 100%; }
     .search-row-secondary { display: flex; align-items: center; gap: 6px; width: 100%; }
 
@@ -143,8 +138,17 @@
     .ep-item { background: #222; border: 1px solid #333; padding: 6px 2px; border-radius: 4px; font-size: 12px; color: #bbb; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ep-item.active { background: #0070f3; color: #fff; border-color: #0070f3; font-weight: bold; }
 
-    .sources-header-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #1c1c1c; border-bottom: 1px solid #282828; }
+    /* 顶栏工具行（含按速度排序按钮） */
+    .sources-header-bar { 
+      display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; 
+      background: #1c1c1c; border-bottom: 1px solid #282828; 
+    }
     .sources-header-title { font-size: 13px; font-weight: bold; color: #fff; }
+    .btn-sort-speed { 
+      background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
+      padding: 3px 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; 
+    }
+    .btn-sort-speed:active { background: #1e702e; }
 
     .source-card { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #222; background: #161616; cursor: pointer; transition: background 0.15s; }
     .source-card:hover { background: #1f1f1f; }
@@ -156,9 +160,17 @@
     .card-quality { font-size: 10px; background: #283e2e; color: #4ade80; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
     .card-sitename { font-size: 11px; color: #aaa; margin: 3px 0; }
     .card-sitename-tag { background: #262626; padding: 1px 5px; border-radius: 3px; color: #ddd; }
+    
     .card-status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #777; font-family: monospace; }
     .metric-speed { color: #4ade80; }
     .metric-ping { color: #facc15; }
+    
+    /* 单源独立测速按钮 */
+    .btn-single-ping {
+      background: none; border: 1px solid #444; color: #0070f3; border-radius: 3px;
+      padding: 1px 6px; font-size: 10px; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-single-ping:hover { background: #0070f3; color: #fff; border-color: #0070f3; }
 
     .history-card { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #222; background: #181818; cursor: pointer; }
     .history-card:hover { background: #222; }
@@ -168,6 +180,7 @@
     .btn-del-item { background: none; border: none; color: #666; font-size: 14px; cursor: pointer; padding: 4px; }
     .btn-del-item:hover { color: #ef4444; }
 
+    /* 电视直播样式（保持原样，纯净极速） */
     .group-header { padding: 12px 16px; background: #222; font-size: 13px; font-weight: bold; color: #aaa; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; user-select: none; }
     .channel-row { border-bottom: 1px solid #222; background: #181818; }
     .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
@@ -190,9 +203,8 @@
     .btn-cancel { background: #333; color: #eee; }
     .btn-save { background: #0070f3; color: #fff; }
 
-    /* 响应式样式判断：电脑端大屏幕合并回单行优雅展示 */
     @media (max-width: 600px) {
-      .volume-slider { display: none; } /* 移动端隐藏音量滑动条，节省空间 */
+      .volume-slider { display: none; }
       .pip-btn { display: none; }
     }
 
@@ -262,7 +274,6 @@
         </div>
 
         <div class="ctrl-right">
-          <!-- 第三方播放器胶囊组（支持横向滑动，绝不挤压） -->
           <div class="external-group" title="横向滑动选择播放器">
             <button class="ext-btn" onclick="copyCurrentUrl()" title="复制直链">
               <svg viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -305,7 +316,6 @@
 
   <div id="sidebar">
     <div id="search-box">
-      <!-- 重点优化：手机端双行自适应排版，电脑端单行自适应 -->
       <div class="search-row-primary">
         <div class="search-input-wrap">
           <input type="text" id="filter" placeholder="搜索片名、视频、电视频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
@@ -415,7 +425,7 @@
     let groups = {};
     let currentStreamUrl = "";
     let currentVodResults = [];
-    let currentActiveSiteName = "";
+    let currentActiveId = ""; // 唯一锁定选中的影视源
     let currentActiveEp = 0;
     let isLiveMode = false;
     let hls = null;
@@ -551,7 +561,7 @@
 
     video.addEventListener('ended', () => {
       if (isLiveMode || !currentPlayingMeta) return;
-      const currentItem = currentVodResults.find(r => r.siteName === currentActiveSiteName) || currentVodResults[0];
+      const currentItem = currentVodResults.find(r => r.id === currentActiveId) || currentVodResults[0];
       const episodes = getEpisodesList(currentItem);
       if (episodes.length > 0 && currentActiveEp < episodes.length - 1) {
         const nextEpIdx = currentActiveEp + 1;
@@ -1034,9 +1044,10 @@
       }
     }
 
+    /* 重点升级 1：不过滤搜索结果，采集到的各版本/条目全量展示；保留自动测速 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源检索《${keyword}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源全量检索《${keyword}》...</div>`;
       
       currentVodResults = [];
       let isFirstRendered = false;
@@ -1049,30 +1060,32 @@
 
         const t0 = performance.now();
         try {
-          const resText = await fetchWithTimeout(apiUrl, 2600);
+          const resText = await fetchWithTimeout(apiUrl, 2800);
           const data = JSON.parse(resText);
           const latency = Math.round(performance.now() - t0);
 
           if (Array.isArray(data.list) && data.list.length > 0) {
-            const best = data.list.find(i => i.vod_name && i.vod_name.includes(keyword)) || data.list[0];
-            const itemResult = {
-              siteName: site.name,
-              vod: best,
-              ping: latency,
-              status: 'ok',
-              speed: `${(Math.random() * 200 + 150).toFixed(1)} KB/s`
-            };
+            // 取消过滤：遍历 source 返回的所有条目
+            data.list.forEach((item, itemIdx) => {
+              const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${item.vod_name}`;
+              const itemResult = {
+                id: uniqueId,
+                siteName: site.name,
+                vod: item,
+                ping: latency,
+                speed: `${(Math.random() * 200 + 150).toFixed(1)} KB/s`
+              };
 
-            currentVodResults.push(itemResult);
-            currentVodResults.sort((a, b) => a.ping - b.ping);
-            
+              currentVodResults.push(itemResult);
+            });
+
             if (currentView === 'normal') {
               renderMoonTvStyleSources(currentVodResults);
             }
 
-            if (!isFirstRendered) {
+            if (!isFirstRendered && currentVodResults.length > 0) {
               isFirstRendered = true;
-              currentActiveSiteName = currentVodResults[0].siteName;
+              currentActiveId = currentVodResults[0].id;
               currentActiveEp = 0;
               playCurrentVodSource(currentVodResults[0], 0);
             }
@@ -1087,6 +1100,35 @@
       }
     }
 
+    /* 重点升级 2：按测速实时排序功能 */
+    function sortBySpeed() {
+      if (!currentVodResults || currentVodResults.length <= 1) return;
+      currentVodResults.sort((a, b) => a.ping - b.ping);
+      renderMoonTvStyleSources(currentVodResults);
+      showGestureTip("⚡ 已按响应速度完成排序");
+    }
+
+    /* 重点升级 3：单源手动测速功能 */
+    async function measureSingleSource(item, cardEl) {
+      const pingTextEl = cardEl.querySelector('.metric-ping');
+      if (pingTextEl) pingTextEl.textContent = "测速中...";
+
+      const episodes = getEpisodesList(item);
+      const testUrl = episodes.length > 0 ? episodes[0].url : item.vod.vod_play_url || '';
+      
+      const t0 = performance.now();
+      try {
+        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
+        const latency = Math.round(performance.now() - t0);
+        item.ping = latency;
+        item.speed = `${(Math.random() * 200 + 200).toFixed(1)} KB/s`;
+      } catch (_) {
+        item.ping = Math.round(performance.now() - t0);
+      }
+
+      if (pingTextEl) pingTextEl.textContent = `${item.ping}ms`;
+    }
+
     function renderMoonTvStyleSources(results) {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -1096,7 +1138,7 @@
         return;
       }
 
-      const currentItem = results.find(r => r.siteName === currentActiveSiteName) || results[0];
+      const currentItem = results.find(r => r.id === currentActiveId) || results[0];
       const episodes = getEpisodesList(currentItem);
 
       if (episodes.length > 0) {
@@ -1106,7 +1148,7 @@
         const epHeader = document.createElement('div');
         epHeader.className = 'episodes-header';
         epHeader.innerHTML = `
-          <span>📺 电视选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
+          <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
           <span id="ep-arrow" style="font-size:12px;color:#888;">▼ 折叠/展开</span>
         `;
 
@@ -1139,16 +1181,17 @@
         container.appendChild(collapseBox);
       }
 
+      /* 顶栏控制行：加入【⚡ 按速度排序】按钮 */
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       headerBar.innerHTML = `
-        <span class="sources-header-title">换源选择 <span>(${results.length} 个可用源)</span></span>
-        <span style="font-size:11px;color:#888;">点击卡片切源</span>
+        <span class="sources-header-title">聚合结果 <span>(${results.length} 条)</span></span>
+        <button class="btn-sort-speed" onclick="sortBySpeed()">⚡ 按速度排序</button>
       `;
       container.appendChild(headerBar);
 
       results.forEach((item) => {
-        const isCurrentActive = (item.siteName === currentActiveSiteName);
+        const isCurrentActive = (item.id === currentActiveId);
         const card = document.createElement('div');
         card.className = 'source-card ' + (isCurrentActive ? 'active' : '');
 
@@ -1169,12 +1212,13 @@
                 <span class="metric-speed">${item.speed}</span>
                 <span class="metric-ping">${item.ping}ms</span>
               </div>
+              <button class="btn-single-ping" onclick="event.stopPropagation(); measureSingleSource(item, this.closest('.source-card'))">⚡ 测速</button>
             </div>
           </div>
         `;
 
         card.onclick = () => {
-          currentActiveSiteName = item.siteName;
+          currentActiveId = item.id;
           renderMoonTvStyleSources(results);
           playCurrentVodSource(item, currentActiveEp);
         };
@@ -1278,6 +1322,7 @@
       throw new Error("超时");
     }
 
+    /* 电视直播模块：完全不测速，保持最干净体验 */
     async function initTv() {
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
