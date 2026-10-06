@@ -32,7 +32,6 @@
 
     video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; }
 
-    /* 顶部栏（支持自动淡出） */
     #top-bar { 
       position: absolute; top: 0; left: 0; right: 0; 
       padding: 12px 18px; 
@@ -64,7 +63,6 @@
       line-height: 1.6;
     }
 
-    /* 底部控制栏（支持自动淡出） */
     #custom-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -75,7 +73,6 @@
       transition: opacity 0.3s ease;
     }
 
-    /* 自动隐藏状态 */
     #player-wrap.controls-hidden #custom-controls,
     #player-wrap.controls-hidden #top-bar {
       opacity: 0;
@@ -85,7 +82,6 @@
       cursor: none;
     }
 
-    /* 丝滑拖拽进度条 */
     #progress-container {
       width: 100%;
       height: 20px;
@@ -146,7 +142,6 @@
     .ctrl-btn:hover { opacity: 1; }
     .ctrl-time { font-size: 12px; color: #aaa; font-family: monospace; white-space: nowrap; user-select: none; }
 
-    /* 倍速选择器胶囊 */
     .speed-btn {
       font-size: 12px;
       font-weight: 600;
@@ -222,7 +217,6 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 选集面板 */
     .episodes-collapse-box {
       background: #191919;
       border-bottom: 1px solid #2a2a2a;
@@ -366,7 +360,7 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 底部专属控制栏 -->
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -383,9 +377,7 @@
             <svg id="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
           </button>
           
-          <!-- 倍速选择按钮 -->
           <button class="ctrl-btn speed-btn" id="speed-btn" onclick="cyclePlaybackRate()" title="切换播放倍速">1.0x</button>
-          
           <span class="ctrl-time" id="stream-time">00:00 / 00:00</span>
         </div>
 
@@ -447,22 +439,23 @@
     </div>
   </div>
 
+  <!-- 订阅配置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
-        <span>订阅与配置</span>
+        <span>订阅与配置 (Cloudflare D1 存储)</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
-      <label class="input-label">影视订阅 URL（自动静默保持更新）：</label>
+      <label class="input-label">影视订阅 URL：</label>
       <input type="text" id="sub-url-input" placeholder="https://pz.v88.qzz.io?format=2&source=jingjian">
-      <div class="sub-stats" id="sub-stats-label">每次打开网页将自动同步最新配置</div>
+      <div class="sub-stats" id="sub-stats-label">数据将永久安全保存在 Cloudflare D1 云数据库</div>
 
       <label class="input-label">电视直播源（M3U 地址）：</label>
       <input type="text" id="source-m3u-input" placeholder="https://www.luyizhong.eu.org/hotel_tvn.m3u">
 
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="resetDefaultSource()">恢复默认</button>
-        <button class="btn-action btn-save" onclick="manualSaveSubscription()">保存配置</button>
+        <button class="btn-action btn-save" onclick="saveToD1()">保存并同步至 D1</button>
       </div>
     </div>
   </div>
@@ -482,6 +475,33 @@
       { name: "极速资源", api: "https://jszyapi.com/api.php/provide/vod" },
       { name: "电影天堂", api: "http://caiji.dyttzyapi.com/api.php/provide/vod" }
     ];
+
+    // D1 API 统一存取函数（与 localStorage 双向同步兜底）
+    async function getD1Data(key, defaultVal) {
+      try {
+        const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.value) {
+            localStorage.setItem(key, data.value);
+            return data.value;
+          }
+        }
+      } catch (_) {}
+      return localStorage.getItem(key) || defaultVal;
+    }
+
+    async function setD1Data(key, value) {
+      const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      localStorage.setItem(key, valStr);
+      try {
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value: valStr })
+        });
+      } catch (_) {}
+    }
 
     const STORAGE_KEY_M3U = "custom_tv_m3u_url";
     const STORAGE_KEY_SUB = "custom_vod_sub_url";
@@ -525,14 +545,11 @@
     let currentActiveIndex = 0;
     let currentActiveEp = 0;
     let isLiveMode = false;
-    let autoFailoverCount = 0;
     let hls = null;
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
     let currentVodUniqueKey = "";
-
-    // 控制栏自动隐藏定时器
     let controlsHideTimer = null;
 
     const RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
@@ -568,11 +585,9 @@
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    /* ================= 沉浸式控制栏自动隐藏 ================= */
     function showControls() {
       wrap.classList.remove('controls-hidden');
       clearTimeout(controlsHideTimer);
-      // 只有在正常起播且不是暂停状态时，才在 3.5 秒后自动淡出
       if (!video.paused && !isDraggingProgress) {
         controlsHideTimer = setTimeout(() => {
           wrap.classList.add('controls-hidden');
@@ -584,7 +599,6 @@
     wrap.addEventListener('pointerdown', showControls);
     wrap.addEventListener('touchstart', showControls, { passive: true });
 
-    /* ================= 倍速切换 ================= */
     function cyclePlaybackRate() {
       currentRateIdx = (currentRateIdx + 1) % RATES.length;
       const rate = RATES[currentRateIdx];
@@ -592,24 +606,28 @@
       speedBtn.textContent = `${rate}x`;
     }
 
-    /* ================= 记忆续播存储与恢复 ================= */
+    // 历史进度与 D1 同步
+    let lastSavedTime = 0;
     function savePlaybackProgress() {
       if (isLiveMode || !currentVodUniqueKey || !video.duration || video.currentTime < 2) return;
-      try {
-        let history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '{}');
-        history[currentVodUniqueKey] = Math.floor(video.currentTime);
-        localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
-      } catch (_) {}
+      const nowSec = Math.floor(video.currentTime);
+      if (Math.abs(nowSec - lastSavedTime) < 5) return;
+      lastSavedTime = nowSec;
+
+      let history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '{}');
+      history[currentVodUniqueKey] = nowSec;
+      setD1Data(STORAGE_KEY_HISTORY, history);
     }
 
-    function restorePlaybackProgress() {
+    async function restorePlaybackProgress() {
       if (isLiveMode || !currentVodUniqueKey) return;
+      const historyStr = await getD1Data(STORAGE_KEY_HISTORY, '{}');
       try {
-        let history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '{}');
+        const history = typeof historyStr === 'object' ? historyStr : JSON.parse(historyStr);
         const savedTime = history[currentVodUniqueKey];
         if (savedTime && savedTime > 5 && (!video.duration || savedTime < video.duration - 15)) {
           video.currentTime = savedTime;
-          setStatus(`已自动跳转至上次进度：${formatTime(savedTime)}`, true);
+          setStatus(`已跳转至上次进度：${formatTime(savedTime)}`, true);
           setTimeout(() => setStatus("", false), 1800);
         }
       } catch (_) {}
@@ -631,7 +649,6 @@
       progressBar.style.width = `${pct}%`;
     });
 
-    /* ================= 丝滑拖拽进度条 ================= */
     function calcProgressRatio(clientX) {
       const rect = progressTrack.getBoundingClientRect();
       const clickX = clientX - rect.left;
@@ -674,11 +691,8 @@
     progressContainer.addEventListener('pointerup', onPointerUp);
     progressContainer.addEventListener('pointercancel', onPointerUp);
 
-    /* ================= 键盘快捷键 ================= */
     window.addEventListener('keydown', (e) => {
-      // 避免在搜索输入框打字时误触快捷键
       if (e.target.tagName === 'INPUT') return;
-
       switch (e.code) {
         case 'Space':
           e.preventDefault();
@@ -686,17 +700,11 @@
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          if (!isLiveMode) {
-            video.currentTime = Math.max(0, video.currentTime - 5);
-            showControls();
-          }
+          if (!isLiveMode) { video.currentTime = Math.max(0, video.currentTime - 5); showControls(); }
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (!isLiveMode) {
-            video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
-            showControls();
-          }
+          if (!isLiveMode) { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); showControls(); }
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -717,10 +725,7 @@
 
     function togglePlay() {
       if (video.paused) {
-        video.play().then(() => {
-          updatePlayBtn(true);
-          showControls();
-        }).catch(() => {});
+        video.play().then(() => { updatePlayBtn(true); showControls(); }).catch(() => {});
       } else {
         video.pause();
         updatePlayBtn(false);
@@ -804,9 +809,9 @@
       });
     }
 
-    function openSourceModal() {
-      document.getElementById('sub-url-input').value = (localStorage.getItem(STORAGE_KEY_SUB) || DEFAULT_SUB_URL).trim();
-      document.getElementById('source-m3u-input').value = (localStorage.getItem(STORAGE_KEY_M3U) || DEFAULT_M3U).trim();
+    async function openSourceModal() {
+      document.getElementById('sub-url-input').value = await getD1Data(STORAGE_KEY_SUB, DEFAULT_SUB_URL);
+      document.getElementById('source-m3u-input').value = await getD1Data(STORAGE_KEY_M3U, DEFAULT_M3U);
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -814,26 +819,30 @@
       document.getElementById('modal-mask').style.display = 'none';
     }
 
-    function resetDefaultSource() {
-      localStorage.removeItem(STORAGE_KEY_M3U);
-      localStorage.removeItem(STORAGE_KEY_SUB);
-      localStorage.removeItem(STORAGE_KEY_SITES);
+    async function resetDefaultSource() {
+      await setD1Data(STORAGE_KEY_M3U, DEFAULT_M3U);
+      await setD1Data(STORAGE_KEY_SUB, DEFAULT_SUB_URL);
+      await setD1Data(STORAGE_KEY_SITES, JSON.stringify(BUILTIN_MOONTV_SITES));
       parsedSites = [...BUILTIN_MOONTV_SITES];
       closeSourceModal();
       initTv();
     }
 
-    function manualSaveSubscription() {
+    // 保存到 D1 云端数据库
+    async function saveToD1() {
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
-      if (m3uUrl) localStorage.setItem(STORAGE_KEY_M3U, m3uUrl);
-      if (subUrl) localStorage.setItem(STORAGE_KEY_SUB, subUrl);
+
+      if (m3uUrl) await setD1Data(STORAGE_KEY_M3U, m3uUrl);
+      if (subUrl) await setD1Data(STORAGE_KEY_SUB, subUrl);
+
       closeSourceModal();
-      silentUpdateSubscription(true);
+      alert("配置已同步写入 Cloudflare D1 数据库！刷新网页永不丢失。");
+      syncSubscription(true);
     }
 
-    async function silentUpdateSubscription(isAlert = false) {
-      const subUrl = (localStorage.getItem(STORAGE_KEY_SUB) || DEFAULT_SUB_URL).trim();
+    async function syncSubscription(isAlert = false) {
+      const subUrl = await getD1Data(STORAGE_KEY_SUB, DEFAULT_SUB_URL);
       try {
         let text = await fetchWithTimeout(subUrl, 4500);
         let sites = parseSubscriptionPayload(text);
@@ -845,11 +854,11 @@
 
         if (sites.length > 0) {
           parsedSites = sites;
-          localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
-          if (isAlert) alert(`配置保存成功！已装载 ${sites.length} 个视频源接口！`);
+          await setD1Data(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
+          if (isAlert) alert(`成功从订阅解析并载入 ${sites.length} 个视频源接口！`);
         }
       } catch (err) {
-        if (isAlert) alert("已更新配置！继续使用内置核心源。");
+        if (isAlert) alert("已使用保底核心源。");
       }
     }
 
@@ -929,7 +938,6 @@
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源检索《${keyword}》...</div>`;
       
       currentVodResults = [];
-      autoFailoverCount = 0;
       let isFirstRendered = false;
 
       const queryPromises = parsedSites.map(async (site) => {
@@ -1060,7 +1068,6 @@
 
         card.onclick = () => {
           currentActiveIndex = idx;
-          autoFailoverCount = 0;
           renderMoonTvStyleSources(results);
           playCurrentVodSource(item, currentActiveEp);
         };
@@ -1104,10 +1111,11 @@
       routeBadge.textContent = item.siteName;
       currentStreamUrl = rawUrl;
 
-      robustMoonTvPlayback(rawUrl);
+      manualPlayOnly(rawUrl);
     }
 
-    function robustMoonTvPlayback(url) {
+    /* 核心修改：取消自动跳源，失败时停留在当前源并提示 */
+    function manualPlayOnly(url) {
       setStatus("正在建立连接...");
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
@@ -1129,7 +1137,8 @@
         });
 
         video.onerror = () => {
-          triggerAutoFailover();
+          // 取消自动跳源，直接显示受限提示
+          showFailTip();
         };
         return;
       }
@@ -1162,7 +1171,8 @@
 
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            triggerAutoFailover();
+            // 取消自动跳源，直接显示受限提示
+            showFailTip();
             updatePlayBtn(false);
           }
         });
@@ -1175,26 +1185,14 @@
           restorePlaybackProgress();
           showControls();
         }).catch(() => {
-          triggerAutoFailover();
+          showFailTip();
           updatePlayBtn(false);
         });
       }
     }
 
-    function triggerAutoFailover() {
-      if (currentVodResults.length > 1 && autoFailoverCount < currentVodResults.length - 1) {
-        autoFailoverCount++;
-        currentActiveIndex = (currentActiveIndex + 1) % currentVodResults.length;
-        const nextSource = currentVodResults[currentActiveIndex];
-        setStatus(`当前源受限，已自动切换备用源：${nextSource.siteName}...`);
-        
-        renderMoonTvStyleSources(currentVodResults);
-        setTimeout(() => {
-          playCurrentVodSource(nextSource, currentActiveEp);
-        }, 300);
-      } else {
-        setStatus("所有源均受限<br><span style='color:#aaa;font-size:12px;'>请在下方点击其他源，或直接点击控制条播放器图标一键秒播</span>", true);
-      }
+    function showFailTip() {
+      setStatus("当前线路受限<br><span style='color:#aaa;font-size:12px;'>请在右侧列表中手动选择其他源，或点击下方播放器图标一键秒播</span>", true);
     }
 
     async function fetchWithTimeout(url, timeout = 2600) {
@@ -1213,7 +1211,7 @@
     }
 
     async function initTv() {
-      const targetUrl = (localStorage.getItem(STORAGE_KEY_M3U) || DEFAULT_M3U).trim();
+      const targetUrl = await getD1Data(STORAGE_KEY_M3U, DEFAULT_M3U);
       try {
         const text = await fetchWithTimeout(targetUrl, 3500);
         parseM3U(text);
@@ -1283,7 +1281,7 @@
               routeBadge.style.display = 'inline-block';
               routeBadge.textContent = `线 ${idx + 1}`;
               currentStreamUrl = url;
-              robustMoonTvPlayback(url);
+              manualPlayOnly(url);
             };
             panelEl.appendChild(itemEl);
           });
@@ -1341,10 +1339,18 @@
       showControls();
     });
 
-    window.addEventListener('DOMContentLoaded', () => {
+    // 页面初始化：优先读取 D1 存储数据并同步
+    window.addEventListener('DOMContentLoaded', async () => {
+      const cachedSites = await getD1Data(STORAGE_KEY_SITES, null);
+      if (cachedSites) {
+        try {
+          const parsed = typeof cachedSites === 'object' ? cachedSites : JSON.parse(cachedSites);
+          if (Array.isArray(parsed) && parsed.length > 0) parsedSites = parsed;
+        } catch (_) {}
+      }
       initTv();
       switchMode('vod');
-      silentUpdateSubscription(false);
+      syncSubscription(false);
     });
   </script>
 </body>
