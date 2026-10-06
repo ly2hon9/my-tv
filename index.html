@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- PWA 全屏原生 WebApp 体验支持 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f0f0f">
   <title>聚合影视与电视直播</title>
-  <!-- 锁定稳定的生产环境版本，避免 @latest 突发 API 不兼容 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -343,7 +347,7 @@
       <div class="search-row-secondary">
         <button class="btn-tool-mid" id="btn-show-fav" onclick="switchSidebarView('fav')">⭐ 我的收藏</button>
         <button class="btn-tool-mid" id="btn-show-history" onclick="switchSidebarView('history')">🕒 播放历史</button>
-        <button class="btn-source-mgr" onclick="openSourceModal()">⚙️️ 订阅配置</button>
+        <button class="btn-source-mgr" onclick="openSourceModal()">⚙ 订阅配置</button>
       </div>
 
       <div class="mode-tab-group">
@@ -377,7 +381,6 @@
   </div>
 
   <script>
-    // 基础安全 HTML 转义工具（防御 XSS）
     function escapeHtml(str) {
       if (!str) return '';
       return String(str)
@@ -388,7 +391,6 @@
         .replace(/'/g, '&#39;');
     }
 
-    // URL 合法性与白名单校验
     function isSafeUrl(url) {
       if (!url || typeof url !== 'string') return false;
       const trimmed = url.trim().toLowerCase();
@@ -427,7 +429,6 @@
     const KEY_HISTORY = "history_list_v2";
     const KEY_FAVS = "favorites_list_v2";
 
-    // 严谨的 Base58 规范解码器（精确统计前导 '1'，无越界 Bug）
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     const B58_MAP = {};
     for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
@@ -443,7 +444,7 @@
       const bytes = [0];
       for (let i = leadingOnes; i < input.length; i++) {
         const c = input[i];
-        if (!(c in B58_MAP)) throw new Error('无效的 Base58 字符: ' + c);
+        if (!(c in B58_MAP)) throw new Error('无效字符: ' + c);
         for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
         bytes[0] += B58_MAP[c];
         let carry = 0;
@@ -515,7 +516,7 @@
 
     function setStatus(text, show = true) {
       if (show) {
-        statusText.innerHTML = text; // 内部提示字符串受控
+        statusText.innerHTML = text;
         statusLayer.style.display = 'block';
       } else {
         statusLayer.style.display = 'none';
@@ -958,7 +959,6 @@
 
     function enterPseudoFullscreen() { wrap.classList.toggle('pseudo-fullscreen'); }
 
-    // 协议白名单验证，阻止恶意 scheme 执行
     function openPlayer(type) {
       if (!isSafeUrl(currentStreamUrl)) {
         alert("当前链接无效或存在非安全协议！");
@@ -1014,7 +1014,6 @@
       syncSubscription(true);
     }
 
-    // 订阅同步完成后立即热刷新内存与界面
     async function syncSubscription(isAlert = false) {
       const subUrl = await getD1Data(KEY_SUB, '');
       if (!subUrl) return;
@@ -1094,7 +1093,11 @@
       }
     }
 
-    function handleEnterSearch(e) { if (e.key === 'Enter') triggerSearch(); }
+    // 中文拼音输入法防误触合成判断
+    function handleEnterSearch(e) {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Enter') triggerSearch();
+    }
 
     function triggerSearch() {
       const kw = document.getElementById('filter').value.trim();
@@ -1129,7 +1132,6 @@
       return String(rawTitle).trim();
     }
 
-    // 并发池调度器（避免大量并发造成卡顿）
     async function asyncPool(poolLimit, array, iteratorFn) {
       const ret = [];
       const executing = [];
@@ -1147,7 +1149,6 @@
       return Promise.all(ret);
     }
 
-    /* 健壮的并发搜索与竞态锁消除 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源并发检索《${escapeHtml(keyword)}》...</div>`;
@@ -1194,7 +1195,6 @@
               renderGroupedVodSources();
             }
 
-            // 严格的自动播放竞态锁：首个有效结果挂载时只执行一次，后续排序不篡改
             if (!autoPlayLock && groupedVodList.length > 0) {
               autoPlayLock = true;
               activeGroupTitle = groupedVodList[0].title;
@@ -1211,7 +1211,6 @@
       }
     }
 
-    /* 真实 RTT 测速（剔除随机生成假速度） */
     async function startSpeedTest() {
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
       if (!activeGroup || !activeGroup.items || activeGroup.items.length === 0) return;
@@ -1429,7 +1428,6 @@
       manualPlayOnly(rawUrl);
     }
 
-    // 内存泄漏防护：彻底销毁旧实例
     function destroyHlsInstance() {
       if (hls) {
         hls.stopLoad();
@@ -1439,7 +1437,6 @@
       }
     }
 
-    /* 播放器状态自愈与切换管理 */
     function manualPlayOnly(url) {
       setStatus("正在建立连接...");
       destroyHlsInstance();
@@ -1475,7 +1472,6 @@
           }).catch(() => setStatus("请轻触画面开始播放"));
         });
 
-        // 错误恢复与自动重试
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
             switch (data.type) {
@@ -1506,7 +1502,6 @@
       setStatus("当前线路受限<br><span style='color:#aaa;font-size:12px;'>请在右侧列表中手动选择其他源，或点击下方播放器图标一键秒播</span>", true);
     }
 
-    /* 兼容 tvg-name 与 tvg-logo 的健壮 M3U 解析 */
     async function initTv() {
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
@@ -1585,7 +1580,7 @@
               currentStreamUrl = url;
               currentPlayingMeta = { title: chName, epName: '直播', siteName: `线路 ${idx + 1}` };
               updateFavIconState();
-              manualPlayOnly(url);
+              manualPlayOnly(url); // 统一流媒体销毁与安全起播
             };
             panelEl.appendChild(itemEl);
           });
