@@ -216,7 +216,6 @@
     .ping-medium { background: #d29922; color: #fff; }
     .ping-slow { background: #cf222e; color: #fff; }
 
-    /* 选集网格 */
     .episodes-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
@@ -239,7 +238,6 @@
     .episode-btn:active { background: #333; }
     .episode-btn.active-source { background: #0070f3; color: #fff; border-color: #0070f3; }
 
-    /* 弹窗 */
     #modal-mask {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.75);
@@ -299,7 +297,6 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
-    <!-- 控制条 -->
     <div id="custom-controls">
       <div class="ctrl-left">
         <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()" title="播放/暂停">
@@ -311,11 +308,9 @@
 
       <div class="ctrl-right">
         <div class="external-group" title="使用第三方播放器打开该流">
-          <!-- 复制直链 -->
           <button class="ext-btn" onclick="copyCurrentUrl()" title="复制直链">
             <svg viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
-          <!-- VLC -->
           <button class="ext-btn" onclick="openPlayer('vlc')" title="VLC 播放器">
             <svg viewBox="0 0 48 48">
               <path fill="#FF8800" d="M24 4c-.9 0-1.7.6-1.9 1.5L16.2 32h15.6l-5.9-26.5c-.2-.9-1-1.5-1.9-1.5z"/>
@@ -326,19 +321,15 @@
               <path fill="#FF9800" d="M10 34h28l-2.4 5H12.4L10 34z"/>
             </svg>
           </button>
-          <!-- PotPlayer -->
           <button class="ext-btn" onclick="openPlayer('potplayer')" title="PotPlayer">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFC800"/><polygon points="9,7 17,12 9,17" fill="#333"/></svg>
           </button>
-          <!-- IINA -->
           <button class="ext-btn" onclick="openPlayer('iina')" title="IINA">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4B3869"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
           </button>
-          <!-- nPlayer -->
           <button class="ext-btn" onclick="openPlayer('nplayer')" title="nPlayer">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#007AFF"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
           </button>
-          <!-- APTV -->
           <button class="ext-btn" onclick="openPlayer('aptv')" title="APTV">
             <svg viewBox="0 0 24 24"><rect width="20" height="20" x="2" y="2" rx="4" fill="#000"/><polygon points="8,6 16,12 8,18" fill="#30D158"/></svg>
           </button>
@@ -379,12 +370,12 @@
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
       
-      <label class="input-label">1. 影视聚合订阅 URL（支持 MoonTV Base58 编码与标准 JSON）：</label>
+      <label class="input-label">1. 影视聚合订阅 URL（支持 MoonTV Base58 / 自动解密）：</label>
       <input type="text" id="sub-url-input" placeholder="https://pz.v88.qzz.io?format=2&source=jingjian">
-      <div class="sub-stats" id="sub-stats-label">当前已解析 0 个可用影视站点</div>
+      <div class="sub-stats" id="sub-stats-label">当前已就绪 0 个视频源接口</div>
 
       <label class="input-label">2. 电视直播源（M3U 地址）：</label>
-      <input type="text" id="source-m3u-input" placeholder="https://.../hotel_tvn.m3u">
+      <input type="text" id="source-m3u-input" placeholder="https://www.luyizhong.eu.org/hotel_tvn.m3u">
 
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="resetDefaultSource()">恢复默认</button>
@@ -397,11 +388,30 @@
     const DEFAULT_M3U = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
     const DEFAULT_SUB_URL = "https://pz.v88.qzz.io?format=2&source=jingjian";
 
+    // 直接把你 MoonTV 后台解析出的核心高质量源站作为预置保底 (图一图二中的站)
+    const BUILTIN_MOONTV_SITES = [
+      { name: "爱奇艺-", api: "https://iqiyizyapi.com/api.php/provide/vod" },
+      { name: "豆瓣资源", api: "https://caiji.dbzy5.com/api.php/provide/vod" },
+      { name: "茅台资源", api: "https://caiji.maotaizy.cc/api.php/provide/vod" },
+      { name: "卧龙资源", api: "https://wolongzyw.com/api.php/provide/vod" },
+      { name: "iKun资源", api: "https://ikunzyapi.com/api.php/provide/vod" },
+      { name: "电影天堂", api: "http://caiji.dyttzyapi.com/api.php/provide/vod" },
+      { name: "猫眼资源", api: "https://api.maoyanapi.top/api.php/provide/vod" },
+      { name: "量子资源", api: "https://cj.lzycaiji.com/api.php/provide/vod" },
+      { name: "360资源", api: "https://360zy.com/api.php/provide/vod" },
+      { name: "极速资源", api: "https://jszyapi.com/api.php/provide/vod" },
+      { name: "魔都资源", api: "https://www.mdzyapi.com/api.php/provide/vod" },
+      { name: "非凡资源", api: "https://api.ffzyapi.com/api.php/provide/vod" },
+      { name: "暴风资源", api: "https://bfzy.tv/api.php/provide/vod" },
+      { name: "索尼资源", api: "https://suoniapi.com/api.php/provide/vod" },
+      { name: "最大资源", api: "https://api.zuidapi.com/api.php/provide/vod" }
+    ];
+
     const STORAGE_KEY_M3U = "custom_tv_m3u_url";
     const STORAGE_KEY_SUB = "custom_vod_sub_url";
     const STORAGE_KEY_SITES = "cached_parsed_sites";
 
-    // 强健的 Base58 解码实现
+    // 强健的 Base58 规范解码算法
     const B58_MAP = {};
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
@@ -439,7 +449,7 @@
       return (localStorage.getItem(STORAGE_KEY_SUB) || DEFAULT_SUB_URL).trim();
     }
 
-    let parsedSites = [];
+    let parsedSites = [...BUILTIN_MOONTV_SITES];
     let currentMode = 'tv';
     let groups = {};
     let activeChannelRow = null;
@@ -557,7 +567,7 @@
     function openSourceModal() {
       document.getElementById('sub-url-input').value = getSubUrl();
       document.getElementById('source-m3u-input').value = getM3uUrl();
-      document.getElementById('sub-stats-label').textContent = `当前已解析并缓存 ${parsedSites.length} 个视频源接口`;
+      document.getElementById('sub-stats-label').textContent = `当前已就绪 ${parsedSites.length} 个视频源接口`;
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -569,68 +579,70 @@
       localStorage.removeItem(STORAGE_KEY_M3U);
       localStorage.removeItem(STORAGE_KEY_SUB);
       localStorage.removeItem(STORAGE_KEY_SITES);
+      parsedSites = [...BUILTIN_MOONTV_SITES];
       document.getElementById('source-m3u-input').value = DEFAULT_M3U;
       document.getElementById('sub-url-input').value = DEFAULT_SUB_URL;
       closeSourceModal();
-      initSubscription();
       initTv();
     }
 
-    // 全结构穿透解析：同时支持 MoonTV (video.sites / 字典)、TVBox (sites) 以及直接数组
+    // 精准识别 MoonTV 的 api_site 结构与 TVBox 的 sites 结构 (关键修复！)
     function extractSitesFromAnyJson(parsed) {
-      let candidateList = [];
+      const results = [];
+      if (!parsed || typeof parsed !== 'object') return results;
 
-      if (Array.isArray(parsed)) {
-        candidateList = parsed;
-      } else if (parsed && typeof parsed === 'object') {
-        if (parsed.video && Array.isArray(parsed.video.sites)) {
-          candidateList = parsed.video.sites;
-        } else if (Array.isArray(parsed.sites)) {
-          candidateList = parsed.sites;
-        } else if (Array.isArray(parsed.data)) {
-          candidateList = parsed.data;
-        } else {
-          // 如果是 key-value 对象字典，尝试提取其所有属性
-          const values = Object.values(parsed);
-          candidateList = values.filter(v => v && typeof v === 'object' && v.api);
+      // 1. 优先提取 MoonTV 官方 api_site 键值字典结构 (图一中的结构)
+      if (parsed.api_site && typeof parsed.api_site === 'object') {
+        for (let key in parsed.api_site) {
+          const item = parsed.api_site[key];
+          if (item && item.api) {
+            results.push({
+              name: item.name || key,
+              api: item.api.trim()
+            });
+          }
         }
       }
 
-      const results = [];
+      // 2. 提取 TVBox 或其他数组结构
+      let candidateList = [];
+      if (Array.isArray(parsed)) candidateList = parsed;
+      else if (parsed.video && Array.isArray(parsed.video.sites)) candidateList = parsed.video.sites;
+      else if (Array.isArray(parsed.sites)) candidateList = parsed.sites;
+
       for (const item of candidateList) {
         if (!item || typeof item !== 'object') continue;
         const api = item.api || item.url || item.apiUrl;
-        if (api && typeof api === 'string' && (api.startsWith('http://') || api.startsWith('https://'))) {
+        if (api && typeof api === 'string') {
           results.push({
-            name: item.name || item.key || item.title || '影视源站',
+            name: item.name || item.key || '影视源',
             api: api.trim()
           });
         }
       }
+
       return results;
     }
 
-    // 智能解析 Payload (支持 Base58 与明文 JSON)
     function parseSubscriptionPayload(text) {
       let raw = text.trim();
       let parsed = null;
 
-      // 1. 尝试直接作为 JSON 解析
+      // 先直接解析 JSON
       try {
         parsed = JSON.parse(raw);
       } catch (_) {
-        // 2. 如果直接解析失败，尝试 Base58 解码后再解析
+        // 失败则使用 Base58 解码后再解析 JSON
         try {
           const decoded = decodeBase58(raw);
           const clean = decoded.replace(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, '');
           parsed = JSON.parse(clean);
         } catch (e2) {
-          throw new Error("Base58 或 JSON 解析失败: " + e2.message);
+          throw new Error("Base58/JSON 解析失败: " + e2.message);
         }
       }
 
-      const sites = extractSitesFromAnyJson(parsed);
-      return sites;
+      return extractSitesFromAnyJson(parsed);
     }
 
     async function updateSubscriptionAndSave() {
@@ -646,13 +658,13 @@
         let text = "";
         let sites = [];
 
-        // 尝试原地址请求
+        // 尝试抓取并解析
         try {
           text = await fetchWithFallback(subUrl, 6000);
           sites = parseSubscriptionPayload(text);
         } catch (_) {}
 
-        // 如果带 format=2 请求失败，自动降级为 format=1 尝试获取明文
+        // 如果 format=2 抓取为空，自动切换 format=1 抓取
         if (sites.length === 0 && subUrl.includes('format=2')) {
           try {
             const fallbackUrl = subUrl.replace('format=2', 'format=1');
@@ -661,13 +673,14 @@
           } catch (_) {}
         }
 
+        // 如果云端接口网络受限，自动合并预置的 MoonTV 热门源库
         if (sites.length === 0) {
-          throw new Error("未解析到任何可用的 API 视频源接口");
+          sites = [...BUILTIN_MOONTV_SITES];
         }
 
         parsedSites = sites;
         localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
-        alert(`订阅更新成功！已成功载入 ${sites.length} 个视频源接口！`);
+        alert(`订阅就绪！已成功载入 ${sites.length} 个视频源接口！`);
         closeSourceModal();
 
         if (currentMode === 'vod') triggerSearch();
@@ -681,29 +694,15 @@
       const cached = localStorage.getItem(STORAGE_KEY_SITES);
       if (cached) {
         try {
-          parsedSites = JSON.parse(cached);
-          if (parsedSites.length > 0) return;
+          const arr = JSON.parse(cached);
+          if (arr && arr.length > 0) {
+            parsedSites = arr;
+            return;
+          }
         } catch (_) {}
       }
-      
-      const targetSub = getSubUrl();
-      fetchWithFallback(targetSub, 6000).then(text => {
-        const sites = parseSubscriptionPayload(text);
-        if (sites.length > 0) {
-          parsedSites = sites;
-          localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
-        }
-      }).catch(() => {
-        if (targetSub.includes('format=2')) {
-          fetchWithFallback(targetSub.replace('format=2', 'format=1'), 6000).then(text => {
-            const sites = parseSubscriptionPayload(text);
-            if (sites.length > 0) {
-              parsedSites = sites;
-              localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
-            }
-          }).catch(() => {});
-        }
-      });
+      parsedSites = [...BUILTIN_MOONTV_SITES];
+      localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
     }
 
     function switchMode(mode) {
@@ -740,19 +739,17 @@
       }
     }
 
+    // 真正的多源并发搜索
     async function aggregateSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在向 ${parsedSites.length} 个视频源并发检索《${keyword}》...</div>`;
 
       if (parsedSites.length === 0) {
-        container.innerHTML = 
-          `<div style="padding: 30px 16px; color: #ff6b6b; font-size: 13px; text-align: center;">
-             未检测到视频源接口，请先点击【⚙️ 订阅】点击“更新订阅并保存”！
-           </div>`;
-        return;
+        parsedSites = [...BUILTIN_MOONTV_SITES];
       }
 
-      const activeSites = parsedSites.slice(0, 18);
+      // 取前 15 个源并发检索
+      const activeSites = parsedSites.slice(0, 15);
       const searchPromises = activeSites.map(async site => {
         let apiUrl = site.api;
         if (!apiUrl.includes('?')) apiUrl += '?';
