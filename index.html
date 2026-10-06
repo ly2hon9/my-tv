@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>我的电视与视频直播</title>
+  <title>聚合影视与电视直播</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -119,8 +119,13 @@
       border-bottom: 1px solid #2b2b2b; 
       flex-shrink: 0; 
       display: flex; 
-      align-items: center; 
+      flex-direction: column;
       gap: 8px; 
+    }
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     #search-box input { 
       flex: 1; 
@@ -132,6 +137,28 @@
       font-size: 14px; 
       outline: none; 
     }
+    .mode-tab-group {
+      display: flex;
+      gap: 6px;
+    }
+    .mode-tab {
+      flex: 1;
+      padding: 6px 0;
+      background: #252525;
+      border: 1px solid #383838;
+      color: #999;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .mode-tab.active {
+      background: #0070f3;
+      color: #fff;
+      border-color: #0070f3;
+      font-weight: 500;
+    }
+
     .btn-source-mgr {
       background: #2b2b2b;
       border: 1px solid #444;
@@ -163,7 +190,7 @@
     .btn-ping-channel { background: #238636; border: 1px solid #2ea043; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; }
     .btn-ping-channel:active { background: #2ea043; }
 
-    .sources-panel { display: none; background: #111; padding: 4px 12px 10px 16px; border-top: 1px solid #242424; }
+    .sources-panel { display: none; background: #111; padding: 6px 12px 10px 16px; border-top: 1px solid #242424; }
     .channel-row.expanded .sources-panel { display: block; }
     
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
@@ -176,6 +203,29 @@
     .ping-fast { background: #238636; color: #fff; }
     .ping-medium { background: #d29922; color: #fff; }
     .ping-slow { background: #cf222e; color: #fff; }
+
+    /* 影视剧集选集网格 */
+    .episodes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .episode-btn {
+      background: #222;
+      border: 1px solid #333;
+      color: #ccc;
+      padding: 6px 4px;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .episode-btn:hover { background: #333; color: #fff; }
+    .episode-btn.active-source { background: #0070f3; color: #fff; border-color: #0070f3; }
 
     /* 换源弹窗 */
     #modal-mask {
@@ -193,23 +243,23 @@
       border: 1px solid #333;
       border-radius: 12px;
       width: 100%;
-      max-width: 480px;
+      max-width: 500px;
       padding: 20px;
       box-shadow: 0 16px 36px rgba(0,0,0,0.8);
     }
     #source-modal h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .input-label { font-size: 12px; color: #aaa; margin-top: 10px; margin-bottom: 4px; display: block; }
     #source-modal input {
       width: 100%;
-      padding: 10px 14px;
+      padding: 9px 12px;
       border-radius: 6px;
       border: 1px solid #444;
       background: #111;
       color: #fff;
       font-size: 13px;
-      margin-bottom: 14px;
       outline: none;
     }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
     .btn-action { padding: 8px 16px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; }
     .btn-cancel { background: #333; color: #eee; }
     .btn-save { background: #0070f3; color: #fff; }
@@ -299,38 +349,60 @@
 
   <div id="sidebar">
     <div id="search-box">
-      <input type="text" id="filter" placeholder="搜索片名、视频、频道..." oninput="handleSearch()">
-      <button class="btn-source-mgr" onclick="openSourceModal()">⚙️ 换源</button>
+      <div class="search-row">
+        <input type="text" id="filter" placeholder="搜索片名、视频、电视频道..." onkeydown="handleEnterSearch(event)">
+        <button class="btn-source-mgr" onclick="openSourceModal()">⚙️ 换源</button>
+      </div>
+      <div class="mode-tab-group">
+        <button class="mode-tab active" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
+        <button class="mode-tab" id="tab-vod" onclick="switchMode('vod')">🎬 全网搜影视</button>
+      </div>
     </div>
     <div id="channel-list">
       <div style="padding: 24px; color: #888; text-align: center;">正在同步节目单...</div>
     </div>
   </div>
 
+  <!-- 自定义换源弹窗（支持 M3U 与 视频采集接口） -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
         <span>自定义源配置</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
-      <p style="font-size:12px;color:#aaa;margin-bottom:10px;">输入你的 M3U 播放列表地址（直播源或点播片单）：</p>
-      <input type="text" id="source-input" placeholder="https://.../your_list.m3u">
+      
+      <label class="input-label">1. 电视直播源（M3U 地址）：</label>
+      <input type="text" id="source-m3u-input" placeholder="https://.../hotel_tvn.m3u">
+
+      <label class="input-label">2. 影视视频采集源（JSON / CMS API 接口）：</label>
+      <input type="text" id="source-vod-input" placeholder="https://.../api.php/provide/vod/">
+
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="resetDefaultSource()">恢复默认</button>
-        <button class="btn-action btn-save" onclick="saveCustomSource()">保存并载入</button>
+        <button class="btn-action btn-save" onclick="saveCustomSource()">保存配置</button>
       </div>
     </div>
   </div>
 
   <script>
     const INITIAL_DEFAULT_M3U = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
-    const STORAGE_KEY = "custom_tv_m3u_url";
+    // 默认内置可用的开源聚合视频采集接口 (支持 HTTPS / CORS)
+    const INITIAL_DEFAULT_VOD = "https://api.tiankongapi.com/api.php/provide/vod/";
 
-    function getCurrentM3uUrl() {
-      const stored = localStorage.getItem(STORAGE_KEY);
+    const STORAGE_KEY_M3U = "custom_tv_m3u_url";
+    const STORAGE_KEY_VOD = "custom_vod_api_url";
+
+    function getM3uUrl() {
+      const stored = localStorage.getItem(STORAGE_KEY_M3U);
       return (stored && stored.trim()) ? stored.trim() : INITIAL_DEFAULT_M3U;
     }
 
+    function getVodUrl() {
+      const stored = localStorage.getItem(STORAGE_KEY_VOD);
+      return (stored && stored.trim()) ? stored.trim() : INITIAL_DEFAULT_VOD;
+    }
+
+    let currentMode = 'tv'; // 'tv' 或 'vod'
     let groups = {};
     let activeChannelRow = null;
     let activeSourceItem = null;
@@ -456,7 +528,8 @@
     }
 
     function openSourceModal() {
-      document.getElementById('source-input').value = getCurrentM3uUrl();
+      document.getElementById('source-m3u-input').value = getM3uUrl();
+      document.getElementById('source-vod-input').value = getVodUrl();
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -465,26 +538,181 @@
     }
 
     function saveCustomSource() {
-      const val = document.getElementById('source-input').value.trim();
-      if (!val) {
-        alert("请输入有效的源链接！");
-        return;
-      }
-      localStorage.setItem(STORAGE_KEY, val);
+      const m3uVal = document.getElementById('source-m3u-input').value.trim();
+      const vodVal = document.getElementById('source-vod-input').value.trim();
+      if (m3uVal) localStorage.setItem(STORAGE_KEY_M3U, m3uVal);
+      if (vodVal) localStorage.setItem(STORAGE_KEY_VOD, vodVal);
       closeSourceModal();
-      document.getElementById('channel-list').innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在同步新源内容...</div>`;
-      init();
+      if (currentMode === 'tv') {
+        document.getElementById('channel-list').innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在同步新电视源内容...</div>`;
+        initTv();
+      } else {
+        searchVod();
+      }
     }
 
     function resetDefaultSource() {
-      localStorage.removeItem(STORAGE_KEY);
-      document.getElementById('source-input').value = INITIAL_DEFAULT_M3U;
+      localStorage.removeItem(STORAGE_KEY_M3U);
+      localStorage.removeItem(STORAGE_KEY_VOD);
+      document.getElementById('source-m3u-input').value = INITIAL_DEFAULT_M3U;
+      document.getElementById('source-vod-input').value = INITIAL_DEFAULT_VOD;
       closeSourceModal();
-      document.getElementById('channel-list').innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在恢复默认源...</div>`;
-      init();
+      initTv();
     }
 
-    // 强壮的网络抓取器（带超时，防死锁）
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('tab-tv').className = 'mode-tab ' + (mode === 'tv' ? 'active' : '');
+      document.getElementById('tab-vod').className = 'mode-tab ' + (mode === 'vod' ? 'active' : '');
+      const filterInput = document.getElementById('filter');
+      
+      if (mode === 'tv') {
+        filterInput.placeholder = "搜索电视频道...";
+        renderList(groups, false);
+      } else {
+        filterInput.placeholder = "输入电影或电视剧名称后回车搜索...";
+        const kw = filterInput.value.trim();
+        if (kw) {
+          searchVod(kw);
+        } else {
+          document.getElementById('channel-list').innerHTML = 
+            `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">请在上方输入想看的电影、电视剧名称后回车 🔍</div>`;
+        }
+      }
+    }
+
+    function handleEnterSearch(e) {
+      if (e.key === 'Enter') {
+        if (currentMode === 'vod') {
+          const kw = document.getElementById('filter').value.trim();
+          if (kw) searchVod(kw);
+        }
+      } else {
+        if (currentMode === 'tv') {
+          setTimeout(handleSearchTv, 50);
+        }
+      }
+    }
+
+    // 搜索全网影视 API
+    async function searchVod(keyword) {
+      if (!keyword) keyword = document.getElementById('filter').value.trim();
+      if (!keyword) return;
+
+      const container = document.getElementById('channel-list');
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在跨库检索《${keyword}》...</div>`;
+
+      let apiUrl = getVodUrl();
+      if (!apiUrl.includes('?')) apiUrl += '?';
+      else if (!apiUrl.endsWith('&') && !apiUrl.endsWith('?')) apiUrl += '&';
+      apiUrl += `ac=videolist&wd=${encodeURIComponent(keyword)}`;
+
+      try {
+        let res = null;
+        try {
+          res = await fetchWithTimeout(apiUrl, 4500);
+        } catch (_) {
+          res = await fetchWithTimeout("https://corsproxy.io/?" + encodeURIComponent(apiUrl), 4500);
+        }
+        const data = JSON.parse(res);
+        renderVodResults(data.list || []);
+      } catch (err) {
+        container.innerHTML = 
+          `<div style="padding: 30px 16px; color: #ff6b6b; font-size: 13px; text-align: center; line-height: 1.8;">
+             影视源请求失败或跨域受阻<br>
+             <button class="btn-source-mgr" style="margin: 10px auto;" onclick="openSourceModal()">⚙️ 更换采集接口</button>
+           </div>`;
+      }
+    }
+
+    // 渲染影视搜索结果与剧集选集列表
+    function renderVodResults(list) {
+      const container = document.getElementById('channel-list');
+      container.innerHTML = '';
+
+      if (!list || list.length === 0) {
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未在当前影视源中检索到该内容，请尝试更换关键词</div>`;
+        return;
+      }
+
+      list.forEach(item => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'channel-row';
+
+        const mainEl = document.createElement('div');
+        mainEl.className = 'channel-main';
+
+        const leftEl = document.createElement('div');
+        leftEl.className = 'channel-title';
+        const typeNote = item.type_name ? `[${item.type_name}] ` : '';
+        leftEl.innerHTML = `<span class="channel-arrow">▶</span><span>${typeNote}${item.vod_name}</span>`;
+
+        const rightEl = document.createElement('div');
+        rightEl.className = 'channel-right-tools';
+        const remarkSpan = document.createElement('span');
+        remarkSpan.className = 'badge-lines';
+        remarkSpan.textContent = item.vod_remarks || '正片';
+        rightEl.appendChild(remarkSpan);
+
+        mainEl.appendChild(leftEl);
+        mainEl.appendChild(rightEl);
+
+        // 解析剧集
+        const panelEl = document.createElement('div');
+        panelEl.className = 'sources-panel';
+
+        const episodesGrid = document.createElement('div');
+        episodesGrid.className = 'episodes-grid';
+
+        // 提取 m3u8 播放地址
+        const playUrlStr = item.vod_play_url || '';
+        const playGroups = playUrlStr.split('$$$');
+        let m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
+
+        const episodes = m3u8Group.split('#').filter(Boolean);
+        episodes.forEach(ep => {
+          const parts = ep.split('$');
+          const epName = parts[0] || '第1集';
+          const epUrl = parts[1] || parts[0];
+
+          if (epUrl && (epUrl.startsWith('http://') || epUrl.startsWith('https://'))) {
+            const epBtn = document.createElement('button');
+            epBtn.className = 'episode-btn';
+            epBtn.textContent = epName;
+            epBtn.onclick = (e) => {
+              e.stopPropagation();
+              document.querySelectorAll('.episode-btn.active-source').forEach(el => el.classList.remove('active-source'));
+              epBtn.classList.add('active-source');
+              currentTitle.textContent = `${item.vod_name} - ${epName}`;
+              routeBadge.style.display = 'inline-block';
+              routeBadge.textContent = '点播';
+              currentStreamUrl = epUrl.trim();
+              playStream(currentStreamUrl);
+            };
+            episodesGrid.appendChild(epBtn);
+          }
+        });
+
+        panelEl.appendChild(episodesGrid);
+
+        mainEl.onclick = () => {
+          const isExpanded = rowEl.classList.contains('expanded');
+          document.querySelectorAll('.channel-row.expanded').forEach(el => {
+            if (el !== rowEl) el.classList.remove('expanded');
+          });
+          if (!isExpanded) {
+            rowEl.classList.add('expanded');
+          } else {
+            rowEl.classList.remove('expanded');
+          }
+        };
+
+        rowEl.appendChild(mainEl);
+        rowEl.appendChild(panelEl);
+        container.appendChild(rowEl);
+      });
+    }
+
     async function fetchWithTimeout(url, timeout = 4000) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeout);
@@ -499,38 +727,29 @@
       }
     }
 
-    async function init() {
-      const targetUrl = getCurrentM3uUrl();
+    async function initTv() {
+      const targetUrl = getM3uUrl();
       let text = null;
 
-      // 1. 直连尝试
-      try {
-        text = await fetchWithTimeout(targetUrl, 3000);
-      } catch (_) {}
-
-      // 2. 备用代理尝试 1 (corsproxy.io)
+      try { text = await fetchWithTimeout(targetUrl, 3000); } catch (_) {}
       if (!text) {
-        try {
-          text = await fetchWithTimeout("https://corsproxy.io/?" + encodeURIComponent(targetUrl), 4000);
-        } catch (_) {}
+        try { text = await fetchWithTimeout("https://corsproxy.io/?" + encodeURIComponent(targetUrl), 4000); } catch (_) {}
       }
-
-      // 3. 备用代理尝试 2 (allorigins)
       if (!text) {
-        try {
-          text = await fetchWithTimeout("https://api.allorigins.win/raw?url=" + encodeURIComponent(targetUrl), 4000);
-        } catch (_) {}
+        try { text = await fetchWithTimeout("https://api.allorigins.win/raw?url=" + encodeURIComponent(targetUrl), 4000); } catch (_) {}
       }
 
       if (text) {
         parseM3U(text);
-        renderList(groups, false);
+        if (currentMode === 'tv') renderList(groups, false);
       } else {
-        document.getElementById('channel-list').innerHTML = 
-          `<div style="padding: 30px 16px; color: #ff6b6b; font-size: 13px; text-align: center; line-height: 1.8;">
-             源列表加载超时或受限<br>
-             <button class="btn-source-mgr" style="margin: 10px auto;" onclick="openSourceModal()">⚙️ 点击更换源链接</button>
-           </div>`;
+        if (currentMode === 'tv') {
+          document.getElementById('channel-list').innerHTML = 
+            `<div style="padding: 30px 16px; color: #ff6b6b; font-size: 13px; text-align: center; line-height: 1.8;">
+               电视源同步超时<br>
+               <button class="btn-source-mgr" style="margin: 10px auto;" onclick="openSourceModal()">⚙️ 点击更换电视源</button>
+             </div>`;
+        }
       }
     }
 
@@ -544,7 +763,7 @@
         if (line.startsWith('#EXTINF:')) {
           const name = (line.split(',')[1] || '未命名项目').trim();
           const groupMatch = line.match(/group-title="([^"]+)"/);
-          const group = (groupMatch ? groupMatch[1] : '常规/点播').trim();
+          const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
           temp = { name, group };
         } else if (line && !line.startsWith('#') && temp) {
           if (!groups[temp.group]) groups[temp.group] = {};
@@ -578,9 +797,7 @@
         const subList = document.createElement('div');
         subList.className = 'group-channels';
 
-        if (isSearchMode) {
-          subList.style.display = 'block';
-        }
+        if (isSearchMode) subList.style.display = 'block';
 
         groupEl.onclick = () => {
           const isHide = subList.style.display === 'none';
@@ -762,7 +979,7 @@
 
     video.addEventListener('pause', () => updatePlayBtn(false));
 
-    function handleSearch() {
+    function handleSearchTv() {
       const kw = document.getElementById('filter').value.trim().toLowerCase();
       if (!kw) {
         renderList(groups, false);
@@ -780,8 +997,7 @@
       renderList(filtered, true);
     }
 
-    // 页面加载完成后启动
-    window.addEventListener('DOMContentLoaded', init);
+    window.addEventListener('DOMContentLoaded', initTv);
   </script>
 </body>
 </html>
