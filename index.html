@@ -145,7 +145,7 @@
     .sources-header-title { font-size: 13px; font-weight: bold; color: #fff; }
     .btn-sort-speed { 
       background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
-      padding: 3px 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; 
+      padding: 3px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
     }
     .btn-sort-speed:active { background: #1e702e; }
 
@@ -234,6 +234,7 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -950,11 +951,11 @@
       const subUrl = await getD1Data(KEY_SUB, '');
       if (!subUrl) return;
       try {
-        let text = await fetchWithTimeout(subUrl, 4500);
+        let text = await fetchWithSmartProxy(subUrl, 5000);
         let sites = parseSubscriptionPayload(text);
 
         if (sites.length === 0 && subUrl.includes('format=2')) {
-          text = await fetchWithTimeout(subUrl.replace('format=2', 'format=1'), 4500);
+          text = await fetchWithSmartProxy(subUrl.replace('format=2', 'format=1'), 5000);
           sites = parseSubscriptionPayload(text);
         }
 
@@ -1012,7 +1013,7 @@
         filterInput.placeholder = "搜索电视频道...";
         renderList(groups, false);
       } else {
-        filterInput.placeholder = "输入片名（如：哪吒、长津湖、狂飙）搜索选集换源...";
+        filterInput.placeholder = "输入片名（如：长津湖、哪吒、西游记）搜索选集换源...";
         if (currentVodResults.length > 0) renderMoonTvStyleSources(currentVodResults);
         else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入片名，自动拉取各源站并排序换源 🔍</div>`;
       }
@@ -1034,22 +1035,44 @@
       }
     }
 
+    // 重点：智能代理抓取器，彻底解开 360资源等接口的 CORS 拦截
+    async function fetchWithSmartProxy(targetUrl, timeout = 5000) {
+      const fetchWithTimer = (url) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
+        return fetch(url, { signal: controller.signal })
+          .then(res => { clearTimeout(timer); if (!res.ok) throw new Error(); return res.text(); })
+          .catch(e => { clearTimeout(timer); throw e; });
+      };
+
+      // 1. 直连尝试
+      try { return await fetchWithTimer(targetUrl); } catch (_) {}
+
+      // 2. 优先通过 Cloudflare Pages Functions 本地边缘代理穿透 (解决 360资源跨域的关键)
+      try { return await fetchWithTimer(`/api/data?action=proxy&proxy_url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
+
+      // 3. 公共代理兜底
+      try { return await fetchWithTimer(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
+      try { return await fetchWithTimer(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`); } catch (_) {}
+
+      throw new Error("抓取超时或跨域被阻断");
+    }
+
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源全量检索《${keyword}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源并发检索《${keyword}》...</div>`;
       
       currentVodResults = [];
       let isFirstRendered = false;
 
       const queryPromises = parsedSites.map(async (site) => {
+        // 关键：规范化拼接苹果CMS通用参数，设置 out=json 并将超时拉宽至 5.5 秒，保证 360资源有充足时间返回
         let apiUrl = site.api;
-        if (!apiUrl.includes('?')) apiUrl += '?';
-        else if (!apiUrl.endsWith('&') && !apiUrl.endsWith('?')) apiUrl += '&';
-        apiUrl += `ac=videolist&wd=${encodeURIComponent(keyword)}`;
+        apiUrl += (apiUrl.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
 
         const t0 = performance.now();
         try {
-          const resText = await fetchWithTimeout(apiUrl, 2800);
+          const resText = await fetchWithSmartProxy(apiUrl, 5500);
           const data = JSON.parse(resText);
           const latency = Math.round(performance.now() - t0);
 
@@ -1063,7 +1086,6 @@
                 ping: latency,
                 speed: `${(Math.random() * 200 + 150).toFixed(1)} KB/s`
               };
-
               currentVodResults.push(itemResult);
             });
 
@@ -1088,7 +1110,7 @@
       }
     }
 
-    /* 顶栏【⚡ 测速】按钮：统一只对各源当前正在看的那一集做针对性并发测速，测完静默按速度排序（无需提醒） */
+    /* 顶栏【⚡ 测速】按钮：统一只对各源当前正在看的同一集并发测速，测完静默按速度排序（无需提醒） */
     async function startSpeedTest() {
       if (!currentVodResults || currentVodResults.length === 0) return;
       
@@ -1100,7 +1122,7 @@
 
       const pingPromises = currentVodResults.map(async (item) => {
         const episodes = getEpisodesList(item);
-        // 精准定位：如果是电视剧，只测当前选中的相同集数对应的播放地址
+        // 精准针对性测速：电视剧只测当前正在看的相同那一集，不测全集
         const targetEp = episodes[currentActiveEp] || episodes[0];
         const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
         if (!testUrl) return;
@@ -1117,7 +1139,7 @@
 
       await Promise.allSettled(pingPromises);
 
-      // 测完后静默按速度排序，不再弹出任何浮层提醒
+      // 测完静默排序，不弹多余提示
       currentVodResults.sort((a, b) => a.ping - b.ping);
       renderMoonTvStyleSources(currentVodResults);
 
@@ -1179,7 +1201,6 @@
         container.appendChild(collapseBox);
       }
 
-      /* 顶栏控制行：原【按速度排序】文字正式改为【⚡ 测速】 */
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       headerBar.innerHTML = `
@@ -1197,7 +1218,6 @@
         const title = item.vod.vod_name || '未知片名';
         const remarks = item.vod.vod_remarks || '正片';
 
-        // 彻底取消单个卡片内的手动测速按钮，界面保持干练
         card.innerHTML = `
           <img class="card-thumb" src="${thumbUrl}" onerror="this.src='https://via.placeholder.com/50x68?text=TV'" />
           <div class="card-content">
@@ -1306,25 +1326,12 @@
       setStatus("当前线路受限<br><span style='color:#aaa;font-size:12px;'>请在右侧列表中手动选择其他源，或点击下方播放器图标一键秒播</span>", true);
     }
 
-    async function fetchWithTimeout(url, timeout = 2600) {
-      const getRes = (target) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeout);
-        return fetch(target, { signal: controller.signal })
-          .then(res => { clearTimeout(timer); if(!res.ok) throw new Error(); return res.text(); })
-          .catch(e => { clearTimeout(timer); throw e; });
-      };
-      try { return await getRes(url); } catch (_) {}
-      try { return await getRes("https://api.allorigins.win/raw?url=" + encodeURIComponent(url)); } catch (_) {}
-      try { return await getRes("https://corsproxy.io/?" + encodeURIComponent(url)); } catch (_) {}
-      throw new Error("超时");
-    }
-
+    /* 电视直播模块：完全不测速，保持最干净体验 */
     async function initTv() {
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
       try {
-        const text = await fetchWithTimeout(targetUrl, 3500);
+        const text = await fetchWithSmartProxy(targetUrl, 4000);
         parseM3U(text);
         if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
       } catch (_) {}
