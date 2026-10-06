@@ -239,7 +239,7 @@
     .episode-btn:active { background: #333; }
     .episode-btn.active-source { background: #0070f3; color: #fff; border-color: #0070f3; }
 
-    /* 弹窗样式 */
+    /* 弹窗 */
     #modal-mask {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.75);
@@ -372,7 +372,6 @@
     </div>
   </div>
 
-  <!-- 订阅设置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
@@ -396,29 +395,26 @@
 
   <script>
     const DEFAULT_M3U = "https://www.luyizhong.eu.org/hotel_tvn.m3u";
-    // 默认内置你的 MoonTV Base58 精简版订阅
     const DEFAULT_SUB_URL = "https://pz.v88.qzz.io?format=2&source=jingjian";
 
     const STORAGE_KEY_M3U = "custom_tv_m3u_url";
     const STORAGE_KEY_SUB = "custom_vod_sub_url";
     const STORAGE_KEY_SITES = "cached_parsed_sites";
 
-    // 核心算法：标准 Base58 纯 JS 解码器 (Bitcoin / MoonTV 规范)
-    const B58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    function decodeBase58(input) {
-      input = input.trim();
-      if (input.length === 0) return '';
+    // 强健的 Base58 解码实现
+    const B58_MAP = {};
+    const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
+
+    function decodeBase58(string) {
+      if (!string || typeof string !== 'string') return '';
+      string = string.trim();
       const bytes = [0];
-      for (let i = 0; i < input.length; i++) {
-        const c = input[i];
-        const value = B58_ALPHABET.indexOf(c);
-        if (value === -1) {
-          throw new Error('Non-base58 character: ' + c);
-        }
-        for (let j = 0; j < bytes.length; j++) {
-          bytes[j] *= 58;
-        }
-        bytes[0] += value;
+      for (let i = 0; i < string.length; i++) {
+        const c = string[i];
+        if (!(c in B58_MAP)) throw new Error('无效的 Base58 字符: ' + c);
+        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
+        bytes[0] += B58_MAP[c];
         let carry = 0;
         for (let j = 0; j < bytes.length; ++j) {
           bytes[j] += carry;
@@ -430,12 +426,9 @@
           carry >>= 8;
         }
       }
-      for (let i = 0; i < input.length && input[i] === '1'; i++) {
-        bytes.push(0);
-      }
+      for (let i = 0; i < string.length && string[i] === '1'; i++) bytes.push(0);
       bytes.reverse();
-      const uint8 = new Uint8Array(bytes);
-      return new TextDecoder('utf-8').decode(uint8);
+      return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
     }
 
     function getM3uUrl() {
@@ -583,55 +576,98 @@
       initTv();
     }
 
-    // 智能解析：同时支持 MoonTV Base58 格式与明文 JSON
-    function parseSubscriptionPayload(text) {
-      let rawJson = text.trim();
-      if (!rawJson.startsWith('{') && !rawJson.startsWith('[')) {
-        try {
-          rawJson = decodeBase58(rawJson);
-        } catch (e) {
-          throw new Error("Base58 解码失败: " + e.message);
+    // 全结构穿透解析：同时支持 MoonTV (video.sites / 字典)、TVBox (sites) 以及直接数组
+    function extractSitesFromAnyJson(parsed) {
+      let candidateList = [];
+
+      if (Array.isArray(parsed)) {
+        candidateList = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        if (parsed.video && Array.isArray(parsed.video.sites)) {
+          candidateList = parsed.video.sites;
+        } else if (Array.isArray(parsed.sites)) {
+          candidateList = parsed.sites;
+        } else if (Array.isArray(parsed.data)) {
+          candidateList = parsed.data;
+        } else {
+          // 如果是 key-value 对象字典，尝试提取其所有属性
+          const values = Object.values(parsed);
+          candidateList = values.filter(v => v && typeof v === 'object' && v.api);
         }
       }
-      // 过滤 JSON 内部注释
-      rawJson = rawJson.replace(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, '');
-      const parsed = JSON.parse(rawJson);
 
-      let sites = [];
-      if (Array.isArray(parsed.sites)) {
-        sites = parsed.sites;
-      } else if (Array.isArray(parsed)) {
-        sites = parsed;
+      const results = [];
+      for (const item of candidateList) {
+        if (!item || typeof item !== 'object') continue;
+        const api = item.api || item.url || item.apiUrl;
+        if (api && typeof api === 'string' && (api.startsWith('http://') || api.startsWith('https://'))) {
+          results.push({
+            name: item.name || item.key || item.title || '影视源站',
+            api: api.trim()
+          });
+        }
+      }
+      return results;
+    }
+
+    // 智能解析 Payload (支持 Base58 与明文 JSON)
+    function parseSubscriptionPayload(text) {
+      let raw = text.trim();
+      let parsed = null;
+
+      // 1. 尝试直接作为 JSON 解析
+      try {
+        parsed = JSON.parse(raw);
+      } catch (_) {
+        // 2. 如果直接解析失败，尝试 Base58 解码后再解析
+        try {
+          const decoded = decodeBase58(raw);
+          const clean = decoded.replace(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, '');
+          parsed = JSON.parse(clean);
+        } catch (e2) {
+          throw new Error("Base58 或 JSON 解析失败: " + e2.message);
+        }
       }
 
-      // 提取所有带 api 字段的站点
-      const valid = sites.filter(s => s && s.api && typeof s.api === 'string');
-      return valid.map(s => ({
-        name: s.name || s.key || '未命名源站',
-        api: s.api.trim()
-      }));
+      const sites = extractSitesFromAnyJson(parsed);
+      return sites;
     }
 
     async function updateSubscriptionAndSave() {
-      const subUrl = document.getElementById('sub-url-input').value.trim();
+      let subUrl = document.getElementById('sub-url-input').value.trim();
       const m3uUrl = document.getElementById('source-m3u-input').value.trim();
 
       if (m3uUrl) localStorage.setItem(STORAGE_KEY_M3U, m3uUrl);
       if (subUrl) localStorage.setItem(STORAGE_KEY_SUB, subUrl);
 
-      document.getElementById('sub-stats-label').textContent = "正在拉取并解析 Base58 订阅...";
+      document.getElementById('sub-stats-label').textContent = "正在拉取并解析订阅源...";
 
       try {
-        let text = await fetchWithFallback(subUrl, 6000);
-        const validSites = parseSubscriptionPayload(text);
+        let text = "";
+        let sites = [];
 
-        if (validSites.length === 0) {
-          throw new Error("未解析到任何可用 API 视频源接口");
+        // 尝试原地址请求
+        try {
+          text = await fetchWithFallback(subUrl, 6000);
+          sites = parseSubscriptionPayload(text);
+        } catch (_) {}
+
+        // 如果带 format=2 请求失败，自动降级为 format=1 尝试获取明文
+        if (sites.length === 0 && subUrl.includes('format=2')) {
+          try {
+            const fallbackUrl = subUrl.replace('format=2', 'format=1');
+            text = await fetchWithFallback(fallbackUrl, 6000);
+            sites = parseSubscriptionPayload(text);
+          } catch (_) {}
         }
 
-        parsedSites = validSites;
+        if (sites.length === 0) {
+          throw new Error("未解析到任何可用的 API 视频源接口");
+        }
+
+        parsedSites = sites;
         localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
-        alert(`订阅更新成功！已成功解码并载入 ${validSites.length} 个视频源接口！`);
+        alert(`订阅更新成功！已成功载入 ${sites.length} 个视频源接口！`);
         closeSourceModal();
 
         if (currentMode === 'vod') triggerSearch();
@@ -649,14 +685,25 @@
           if (parsedSites.length > 0) return;
         } catch (_) {}
       }
-      // 初次自动拉取并解析默认源
-      fetchWithFallback(DEFAULT_SUB_URL, 6000).then(text => {
+      
+      const targetSub = getSubUrl();
+      fetchWithFallback(targetSub, 6000).then(text => {
         const sites = parseSubscriptionPayload(text);
         if (sites.length > 0) {
           parsedSites = sites;
           localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
         }
-      }).catch(() => {});
+      }).catch(() => {
+        if (targetSub.includes('format=2')) {
+          fetchWithFallback(targetSub.replace('format=2', 'format=1'), 6000).then(text => {
+            const sites = parseSubscriptionPayload(text);
+            if (sites.length > 0) {
+              parsedSites = sites;
+              localStorage.setItem(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
+            }
+          }).catch(() => {});
+        }
+      });
     }
 
     function switchMode(mode) {
@@ -693,7 +740,6 @@
       }
     }
 
-    // 多源并发聚合搜索
     async function aggregateSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">正在向 ${parsedSites.length} 个视频源并发检索《${keyword}》...</div>`;
@@ -706,8 +752,7 @@
         return;
       }
 
-      // 并发请求前 15 个源站以保证响应速度与覆盖度
-      const activeSites = parsedSites.slice(0, 15);
+      const activeSites = parsedSites.slice(0, 18);
       const searchPromises = activeSites.map(async site => {
         let apiUrl = site.api;
         if (!apiUrl.includes('?')) apiUrl += '?';
@@ -727,7 +772,7 @@
       const results = (await Promise.all(searchPromises)).filter(Boolean);
 
       if (results.length === 0) {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">在所有源站中未检索到《${keyword}》，请尝试缩短片名或更换关键词</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">在所有源站中未检索到《${keyword}》，请尝试更换关键词</div>`;
         return;
       }
 
@@ -841,7 +886,7 @@
       try { return await fetchWithTimeout(url); } catch (_) {}
       try { return await fetchWithTimeout("https://corsproxy.io/?" + encodeURIComponent(url)); } catch (_) {}
       try { return await fetchWithTimeout("https://api.allorigins.win/raw?url=" + encodeURIComponent(url)); } catch (_) {}
-      throw new Error("连接超时或受阻");
+      throw new Error("抓取超时或拦截");
     }
 
     async function initTv() {
