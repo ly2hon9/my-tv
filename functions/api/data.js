@@ -2,9 +2,10 @@
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
+  const action = url.searchParams.get("action");
+  const targetProxyUrl = url.searchParams.get("proxy_url");
   const key = url.searchParams.get("key");
 
-  // 统一响应头，解决跨域与缓存问题
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,22 @@ export async function onRequest(context) {
 
   if (request.method === "OPTIONS") {
     return new Response(null, { headers });
+  }
+
+  // 自建极速代理服务：专门解决 360资源等接口被浏览器 CORS 拦截的问题
+  if (action === "proxy" && targetProxyUrl) {
+    try {
+      const resp = await fetch(targetProxyUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/plain, */*"
+        }
+      });
+      const text = await resp.text();
+      return new Response(text, { headers });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: "代理抓取失败: " + e.message }), { status: 500, headers });
+    }
   }
 
   if (!env.DB) {
