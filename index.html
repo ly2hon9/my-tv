@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+    html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
     #player-wrap { 
       width: 100%; height: 42vh; min-height: 250px; background: #000; position: relative; 
@@ -26,7 +26,7 @@
     }
     .top-left-title { display: flex; align-items: center; gap: 8px; }
     #current-title { font-size: 15px; font-weight: bold; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
-    #btn-fav-toggle { background: none; border: none; font-size: 16px; cursor: pointer; color: #aaa; transition: transform 0.15s, color 0.15s; }
+    #btn-fav-toggle { background: none; border: none; font-size: 18px; cursor: pointer; color: #aaa; transition: transform 0.15s, color 0.15s; line-height: 1; }
     #btn-fav-toggle.active { color: #facc15; transform: scale(1.15); }
     #current-route-badge { font-size: 12px; background: #0070f3; color: #fff; padding: 2px 8px; border-radius: 4px; display: none; }
 
@@ -120,7 +120,7 @@
     .history-card:hover { background: #222; }
     .history-info { flex: 1; min-width: 0; }
     .history-title { font-size: 14px; font-weight: 500; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .history-meta { font-size: 12px; color: #888; margin-top: 4px; display: flex; gap: 8px; }
+    .history-meta { font-size: 12px; color: #888; margin-top: 4px; display: flex; gap: 10px; align-items: center; }
     .btn-del-item { background: none; border: none; color: #666; font-size: 14px; cursor: pointer; padding: 4px; }
     .btn-del-item:hover { color: #ef4444; }
 
@@ -171,6 +171,7 @@
 
     <video id="video" autoplay playsinline webkit-playsinline></video>
 
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -186,7 +187,8 @@
             <svg id="play-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff"><polygon points="6,4 20,12 6,20"/></svg>
             <svg id="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
           </button>
-          <button class="ctrl-btn speed-btn" id="speed-btn" onclick="cyclePlaybackRate()" title="切换播放倍速">1.0x</button>
+          
+          <button class="ctrl-btn speed-btn" id="speed-btn" onclick="cyclePlaybackRate()" title="切换播放倍速">1.0倍</button>
           <span class="ctrl-time" id="stream-time">00:00 / 00:00</span>
         </div>
 
@@ -205,24 +207,24 @@
                 <path fill="#FF9800" d="M10 34h28l-2.4 5H12.4L10 34z"/>
               </svg>
             </button>
-            <button class="ext-btn" onclick="openPlayer('potplayer')" title="PotPlayer">
+            <button class="ext-btn" onclick="openPlayer('potplayer')" title="PotPlayer 播放器">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFC800"/><polygon points="9,7 17,12 9,17" fill="#333"/></svg>
             </button>
-            <button class="ext-btn" onclick="openPlayer('iina')" title="IINA">
+            <button class="ext-btn" onclick="openPlayer('iina')" title="IINA 播放器">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4B3869"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
             </button>
-            <button class="ext-btn" onclick="openPlayer('nplayer')" title="nPlayer">
+            <button class="ext-btn" onclick="openPlayer('nplayer')" title="nPlayer 播放器">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#007AFF"/><polygon points="10,8 16,12 10,16" fill="#fff"/></svg>
             </button>
-            <button class="ext-btn" onclick="openPlayer('aptv')" title="APTV">
+            <button class="ext-btn" onclick="openPlayer('aptv')" title="APTV 播放器">
               <svg viewBox="0 0 24 24"><rect width="20" height="20" x="2" y="2" rx="4" fill="#000"/><polygon points="8,6 16,12 8,18" fill="#30D158"/></svg>
             </button>
           </div>
 
-          <button class="ctrl-btn" onclick="toggleMute()" title="音量/静音">
+          <button class="ctrl-btn" onclick="toggleMute()" title="静音切换">
             <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
-          <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏 (F)">
+          <button class="ctrl-btn" onclick="toggleFullScreen()" title="全屏模式 (快捷键 F)">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
         </div>
@@ -253,19 +255,19 @@
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
-        <span>订阅与配置 (Cloudflare D1 存储)</span>
+        <span>订阅与配置 (云数据库存储)</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
-      <label class="input-label">影视订阅 URL：</label>
+      <label class="input-label">影视订阅地址：</label>
       <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
-      <div class="sub-stats">数据将永久安全保存在 Cloudflare D1 云数据库</div>
+      <div class="sub-stats">数据将永久安全保存在云数据库中</div>
 
-      <label class="input-label">电视直播源（M3U 地址）：</label>
+      <label class="input-label">电视直播源地址（M3U）：</label>
       <input type="text" id="source-m3u-input" placeholder="输入直播源 M3U 地址">
 
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="closeSourceModal()">取消</button>
-        <button class="btn-action btn-save" onclick="saveToD1()">保存并同步至 D1</button>
+        <button class="btn-action btn-save" onclick="saveToD1()">保存配置</button>
       </div>
     </div>
   </div>
@@ -277,7 +279,7 @@
         const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
         if (res.ok) {
           const data = await res.json();
-          if (data && data.value) {
+          if (data && data.value !== null && data.value !== undefined) {
             localStorage.setItem(key, data.value);
             return data.value;
           }
@@ -298,11 +300,11 @@
       } catch (_) {}
     }
 
-    const STORAGE_KEY_M3U = "custom_tv_m3u_url";
-    const STORAGE_KEY_SUB = "custom_vod_sub_url";
-    const STORAGE_KEY_SITES = "cached_parsed_sites";
-    const STORAGE_KEY_HISTORY = "playback_history_v1";
-    const STORAGE_KEY_FAVORITES = "user_favorites_v1";
+    const KEY_M3U = "custom_tv_m3u_url";
+    const KEY_SUB = "custom_vod_sub_url";
+    const KEY_SITES = "cached_parsed_sites";
+    const KEY_HISTORY = "history_list_v2"; // 统一规范化历史记录键
+    const KEY_FAVS = "favorites_list_v2";  // 统一规范化收藏夹键
 
     // Base58 快速解码器
     const B58_MAP = {};
@@ -400,17 +402,28 @@
       currentRateIdx = (currentRateIdx + 1) % RATES.length;
       const rate = RATES[currentRateIdx];
       video.playbackRate = rate;
-      speedBtn.textContent = `${rate}x`;
+      speedBtn.textContent = `${rate}倍`;
     }
 
+    /* 规范的收藏与历史数据读取 */
     async function getFavoritesList() {
-      const data = await getD1Data(STORAGE_KEY_FAVORITES, '[]');
-      try { return typeof data === 'object' ? data : JSON.parse(data); } catch (_) { return []; }
+      const data = await getD1Data(KEY_FAVS, '[]');
+      try { 
+        const res = typeof data === 'object' ? data : JSON.parse(data);
+        return Array.isArray(res) ? res : [];
+      } catch (_) { 
+        return []; 
+      }
     }
 
     async function getHistoryList() {
-      const data = await getD1Data(STORAGE_KEY_HISTORY, '[]');
-      try { return typeof data === 'object' ? data : JSON.parse(data); } catch (_) { return []; }
+      const data = await getD1Data(KEY_HISTORY, '[]');
+      try { 
+        const res = typeof data === 'object' ? data : JSON.parse(data);
+        return Array.isArray(res) ? res : [];
+      } catch (_) { 
+        return []; 
+      }
     }
 
     function updateFavIconState() {
@@ -446,16 +459,17 @@
         setStatus("⭐ 已加入收藏", true);
       }
       setTimeout(() => setStatus("", false), 1500);
-      await setD1Data(STORAGE_KEY_FAVORITES, favs);
+      await setD1Data(KEY_FAVS, favs);
       updateFavIconState();
       if (currentView === 'fav') renderFavoritesView();
     }
 
+    /* 播放中自动记录历史 */
     let lastSavedTime = 0;
     async function savePlaybackProgress() {
       if (isLiveMode || !currentPlayingMeta || !video.duration || video.currentTime < 2) return;
       const nowSec = Math.floor(video.currentTime);
-      if (Math.abs(nowSec - lastSavedTime) < 5) return;
+      if (Math.abs(nowSec - lastSavedTime) < 4) return;
       lastSavedTime = nowSec;
 
       let history = await getHistoryList();
@@ -469,13 +483,13 @@
         duration: Math.floor(video.duration),
         siteName: currentPlayingMeta.siteName || '',
         thumb: currentPlayingMeta.thumb || '',
-        updatedAt: new Date().toLocaleString()
+        updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
       if (existingIdx >= 0) history.splice(existingIdx, 1);
       history.unshift(item);
       if (history.length > 50) history.pop();
-      setD1Data(STORAGE_KEY_HISTORY, history);
+      setD1Data(KEY_HISTORY, history);
     }
 
     async function restorePlaybackProgress() {
@@ -484,7 +498,7 @@
       const record = history.find(h => h.key === currentVodUniqueKey);
       if (record && record.time > 5 && (!video.duration || record.time < video.duration - 15)) {
         video.currentTime = record.time;
-        setStatus(`已跳转至上次进度：${formatTime(record.time)}`, true);
+        setStatus(`已自动跳转至上次进度：${formatTime(record.time)}`, true);
         setTimeout(() => setStatus("", false), 1800);
       }
     }
@@ -531,7 +545,7 @@
               <span>${item.savedAt}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除收藏" onclick="event.stopPropagation(); removeFavoriteItem(${idx})">✕</button>
+          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeFavoriteItem(${idx})">✕</button>
         `;
 
         card.onclick = () => {
@@ -556,24 +570,26 @@
     async function removeFavoriteItem(idx) {
       let favs = await getFavoritesList();
       favs.splice(idx, 1);
-      await setD1Data(STORAGE_KEY_FAVORITES, favs);
+      await setD1Data(KEY_FAVS, favs);
       updateFavIconState();
       renderFavoritesView();
     }
 
+    /* 修复历史记录列表渲染，彻底消灭 undefined */
     async function renderHistoryView() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">正在读取历史...</div>';
       const history = await getHistoryList();
+      const count = Array.isArray(history) ? history.length : 0;
 
-      if (history.length === 0) {
-        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:#777;font-size:13px;">暂无播放历史记录</div>`;
+      if (count === 0) {
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:#777;font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:#555;">播放视频时将自动在此记录进度</span></div>`;
         return;
       }
 
       container.innerHTML = `
         <div class="sources-header-bar">
-          <span class="sources-header-title">🕒 播放历史 (${history.length})</span>
+          <span class="sources-header-title">🕒 播放历史 (${count})</span>
           <div>
             <button class="btn-search" style="padding:2px 8px;font-size:11px;background:#cf222e;margin-right:6px;" onclick="clearAllHistory()">清空</button>
             <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
@@ -590,9 +606,10 @@
             <div class="history-meta">
               <span>看到：${formatTime(item.time)} / ${formatTime(item.duration)}</span>
               <span>${item.siteName}</span>
+              <span>${item.updatedAt || ''}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除记录" onclick="event.stopPropagation(); removeHistoryItem(${idx})">✕</button>
+          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeHistoryItem(${idx})">✕</button>
         `;
 
         card.onclick = () => {
@@ -613,13 +630,13 @@
     async function removeHistoryItem(idx) {
       let history = await getHistoryList();
       history.splice(idx, 1);
-      await setD1Data(STORAGE_KEY_HISTORY, history);
+      await setD1Data(KEY_HISTORY, history);
       renderHistoryView();
     }
 
     async function clearAllHistory() {
-      if (!confirm("确定清空全部历史记录吗？")) return;
-      await setD1Data(STORAGE_KEY_HISTORY, []);
+      if (!confirm("确定要清空全部播放历史记录吗？")) return;
+      await setD1Data(KEY_HISTORY, []);
       renderHistoryView();
     }
 
@@ -744,8 +761,8 @@
     }
 
     async function openSourceModal() {
-      document.getElementById('sub-url-input').value = await getD1Data(STORAGE_KEY_SUB, '');
-      document.getElementById('source-m3u-input').value = await getD1Data(STORAGE_KEY_M3U, '');
+      document.getElementById('sub-url-input').value = await getD1Data(KEY_SUB, '');
+      document.getElementById('source-m3u-input').value = await getD1Data(KEY_M3U, '');
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -755,16 +772,16 @@
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
 
-      if (m3uUrl) await setD1Data(STORAGE_KEY_M3U, m3uUrl);
-      if (subUrl) await setD1Data(STORAGE_KEY_SUB, subUrl);
+      if (m3uUrl) await setD1Data(KEY_M3U, m3uUrl);
+      if (subUrl) await setD1Data(KEY_SUB, subUrl);
 
       closeSourceModal();
-      alert("配置已同步写入 Cloudflare D1 数据库！");
+      alert("配置已同步写入云数据库！");
       syncSubscription(true);
     }
 
     async function syncSubscription(isAlert = false) {
-      const subUrl = await getD1Data(STORAGE_KEY_SUB, '');
+      const subUrl = await getD1Data(KEY_SUB, '');
       if (!subUrl) return;
       try {
         let text = await fetchWithTimeout(subUrl, 4500);
@@ -777,7 +794,7 @@
 
         if (sites.length > 0) {
           parsedSites = sites;
-          await setD1Data(STORAGE_KEY_SITES, JSON.stringify(parsedSites));
+          await setD1Data(KEY_SITES, JSON.stringify(parsedSites));
           if (isAlert) alert(`成功从订阅解析载入 ${sites.length} 个视频源接口！`);
         }
       } catch (_) {}
@@ -1093,7 +1110,7 @@
     }
 
     async function initTv() {
-      const targetUrl = await getD1Data(STORAGE_KEY_M3U, '');
+      const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
       try {
         const text = await fetchWithTimeout(targetUrl, 3500);
@@ -1109,7 +1126,7 @@
       for (let line of lines) {
         line = line.trim();
         if (line.startsWith('#EXTINF:')) {
-          const name = (line.split(',')[1] || '未命名项目').trim();
+          const name = (line.split(',')[1] || '未命名频道').trim();
           const groupMatch = line.match(/group-title="([^"]+)"/);
           const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
           temp = { name, group };
@@ -1216,9 +1233,8 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    // 页面初始化：完全依赖 D1 数据，纯净轻快
     window.addEventListener('DOMContentLoaded', async () => {
-      const cachedSites = await getD1Data(STORAGE_KEY_SITES, null);
+      const cachedSites = await getD1Data(KEY_SITES, null);
       if (cachedSites) {
         try {
           const parsed = typeof cachedSites === 'object' ? cachedSites : JSON.parse(cachedSites);
