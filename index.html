@@ -168,7 +168,6 @@
     .group-body-panel { display: none; background: #111; padding: 6px 10px 12px 10px; border-top: 1px solid #222; }
     .title-group-box.expanded .group-body-panel { display: block; }
 
-    /* 单源平铺卡片样式优化 */
     .single-source-card {
       border-bottom: 1px solid #252525; background: #161616; padding: 10px 12px; transition: background 0.15s;
     }
@@ -1150,7 +1149,14 @@
       throw new Error("网络超时");
     }
 
-    function normalizeTitle(rawTitle) { return rawTitle ? String(rawTitle).trim() : "未知影视"; }
+    // 智能净化片名（去除标点与尾缀，提取核心主干）
+    function normalizeCleanTitle(rawTitle) {
+      if (!rawTitle) return "未知影视";
+      return String(rawTitle)
+        .replace(/\[.*?\]|\(.*?\)|【.*?】|（.*?）/g, '')
+        .replace(/(HD|BD|4K|1080P|720P|国语|粤语|中字|双字|抢先版|抢先|TC|TS|未删减|完整版|蓝光)/gi, '')
+        .trim();
+    }
 
     async function asyncPool(poolLimit, array, iteratorFn) {
       const ret = [];
@@ -1176,25 +1182,29 @@
       } catch (_) { return 9999; }
     }
 
-    /* 搜索并发池：流式呈现首个起播，完成后无缝测速 */
+    /* 核心升级：具备智能模糊匹配、衍生容错查询与柔性聚类的全源搜索 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在并发检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在智能模糊检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       let autoPlayLock = false;
 
-      await asyncPool(10, parsedSites, async (site) => {
-        let apiUrl = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
+      // 提取核心词（例如“斗罗大陆2”可截出“斗罗大陆”）
+      const cleanKeyword = keyword.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+      const fallbackKeyword = cleanKeyword.length >= 4 ? cleanKeyword.slice(0, 3) : '';
 
+      const querySite = async (site, searchWord) => {
+        let apiUrl = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(searchWord)}&out=json&pg=1`;
         try {
           const resText = await fetchWithSmartProxy(apiUrl, 3200);
           const data = JSON.parse(resText);
 
           if (Array.isArray(data.list) && data.list.length > 0) {
             data.list.forEach((item, itemIdx) => {
-              const exactTitle = normalizeTitle(item.vod_name);
-              const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${exactTitle}`;
+              const rawVodName = (item.vod_name || '').trim();
+              const coreName = normalizeCleanTitle(rawVodName) || rawVodName;
+              const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
               
               const itemResult = {
                 id: uniqueId,
@@ -1203,42 +1213,67 @@
                 ping: -1
               };
 
-              let group = groupedVodList.find(g => g.title === exactTitle);
+              // 柔性模糊聚类：如果已有组的名字包含主干或高度近似，则归入同一组
+              let group = groupedVodList.find(g => {
+                return g.title === coreName || g.title === rawVodName ||
+                  (g.title.length >= 3 && coreName.length >= 3 && (g.title.includes(coreName) || coreName.includes(g.title)));
+              });
+
               if (!group) {
                 group = {
-                  title: exactTitle,
+                  title: coreName || rawVodName,
                   poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
                   type: item.type_name || '',
                   items: []
                 };
                 groupedVodList.push(group);
               }
-              group.items.push(itemResult);
+
+              // 避免同源重复条目
+              if (!group.items.some(i => i.id === uniqueId)) {
+                group.items.push(itemResult);
+              }
             });
 
             if (currentView === 'normal') renderGroupedVodSources();
 
+            // 遇到完全命中的优先起播
             if (!autoPlayLock && groupedVodList.length > 0) {
+              const bestMatchGroup = groupedVodList.find(g => g.title.includes(keyword)) || groupedVodList[0];
               autoPlayLock = true;
-              activeGroupTitle = groupedVodList[0].title;
-              activeSubItemId = groupedVodList[0].items[0].id;
+              activeGroupTitle = bestMatchGroup.title;
+              activeSubItemId = bestMatchGroup.items[0].id;
               currentActiveEp = 0;
-              playCurrentVodSource(groupedVodList[0].items[0], 0);
+              playCurrentVodSource(bestMatchGroup.items[0], 0);
             }
           }
         } catch (_) {}
-      });
+      };
+
+      // 阶段 1：首轮原词并发检索
+      await asyncPool(10, parsedSites, (site) => querySite(site, keyword));
+
+      // 阶段 2：模糊容错兜底（如果搜出的条目过少且有派生核心词，使用模糊词追加扫描）
+      if (groupedVodList.length < 2 && fallbackKeyword && fallbackKeyword !== keyword) {
+        await asyncPool(8, parsedSites, (site) => querySite(site, fallbackKeyword));
+      }
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到《${escapeHtml(keyword)}》，请更换关键词</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的剧目，可尝试缩短片名再搜</div>`;
         return;
       }
 
-      // 所有接口搜索完毕，立即自动触发测速
+      // 按匹配度对多源组与单源组进行权重打分（与搜索词重合度最高的排最前）
+      groupedVodList.sort((a, b) => {
+        const scoreA = (a.title === keyword ? 100 : a.title.includes(keyword) ? 50 : 0) + a.items.length;
+        const scoreB = (b.title === keyword ? 100 : b.title.includes(keyword) ? 50 : 0) + b.items.length;
+        return scoreB - scoreA;
+      });
+
+      // 搜完自动对当前展开剧目进行测速
       startSpeedTest();
     }
 
-    /* 测速重点修复：彻底放行“单源影视”与“展开的多源影视”，未展开的多源不测 */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
 
@@ -1250,14 +1285,13 @@
 
       const targetItemsToTest = [];
 
-      // 提取符合测速条件的目标：
-      // 1. 当前处于展开状态的多源大剧目
+      // 1. 展开的多源剧目子线路
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
       if (activeGroup && activeGroup.items.length > 1) {
         activeGroup.items.forEach(item => targetItemsToTest.push(item));
       }
 
-      // 2. 独立单源影视（本身就是平铺状态，全部纳入测速）
+      // 2. 独立单源影视（随组一并测速）
       groupedVodList.forEach(group => {
         if (group.items.length === 1) {
           targetItemsToTest.push(group.items[0]);
@@ -1272,7 +1306,6 @@
           item.ping = await probeStreamLatency(testUrl);
         }));
 
-        // 如果当前展开的是多源，内部子源按速度重排
         if (activeGroup && activeGroup.items.length > 1) {
           activeGroup.items.sort((a, b) => {
             const pa = a.ping < 0 ? 9999 : a.ping;
@@ -1290,7 +1323,6 @@
       }
     }
 
-    /* 渲染核心：多源在顶，单源在下且按测速结果由快到慢排列 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -1303,7 +1335,6 @@
       const multiGroups = groupedVodList.filter(g => g.items.length > 1);
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
 
-      // 单源组严格根据测速物理延迟从小到大排列（最快的置顶）
       singleGroups.sort((a, b) => {
         const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
         const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
@@ -1318,7 +1349,7 @@
       `;
       container.appendChild(headerBar);
 
-      // 1. 多源聚合卡片区（排在最上面）
+      // 1. 多源聚合卡片区
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1445,7 +1476,7 @@
         });
       }
 
-      // 2. 单源平铺卡片区（带完整延迟显示与测速排序）
+      // 2. 单源平铺卡片区
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
