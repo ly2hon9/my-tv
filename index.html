@@ -504,10 +504,10 @@
     let activeGroupTitle = "";
     let activeSubItemId = "";
     let currentActiveEp = 0;
-    let isEpisodeReversed = false; // 选集正序/倒序状态
+    let isEpisodeReversed = false;
     let isLiveMode = false;
     let hls = null;
-    let currentSearchAbortController = null; // 请求中断控制器
+    let currentSearchAbortController = null;
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
@@ -1153,14 +1153,6 @@
       throw new Error("网络超时");
     }
 
-    function normalizeCleanTitle(rawTitle) {
-      if (!rawTitle) return "未知影视";
-      return String(rawTitle)
-        .replace(/\[.*?\]|\(.*?\)|【.*?】|（.*?）/g, '')
-        .replace(/(HD|BD|4K|1080P|720P|国语|粤语|中字|双字|抢先版|抢先|TC|TS|未删减|完整版|蓝光)/gi, '')
-        .trim();
-    }
-
     async function asyncPool(poolLimit, array, iteratorFn) {
       const ret = [];
       const executing = [];
@@ -1185,9 +1177,8 @@
       } catch (_) { return 9999; }
     }
 
-    /* 优化重点：双轨并发检索（片名 wd + 演员 act），彻底解决搜人名出来杂乱片目的问题 */
+    /* 核心修复：硬核关联校验，片名或主演中若无搜索词，直接剔除 */
     async function fastStreamSearchVod(keyword) {
-      // 中断上一次未跑完的网络请求，避免连续搜索时抢占连接池
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
@@ -1197,16 +1188,22 @@
       
       groupedVodList = [];
       let autoPlayLock = false;
-
-      const cleanKeyword = keyword.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+      const kw = keyword.toLowerCase().trim();
 
       const processList = (dataList, site) => {
         if (!Array.isArray(dataList)) return;
         dataList.forEach((item, itemIdx) => {
-          const rawVodName = (item.vod_name || '').trim();
-          const coreName = normalizeCleanTitle(rawVodName) || rawVodName;
-          const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
-          
+          const vodName = (item.vod_name || '').trim();
+          const vodActor = (item.vod_actor || '').trim();
+          const lowerName = vodName.toLowerCase();
+          const lowerActor = vodActor.toLowerCase();
+
+          // 核心拦截规则：如果片名和主演里连搜索关键词的影子都没有，坚决丢弃，绝不展示！
+          if (!lowerName.includes(kw) && !lowerActor.includes(kw)) {
+            return;
+          }
+
+          const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
           const itemResult = {
             id: uniqueId,
             siteName: site.name,
@@ -1214,17 +1211,15 @@
             ping: -1
           };
 
-          let group = groupedVodList.find(g => {
-            return g.title === coreName || g.title === rawVodName ||
-              (g.title.length >= 3 && coreName.length >= 3 && (g.title.includes(coreName) || coreName.includes(g.title)));
-          });
+          // 精准同名归类：只聚合片名完全一样的，防止把不同剧目混在一起
+          let group = groupedVodList.find(g => g.title === vodName);
 
           if (!group) {
             group = {
-              title: coreName || rawVodName,
+              title: vodName,
               poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
               type: item.type_name || '',
-              actor: item.vod_actor || '',
+              actor: vodActor,
               items: []
             };
             groupedVodList.push(group);
@@ -1238,24 +1233,12 @@
 
       await asyncPool(10, parsedSites, async (site) => {
         if (currentSignal.aborted) return;
-        
-        // 1. 常规片名检索 (wd)
+        // 使用最稳定标准的 wd 参数
         const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
-        // 2. 演职员主演检索 (act)
-        const urlAct = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&act=${encodeURIComponent(cleanKeyword)}&out=json&pg=1`;
 
         try {
-          const [resWd, resAct] = await Promise.allSettled([
-            fetchWithSmartProxy(urlWd, 3200, currentSignal),
-            fetchWithSmartProxy(urlAct, 3200, currentSignal)
-          ]);
-
-          if (resWd.status === 'fulfilled') {
-            try { processList(JSON.parse(resWd.value).list, site); } catch (_) {}
-          }
-          if (resAct.status === 'fulfilled') {
-            try { processList(JSON.parse(resAct.value).list, site); } catch (_) {}
-          }
+          const res = await fetchWithSmartProxy(urlWd, 3500, currentSignal);
+          processList(JSON.parse(res).list, site);
 
           if (currentView === 'normal') renderGroupedVodSources();
 
@@ -1272,42 +1255,43 @@
       if (currentSignal.aborted) return;
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的剧目</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
         return;
       }
 
-      // 智能人名偏好与降噪排序：搜人名时，将真正主演该片且非动画的排在前面
+      // 智能人名偏好排序：
+      // 1. 片名完全相等的排最前
+      // 2. 主演确实是成龙且是真人电影的排前面
+      // 3. 动画片/少儿片往后排
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
-        const aIsActor = (a.actor || '').includes(keyword);
-        const bIsActor = (b.actor || '').includes(keyword);
+        const aName = a.title.toLowerCase();
+        const bName = b.title.toLowerCase();
+        const aActor = (a.actor || '').toLowerCase();
+        const bActor = (b.actor || '').toLowerCase();
 
-        if (a.title === keyword) scoreA += 100;
-        if (b.title === keyword) scoreB += 100;
+        if (aName === kw) scoreA += 100;
+        if (bName === kw) scoreB += 100;
 
-        if (aIsActor) scoreA += 50;
-        if (bIsActor) scoreB += 50;
+        if (aActor.includes(kw)) scoreA += 40;
+        if (bActor.includes(kw)) scoreB += 40;
 
-        // 若片名带搜索词但属于少儿/动画，轻微降权防止反客为主
-        if (a.title.includes(keyword) && ((a.type || '').includes('动漫') || (a.type || '').includes('少儿'))) scoreA -= 20;
-        if (b.title.includes(keyword) && ((b.type || '').includes('动漫') || (b.type || '').includes('少儿'))) scoreB -= 20;
+        // 降权动画片
+        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 30;
+        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 30;
 
-        scoreA += a.items.length;
-        scoreB += b.items.length;
+        scoreA += a.items.length * 2;
+        scoreB += b.items.length * 2;
 
         return scoreB - scoreA;
       });
 
       renderGroupedVodSources();
-      // 搜完自动对当前展开剧目进行测速
       startSpeedTest();
     }
 
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
-
-      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (!activeGroup || activeGroup.items.length <= 1) return;
 
       const sortBtn = document.querySelector('.btn-sort-speed');
       if (sortBtn) {
@@ -1315,18 +1299,35 @@
         sortBtn.disabled = true;
       }
 
-      await Promise.allSettled(activeGroup.items.map(async (item) => {
-        const episodes = getEpisodesList(item);
-        const targetEp = episodes[currentActiveEp] || episodes[0];
-        const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
-        item.ping = await probeStreamLatency(testUrl);
-      }));
+      const targetItemsToTest = [];
 
-      activeGroup.items.sort((a, b) => {
-        const pa = a.ping < 0 ? 9999 : a.ping;
-        const pb = b.ping < 0 ? 9999 : b.ping;
-        return pa - pb;
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      if (activeGroup && activeGroup.items.length > 1) {
+        activeGroup.items.forEach(item => targetItemsToTest.push(item));
+      }
+
+      groupedVodList.forEach(group => {
+        if (group.items.length === 1) {
+          targetItemsToTest.push(group.items[0]);
+        }
       });
+
+      if (targetItemsToTest.length > 0) {
+        await Promise.allSettled(targetItemsToTest.map(async (item) => {
+          const episodes = getEpisodesList(item);
+          const targetEp = episodes[currentActiveEp] || episodes[0];
+          const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
+          item.ping = await probeStreamLatency(testUrl);
+        }));
+
+        if (activeGroup && activeGroup.items.length > 1) {
+          activeGroup.items.sort((a, b) => {
+            const pa = a.ping < 0 ? 9999 : a.ping;
+            const pb = b.ping < 0 ? 9999 : b.ping;
+            return pa - pb;
+          });
+        }
+      }
 
       renderGroupedVodSources();
 
@@ -1353,6 +1354,12 @@
 
       const multiGroups = groupedVodList.filter(g => g.items.length > 1);
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
+
+      singleGroups.sort((a, b) => {
+        const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
+        const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
+        return pa - pb;
+      });
 
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
@@ -1432,8 +1439,6 @@
               `;
 
               const epGrid = collapseBox.querySelector('#episodes-grid-list');
-              
-              // 选集排序支持（长剧直接选最新一集）
               const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
               displayEps.forEach((ep) => {
@@ -1503,7 +1508,7 @@
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
-        singleTag.textContent = '⚡ 独立单源影视';
+        singleTag.textContent = '⚡ 独立单源影视 (按响应速度排列)';
         container.appendChild(singleTag);
 
         singleGroups.forEach((group) => {
@@ -1515,6 +1520,9 @@
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const q = parseQualityTag(item.vod.vod_remarks);
 
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
           singleCard.innerHTML = `
             <div class="single-top-row">
               <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
@@ -1524,6 +1532,7 @@
                   <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
                   ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                  <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
                 </div>
               </div>
             </div>
