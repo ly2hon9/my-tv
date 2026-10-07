@@ -168,6 +168,7 @@
     .group-body-panel { display: none; background: #111; padding: 6px 10px 12px 10px; border-top: 1px solid #222; }
     .title-group-box.expanded .group-body-panel { display: block; }
 
+    /* 单源平铺卡片样式优化 */
     .single-source-card {
       border-bottom: 1px solid #252525; background: #161616; padding: 10px 12px; transition: background 0.15s;
     }
@@ -378,6 +379,7 @@
     </div>
   </div>
 
+  <!-- 订阅配置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
@@ -1174,7 +1176,7 @@
       } catch (_) { return 9999; }
     }
 
-    /* 核心改造：搜完所有源之后，直接针对默认展开的首个大剧目自动触发测速！ */
+    /* 搜索并发池：流式呈现首个起播，完成后无缝测速 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在并发检索《${escapeHtml(keyword)}》...</div>`;
@@ -1216,7 +1218,6 @@
 
             if (currentView === 'normal') renderGroupedVodSources();
 
-            // 首个大剧目出来时直接挂载起播并标记为当前展开组
             if (!autoPlayLock && groupedVodList.length > 0) {
               autoPlayLock = true;
               activeGroupTitle = groupedVodList[0].title;
@@ -1233,16 +1234,13 @@
         return;
       }
 
-      // 所有源全部搜集落定后，立刻针对当前展开的大卡片自动进行测速并重排！
+      // 所有接口搜索完毕，立即自动触发测速
       startSpeedTest();
     }
 
-    /* 严控范围测速：只测当前默认展开或用户点开的剧目内部所有源 */
+    /* 测速重点修复：彻底放行“单源影视”与“展开的多源影视”，未展开的多源不测 */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
-
-      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (!activeGroup || activeGroup.items.length <= 1) return;
 
       const sortBtn = document.querySelector('.btn-sort-speed');
       if (sortBtn) {
@@ -1250,20 +1248,39 @@
         sortBtn.disabled = true;
       }
 
-      // 只对展开大组底下的所有源站测速（收起的多源和单源坚决不测）
-      await Promise.allSettled(activeGroup.items.map(async (item) => {
-        const episodes = getEpisodesList(item);
-        const targetEp = episodes[currentActiveEp] || episodes[0];
-        const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
-        item.ping = await probeStreamLatency(testUrl);
-      }));
+      const targetItemsToTest = [];
 
-      // 展开项内部源按物理延迟从低到高排列（最快的自动排到最上面）
-      activeGroup.items.sort((a, b) => {
-        const pa = a.ping < 0 ? 9999 : a.ping;
-        const pb = b.ping < 0 ? 9999 : b.ping;
-        return pa - pb;
+      // 提取符合测速条件的目标：
+      // 1. 当前处于展开状态的多源大剧目
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      if (activeGroup && activeGroup.items.length > 1) {
+        activeGroup.items.forEach(item => targetItemsToTest.push(item));
+      }
+
+      // 2. 独立单源影视（本身就是平铺状态，全部纳入测速）
+      groupedVodList.forEach(group => {
+        if (group.items.length === 1) {
+          targetItemsToTest.push(group.items[0]);
+        }
       });
+
+      if (targetItemsToTest.length > 0) {
+        await Promise.allSettled(targetItemsToTest.map(async (item) => {
+          const episodes = getEpisodesList(item);
+          const targetEp = episodes[currentActiveEp] || episodes[0];
+          const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
+          item.ping = await probeStreamLatency(testUrl);
+        }));
+
+        // 如果当前展开的是多源，内部子源按速度重排
+        if (activeGroup && activeGroup.items.length > 1) {
+          activeGroup.items.sort((a, b) => {
+            const pa = a.ping < 0 ? 9999 : a.ping;
+            const pb = b.ping < 0 ? 9999 : b.ping;
+            return pa - pb;
+          });
+        }
+      }
 
       renderGroupedVodSources();
 
@@ -1273,6 +1290,7 @@
       }
     }
 
+    /* 渲染核心：多源在顶，单源在下且按测速结果由快到慢排列 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -1284,6 +1302,13 @@
 
       const multiGroups = groupedVodList.filter(g => g.items.length > 1);
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
+
+      // 单源组严格根据测速物理延迟从小到大排列（最快的置顶）
+      singleGroups.sort((a, b) => {
+        const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
+        const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
+        return pa - pb;
+      });
 
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
@@ -1420,11 +1445,11 @@
         });
       }
 
-      // 2. 单源平铺区（排在多源下方，默认不折叠，不展开不测速）
+      // 2. 单源平铺卡片区（带完整延迟显示与测速排序）
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
-        singleTag.textContent = '⚡ 独立单源影视';
+        singleTag.textContent = '⚡ 独立单源影视 (按响应速度排列)';
         container.appendChild(singleTag);
 
         singleGroups.forEach((group) => {
@@ -1436,6 +1461,9 @@
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const q = parseQualityTag(item.vod.vod_remarks);
 
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
           singleCard.innerHTML = `
             <div class="single-top-row">
               <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
@@ -1444,6 +1472,7 @@
                 <div class="group-meta-tag">
                   <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
                 </div>
               </div>
             </div>
