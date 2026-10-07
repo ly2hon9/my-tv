@@ -147,7 +147,6 @@
     }
     .btn-sort-speed:active { background: #1e702e; }
 
-    /* 折叠大卡片容器（多源） */
     .title-group-box { border-bottom: 1px solid #252525; background: #161616; }
     .title-group-header {
       padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;
@@ -169,19 +168,16 @@
     .group-body-panel { display: none; background: #111; padding: 6px 10px 12px 10px; border-top: 1px solid #222; }
     .title-group-box.expanded .group-body-panel { display: block; }
 
-    /* 单个源平铺大卡片 */
     .single-source-card {
       border-bottom: 1px solid #252525; background: #161616; padding: 10px 12px; transition: background 0.15s;
     }
     .single-source-card.active-group { background: #152438; border-left: 3px solid #0070f3; }
     .single-top-row { display: flex; gap: 10px; align-items: center; cursor: pointer; }
 
-    /* 分类标签提示 */
     .section-divider-tag {
       padding: 6px 14px; font-size: 11px; font-weight: 600; color: #888; background: #1a1a1a; border-bottom: 1px solid #242424;
     }
 
-    /* 选集容器 */
     .episodes-collapse-box { 
       background: #181818; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px;
     }
@@ -1139,7 +1135,7 @@
       }
     }
 
-    async function fetchWithSmartProxy(targetUrl, timeout = 5000) {
+    async function fetchWithSmartProxy(targetUrl, timeout = 3200) {
       const fetchWithTimer = (url) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeout);
@@ -1150,11 +1146,12 @@
 
       try { return await fetchWithTimer(targetUrl); } catch (_) {}
       try { return await fetchWithTimer(`/api/data?action=proxy&proxy_url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
-      throw new Error("网络抓取受阻");
+      throw new Error("网络超时");
     }
 
     function normalizeTitle(rawTitle) { return rawTitle ? String(rawTitle).trim() : "未知影视"; }
 
+    // 放宽至 10 路线并发请求，大幅削减等待时间
     async function asyncPool(poolLimit, array, iteratorFn) {
       const ret = [];
       const executing = [];
@@ -1179,20 +1176,20 @@
       } catch (_) { return 9999; }
     }
 
-    /* 优化重点：并发搜索全部完成后，立即执行自动测速并重排展示 */
+    /* 极速搜索：流式渲染，首个结果秒起播，且只对当前展开组测速 */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源并发检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在并发检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       let autoPlayLock = false;
+      let hasTriggeredTest = false;
 
-      // 1. 等待全部源站搜索完毕
-      await asyncPool(5, parsedSites, async (site) => {
+      await asyncPool(10, parsedSites, async (site) => {
         let apiUrl = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
 
         try {
-          const resText = await fetchWithSmartProxy(apiUrl, 4500);
+          const resText = await fetchWithSmartProxy(apiUrl, 3200);
           const data = JSON.parse(resText);
 
           if (Array.isArray(data.list) && data.list.length > 0) {
@@ -1220,13 +1217,22 @@
               group.items.push(itemResult);
             });
 
-            // 首个源结果出来时直接锁定起播，保证秒开体验
+            // 边搜边刷，无感知呈现
+            if (currentView === 'normal') renderGroupedVodSources();
+
+            // 首个大组出现，立刻起播
             if (!autoPlayLock && groupedVodList.length > 0) {
               autoPlayLock = true;
               activeGroupTitle = groupedVodList[0].title;
               activeSubItemId = groupedVodList[0].items[0].id;
               currentActiveEp = 0;
               playCurrentVodSource(groupedVodList[0].items[0], 0);
+
+              // 仅启动一次测速：只测这一个展开项内部的源
+              if (!hasTriggeredTest) {
+                hasTriggeredTest = true;
+                setTimeout(() => startSpeedTest(), 200);
+              }
             }
           }
         } catch (_) {}
@@ -1234,54 +1240,38 @@
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
         container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到《${escapeHtml(keyword)}》，请更换关键词</div>`;
-        return;
       }
-
-      // 2. 搜索全部就绪，立刻触发自动测速与排序呈现
-      await startSpeedTest();
     }
 
-    /* 测速核心逻辑：只测展开剧目的各线路 + 单源剧目（收起的折叠剧目坚决不测） */
+    /* 严控范围测速：坚决不测收起的项，只测当前唯一展开的剧目 */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
-      
+
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      // 如果展开组只有 1 个源或未展开，无需测速
+      if (!activeGroup || activeGroup.items.length <= 1) return;
+
       const sortBtn = document.querySelector('.btn-sort-speed');
       if (sortBtn) {
         sortBtn.textContent = "⚡ 测速中...";
         sortBtn.disabled = true;
       }
 
-      const targetItemsToTest = [];
-
-      groupedVodList.forEach(group => {
-        if (group.items.length === 1) {
-          // 单个源：直接测
-          targetItemsToTest.push(group.items[0]);
-        } else if (group.title === activeGroupTitle) {
-          // 多个源且当前处于展开状态：测其所有源
-          group.items.forEach(item => targetItemsToTest.push(item));
-        }
-        // 其余折叠收起的多源剧目：坚决不测
-      });
-
-      await Promise.allSettled(targetItemsToTest.map(async (item) => {
+      // 仅测当前唯一展开剧目内的子线路，严禁测其他任何未展开的条目！
+      await Promise.allSettled(activeGroup.items.map(async (item) => {
         const episodes = getEpisodesList(item);
         const targetEp = episodes[currentActiveEp] || episodes[0];
         const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
         item.ping = await probeStreamLatency(testUrl);
       }));
 
-      // 展开剧目内部源按测速自排序
-      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (activeGroup && activeGroup.items.length > 1) {
-        activeGroup.items.sort((a, b) => {
-          const pa = a.ping < 0 ? 9999 : a.ping;
-          const pb = b.ping < 0 ? 9999 : b.ping;
-          return pa - pb;
-        });
-      }
+      // 对展开组内部进行速度重排
+      activeGroup.items.sort((a, b) => {
+        const pa = a.ping < 0 ? 9999 : a.ping;
+        const pb = b.ping < 0 ? 9999 : b.ping;
+        return pa - pb;
+      });
 
-      // 重新渲染（多源在上，单源在下按速度排列）
       renderGroupedVodSources();
 
       if (sortBtn) {
@@ -1290,7 +1280,7 @@
       }
     }
 
-    /* 渲染核心：多源剧目稳居顶部，单源剧目根据测速排列在下方 */
+    /* 渲染核心：多源折叠组稳居顶部，单源组整齐排在下方 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -1300,16 +1290,9 @@
         return;
       }
 
-      // 分离两组：多源组 (items >= 2) 和 单源组 (items == 1)
+      // 分割：多源组与单源组
       const multiGroups = groupedVodList.filter(g => g.items.length > 1);
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
-
-      // 单源组根据测出来的速度从低到高（最快到最慢）排序
-      singleGroups.sort((a, b) => {
-        const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
-        const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
-        return pa - pb;
-      });
 
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
@@ -1319,7 +1302,7 @@
       `;
       container.appendChild(headerBar);
 
-      // ----------------- 1. 先渲染多源折叠区（排在最上面） -----------------
+      // 1. 多源聚合卡片（排在最上方）
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1361,7 +1344,8 @@
                 currentActiveEp = 0;
                 playCurrentVodSource(group.items[0], 0);
               }
-              // 展开新剧目时，对它内部源执行一次针对性测速
+              renderGroupedVodSources();
+              // 仅对当前展开的这个大组启动针对性测速
               startSpeedTest();
             }
           };
@@ -1446,11 +1430,11 @@
         });
       }
 
-      // ----------------- 2. 再渲染单源平铺区（排在多源下方，按速度排序） -----------------
+      // 2. 单源平铺卡片（排在多源下方，不展开则不测速）
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
-        singleTag.textContent = '⚡ 独立单源影视 (按响应速度排列)';
+        singleTag.textContent = '⚡ 独立单源影视';
         container.appendChild(singleTag);
 
         singleGroups.forEach((group) => {
@@ -1462,9 +1446,6 @@
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const q = parseQualityTag(item.vod.vod_remarks);
 
-          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
           singleCard.innerHTML = `
             <div class="single-top-row">
               <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
@@ -1473,7 +1454,6 @@
                 <div class="group-meta-tag">
                   <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
                 </div>
               </div>
             </div>
