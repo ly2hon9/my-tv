@@ -187,7 +187,14 @@
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .card-sitename-tag { background: #2a2a2a; padding: 2px 6px; border-radius: 3px; font-size: 11px; color: #ddd; font-weight: 500; }
     .source-sub-card.active-sub .card-sitename-tag { background: #0070f3; color: #fff; }
+    
+    /* 动态清晰度徽章样式 */
     .card-quality { font-size: 10px; background: #283e2e; color: #4ade80; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+    .card-quality.q-4k { background: #4a2828; color: #f87171; }
+    .card-quality.q-1080 { background: #283e2e; color: #4ade80; }
+    .card-quality.q-720 { background: #26354a; color: #60a5fa; }
+    .card-quality.q-normal { background: #2b2b2b; color: #bbb; }
+
     .card-status-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: monospace; }
     .metric-ping-ok { color: #4ade80; }
     .metric-ping-warn { color: #facc15; }
@@ -213,7 +220,6 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
-    /* 弹窗样式 */
     #modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
     #source-modal { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); }
     #source-modal h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
@@ -398,8 +404,19 @@
 
     function isSafeUrl(url) {
       if (!url || typeof url !== 'string') return false;
-      const trimmed = url.trim().toLowerCase();
-      return trimmed.startsWith('http://') || trimmed.startsWith('https://');
+      const t = url.trim().toLowerCase();
+      return t.startsWith('http://') || t.startsWith('https://');
+    }
+
+    // 智能画质解析：剔除原先强行标记 720p 的逻辑
+    function parseQualityTag(remarks) {
+      if (!remarks) return { text: '正片', cls: 'q-normal' };
+      const r = remarks.toUpperCase();
+      if (r.includes('4K') || r.includes('2160')) return { text: '4K', cls: 'q-4k' };
+      if (r.includes('1080') || r.includes('BD') || r.includes('蓝光') || r.includes('FHD')) return { text: '1080p', cls: 'q-1080' };
+      if (r.includes('720') || r.includes('HD')) return { text: '720p', cls: 'q-720' };
+      if (r.includes('TC') || r.includes('抢先')) return { text: 'TC', cls: 'q-normal' };
+      return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
     async function getD1Data(key, defaultVal = '') {
@@ -442,9 +459,7 @@
       if (!string || typeof string !== 'string') return '';
       const input = string.trim();
       let leadingOnes = 0;
-      while (leadingOnes < input.length && input[leadingOnes] === '1') {
-        leadingOnes++;
-      }
+      while (leadingOnes < input.length && input[leadingOnes] === '1') leadingOnes++;
 
       const bytes = [0];
       for (let i = leadingOnes; i < input.length; i++) {
@@ -466,9 +481,7 @@
 
       const result = new Uint8Array(leadingOnes + bytes.length);
       for (let i = 0; i < leadingOnes; i++) result[i] = 0;
-      for (let i = 0; i < bytes.length; i++) {
-        result[leadingOnes + i] = bytes[bytes.length - 1 - i];
-      }
+      for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
 
@@ -545,9 +558,7 @@
       wrap.classList.remove('controls-hidden');
       clearTimeout(controlsHideTimer);
       if (!video.paused && !isDraggingProgress) {
-        controlsHideTimer = setTimeout(() => {
-          wrap.classList.add('controls-hidden');
-        }, 3500);
+        controlsHideTimer = setTimeout(() => wrap.classList.add('controls-hidden'), 3500);
       }
     }
 
@@ -604,13 +615,10 @@
 
     async function togglePiP() {
       try {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-        } else if (video.requestPictureInPicture) {
-          await video.requestPictureInPicture();
-        }
-      } catch (err) {
-        alert("当前设备或浏览器暂不支持画中画功能");
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else if (video.requestPictureInPicture) await video.requestPictureInPicture();
+      } catch (_) {
+        alert("当前浏览器暂不支持画中画");
       }
     }
 
@@ -622,7 +630,7 @@
       const episodes = getEpisodesList(currentItem);
       if (episodes.length > 0 && currentActiveEp < episodes.length - 1) {
         const nextEpIdx = currentActiveEp + 1;
-        setStatus(`🎉 本集播放完毕，即将自动连播第 ${nextEpIdx + 1} 集...`, true);
+        setStatus(`🎉 本集播放完毕，自动连播第 ${nextEpIdx + 1} 集...`, true);
         setTimeout(() => {
           currentActiveEp = nextEpIdx;
           renderGroupedVodSources();
@@ -631,20 +639,26 @@
       }
     });
 
+    // 关键优化：根据真实底层解码高度动态校准画质徽章
+    video.addEventListener('loadedmetadata', () => {
+      if (video.videoHeight && routeBadge.style.display !== 'none') {
+        let realRes = '720p';
+        if (video.videoHeight >= 2160) realRes = '4K';
+        else if (video.videoHeight >= 1080) realRes = '1080p';
+        else if (video.videoHeight >= 720) realRes = '720p';
+        else realRes = `${video.videoHeight}p`;
+        routeBadge.textContent = `${currentPlayingMeta?.siteName || ''} · ${realRes}`;
+      }
+    });
+
     async function getFavoritesList() {
       const data = await getD1Data(KEY_FAVS, '[]');
-      try { 
-        const res = typeof data === 'object' ? data : JSON.parse(data);
-        return Array.isArray(res) ? res : [];
-      } catch (_) { return []; }
+      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
     async function getHistoryList() {
       const data = await getD1Data(KEY_HISTORY, '[]');
-      try { 
-        const res = typeof data === 'object' ? data : JSON.parse(data);
-        return Array.isArray(res) ? res : [];
-      } catch (_) { return []; }
+      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
     function updateFavIconState() {
@@ -659,10 +673,7 @@
     }
 
     async function toggleCurrentFavorite() {
-      if (!currentPlayingMeta) {
-        alert("请先选择播放一个视频或频道！");
-        return;
-      }
+      if (!currentPlayingMeta) { alert("请先选择播放项目！"); return; }
       let favs = await getFavoritesList();
       const currentEpName = currentPlayingMeta.epName || '正片';
       const idx = favs.findIndex(f => f.title === currentPlayingMeta.title && f.epName === currentEpName);
@@ -721,7 +732,7 @@
       const record = history.find(h => h.key === currentVodUniqueKey);
       if (record && record.time > 5 && (!video.duration || record.time < video.duration - 15)) {
         video.currentTime = record.time;
-        setStatus(`已自动跳转至上次进度：${formatTime(record.time)}`, true);
+        setStatus(`已自动跳转至进度：${formatTime(record.time)}`, true);
         setTimeout(() => setStatus("", false), 1800);
       }
     }
@@ -745,7 +756,7 @@
       const favs = await getFavoritesList();
 
       if (favs.length === 0) {
-        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:#777;font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:#555;">播放视频时点击顶部的 ★ 即可收藏</span></div>`;
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:#777;font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:#555;">播放时轻触顶部的 ★ 即可收藏</span></div>`;
         return;
       }
 
@@ -803,16 +814,15 @@
       const container = document.getElementById('channel-list');
       container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">正在读取历史...</div>';
       const history = await getHistoryList();
-      const count = Array.isArray(history) ? history.length : 0;
 
-      if (count === 0) {
+      if (history.length === 0) {
         container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:#777;font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:#555;">播放视频时将自动在此记录进度</span></div>`;
         return;
       }
 
       container.innerHTML = `
         <div class="sources-header-bar">
-          <span class="sources-header-title">🕒 播放历史 (${count})</span>
+          <span class="sources-header-title">🕒 播放历史 (${history.length})</span>
           <div>
             <button class="btn-search" style="padding:2px 8px;font-size:11px;background:#cf222e;margin-right:6px;" onclick="clearAllHistory()">清空</button>
             <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
@@ -858,7 +868,7 @@
     }
 
     async function clearAllHistory() {
-      if (!confirm("确定要清空全部播放历史记录吗？")) return;
+      if (!confirm("确定清空全部历史记录吗？")) return;
       await setD1Data(KEY_HISTORY, []);
       renderHistoryView();
     }
@@ -933,7 +943,7 @@
     });
 
     function togglePlay() {
-      if (video.paused) { video.play().then(() => { updatePlayBtn(true); showControls(); }).catch(() => {}); }
+      if (video.paused) video.play().then(() => { updatePlayBtn(true); showControls(); }).catch(() => {});
       else { video.pause(); updatePlayBtn(false); showControls(); }
     }
 
@@ -965,33 +975,26 @@
     function enterPseudoFullscreen() { wrap.classList.toggle('pseudo-fullscreen'); }
 
     function openPlayer(type) {
-      if (!isSafeUrl(currentStreamUrl)) {
-        alert("当前链接无效或存在非安全协议！");
-        return;
-      }
+      if (!isSafeUrl(currentStreamUrl)) { alert("当前链接无效！"); return; }
       const rawUrl = currentStreamUrl.trim();
-      let targetScheme = "";
+      let s = "";
       switch (type) {
-        case 'vlc': targetScheme = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) ? `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(rawUrl)}` : `vlc://${rawUrl}`; break;
-        case 'potplayer': targetScheme = `potplayer://${rawUrl.replace(/^https?:\/\//i, '')}`; break;
-        case 'iina': targetScheme = `iina://weblink?url=${encodeURIComponent(rawUrl)}`; break;
-        case 'nplayer': targetScheme = `nplayer-${rawUrl}`; break;
-        case 'aptv': targetScheme = `aptv://install?url=${encodeURIComponent(rawUrl)}`; break;
+        case 'vlc': s = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) ? `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(rawUrl)}` : `vlc://${rawUrl}`; break;
+        case 'potplayer': s = `potplayer://${rawUrl.replace(/^https?:\/\//i, '')}`; break;
+        case 'iina': s = `iina://weblink?url=${encodeURIComponent(rawUrl)}`; break;
+        case 'nplayer': s = `nplayer-${rawUrl}`; break;
+        case 'aptv': s = `aptv://install?url=${encodeURIComponent(rawUrl)}`; break;
       }
-      if (targetScheme) window.location.href = targetScheme;
+      if (s) window.location.href = s;
     }
 
     function copyCurrentUrl() {
       if (!isSafeUrl(currentStreamUrl)) { alert("请先选择有效播放线路！"); return; }
-      navigator.clipboard.writeText(currentStreamUrl).then(() => {
-        alert("已安全复制当前视频直链：\n" + currentStreamUrl);
-      }).catch(() => prompt("请手动复制链接：", currentStreamUrl));
+      navigator.clipboard.writeText(currentStreamUrl).then(() => alert("已复制直链：\n" + currentStreamUrl))
+        .catch(() => prompt("请手动复制链接：", currentStreamUrl));
     }
 
-    function toggleClearBtn(val) {
-      document.getElementById('clear-kw').style.display = val.trim() ? 'block' : 'none';
-    }
-
+    function toggleClearBtn(val) { document.getElementById('clear-kw').style.display = val.trim() ? 'block' : 'none'; }
     function clearSearchInput() {
       const input = document.getElementById('filter');
       input.value = '';
@@ -1007,28 +1010,20 @@
 
     function closeSourceModal() { document.getElementById('modal-mask').style.display = 'none'; }
 
-    // 仅保存 URL 字符串到 D1，不触发抓取
     async function saveToD1() {
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
-
       if (m3uUrl) await setD1Data(KEY_M3U, m3uUrl);
       if (subUrl) await setD1Data(KEY_SUB, subUrl);
-
       closeSourceModal();
-      alert("配置已保存到云数据库！若需更新源站列表，请点击弹窗内的【🔄 同步更新源】。");
+      alert("配置已保存到云数据库！若需拉取最新影视/电视源，请在弹窗点击【🔄 同步更新源】。");
     }
 
-    // 手动点击触发抓取与解析
     async function manualSyncSubscription() {
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
 
-      if (!subUrl && !m3uUrl) {
-        alert("请先填写影视订阅或直播源地址！");
-        return;
-      }
-
+      if (!subUrl && !m3uUrl) { alert("请先输入订阅或直播源地址！"); return; }
       const syncBtn = document.getElementById('btn-modal-sync');
       syncBtn.textContent = "⏳ 正在同步...";
       syncBtn.disabled = true;
@@ -1036,66 +1031,49 @@
       if (subUrl) await setD1Data(KEY_SUB, subUrl);
       if (m3uUrl) await setD1Data(KEY_M3U, m3uUrl);
 
-      let successMsg = [];
-
-      // 同步影视源
+      let msg = [];
       if (subUrl) {
         try {
           let text = await fetchWithSmartProxy(subUrl, 6000);
           let sites = parseSubscriptionPayload(text);
-
           if (sites.length === 0 && subUrl.includes('format=2')) {
             text = await fetchWithSmartProxy(subUrl.replace('format=2', 'format=1'), 6000);
             sites = parseSubscriptionPayload(text);
           }
-
           if (sites.length > 0) {
             parsedSites = sites;
             await setD1Data(KEY_SITES, JSON.stringify(parsedSites));
-            successMsg.push(`影视源: ${sites.length} 个接口`);
-          } else {
-            successMsg.push(`影视源解析为空`);
-          }
-        } catch (e) {
-          successMsg.push(`影视源同步失败: ${e.message}`);
-        }
+            msg.push(`影视源已更新: ${sites.length} 个`);
+          } else msg.push(`影视源解析为空`);
+        } catch (e) { msg.push(`影视源更新失败: ${e.message}`); }
       }
 
-      // 同步电视直播
       if (m3uUrl) {
         try {
           await initTv();
-          successMsg.push(`电视直播源已刷新`);
-        } catch (e) {
-          successMsg.push(`直播源加载失败: ${e.message}`);
-        }
+          msg.push(`电视直播源已刷新`);
+        } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
       syncBtn.textContent = "🔄 同步更新源";
       syncBtn.disabled = false;
       closeSourceModal();
-      alert("同步结果:\n" + successMsg.join('\n'));
+      alert("同步完成:\n" + msg.join('\n'));
     }
 
     function extractSitesFromAnyJson(parsed) {
       const results = [];
       if (!parsed || typeof parsed !== 'object') return results;
-
       if (parsed.api_site && typeof parsed.api_site === 'object') {
         for (let key in parsed.api_site) {
           const item = parsed.api_site[key];
-          if (item && item.api && isSafeUrl(item.api)) {
-            results.push({ name: item.name || key, api: item.api.trim() });
-          }
+          if (item?.api && isSafeUrl(item.api)) results.push({ name: item.name || key, api: item.api.trim() });
         }
       }
-
-      let list = Array.isArray(parsed) ? parsed : (parsed.video && parsed.video.sites) || parsed.sites || [];
+      let list = Array.isArray(parsed) ? parsed : (parsed.video?.sites) || parsed.sites || [];
       for (const item of list) {
         const api = item.api || item.url;
-        if (api && typeof api === 'string' && isSafeUrl(api)) {
-          results.push({ name: item.name || item.key || '影视源', api: api.trim() });
-        }
+        if (api && typeof api === 'string' && isSafeUrl(api)) results.push({ name: item.name || item.key || '影视源', api: api.trim() });
       }
       return results;
     }
@@ -1103,9 +1081,7 @@
     function parseSubscriptionPayload(text) {
       let raw = text.trim();
       let parsed = null;
-      try {
-        parsed = JSON.parse(raw);
-      } catch (_) {
+      try { parsed = JSON.parse(raw); } catch (_) {
         try {
           const decoded = decodeBase58(raw);
           parsed = JSON.parse(decoded.replace(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, ''));
@@ -1127,7 +1103,7 @@
         filterInput.placeholder = "搜索电视频道...";
         renderList(groups, false);
       } else {
-        filterInput.placeholder = "输入片名（如：长津湖、哪吒、西游记）搜索选集换源...";
+        filterInput.placeholder = "输入片名（如：长津湖、哪吒、狂飙）搜索选集换源...";
         if (groupedVodList.length > 0) renderGroupedVodSources();
         else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入片名，自动拉取各源站并排序换源 🔍</div>`;
       }
@@ -1163,13 +1139,10 @@
 
       try { return await fetchWithTimer(targetUrl); } catch (_) {}
       try { return await fetchWithTimer(`/api/data?action=proxy&proxy_url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
-      throw new Error("抓取超时或网络受阻");
+      throw new Error("网络抓取受阻");
     }
 
-    function normalizeTitle(rawTitle) {
-      if (!rawTitle) return "未知影视";
-      return String(rawTitle).trim();
-    }
+    function normalizeTitle(rawTitle) { return rawTitle ? String(rawTitle).trim() : "未知影视"; }
 
     async function asyncPool(poolLimit, array, iteratorFn) {
       const ret = [];
@@ -1180,9 +1153,7 @@
         if (poolLimit <= array.length) {
           const e = p.then(() => executing.splice(executing.indexOf(e), 1));
           executing.push(e);
-          if (executing.length >= poolLimit) {
-            await Promise.race(executing);
-          }
+          if (executing.length >= poolLimit) await Promise.race(executing);
         }
       }
       return Promise.all(ret);
@@ -1194,9 +1165,7 @@
       try {
         await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
         return Math.round(performance.now() - t0);
-      } catch (_) {
-        return 9999;
-      }
+      } catch (_) { return 9999; }
     }
 
     async function fastStreamSearchVod(keyword) {
@@ -1207,8 +1176,7 @@
       let autoPlayLock = false;
 
       await asyncPool(5, parsedSites, async (site) => {
-        let apiUrl = site.api;
-        apiUrl += (apiUrl.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
+        let apiUrl = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
 
         try {
           const resText = await fetchWithSmartProxy(apiUrl, 4500);
@@ -1239,9 +1207,7 @@
               group.items.push(itemResult);
             });
 
-            if (currentView === 'normal') {
-              renderGroupedVodSources();
-            }
+            if (currentView === 'normal') renderGroupedVodSources();
 
             if (!autoPlayLock && groupedVodList.length > 0) {
               autoPlayLock = true;
@@ -1262,7 +1228,7 @@
 
     async function startSpeedTest() {
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (!activeGroup || !activeGroup.items || activeGroup.items.length === 0) return;
+      if (!activeGroup?.items?.length) return;
       
       const sortBtn = document.querySelector('.btn-sort-speed');
       if (sortBtn) {
@@ -1295,7 +1261,7 @@
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
 
-      if (!groupedVodList || groupedVodList.length === 0) {
+      if (!groupedVodList?.length) {
         container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">请在上方搜索片名</div>`;
         return;
       }
@@ -1394,7 +1360,9 @@
             const isSubActive = (item.id === activeSubItemId);
             const subCard = document.createElement('div');
             subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
-            const remarks = item.vod.vod_remarks || '正片';
+            
+            // 采用真实语义解析，不再全部无脑显示 720p
+            const q = parseQualityTag(item.vod.vod_remarks);
 
             let pingText = "待测速";
             let pingClass = "metric-ping-wait";
@@ -1411,10 +1379,10 @@
             subCard.innerHTML = `
               <div class="source-sub-left">
                 <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
-                <span class="card-quality">${escapeHtml(remarks.includes('4K')?'4K':remarks.includes('1080')?'1080p':'720p')}</span>
+                <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
               </div>
               <div class="card-status-bar">
-                <span class="${pingClass}">真实延迟: ${pingText}</span>
+                <span class="${pingClass}">${pingText}</span>
               </div>
             `;
 
@@ -1436,7 +1404,7 @@
     }
 
     function getEpisodesList(item) {
-      if (!item || !item.vod) return [];
+      if (!item?.vod) return [];
       const playUrlStr = item.vod.vod_play_url || '';
       const playGroups = playUrlStr.split('$$$');
       const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
@@ -1445,20 +1413,17 @@
       return rawEps.map((ep, idx) => {
         const parts = ep.split('$');
         const urlCandidate = (parts[1] || parts[0]).trim();
-        return { 
-          name: parts[0] || `第${idx+1}集`, 
-          url: isSafeUrl(urlCandidate) ? urlCandidate : ''
-        };
+        return { name: parts[0] || `第${idx+1}集`, url: isSafeUrl(urlCandidate) ? urlCandidate : '' };
       }).filter(ep => ep.url !== '');
     }
 
     function playCurrentVodSource(item, epIdx = 0) {
-      if (!item || !item.vod) return;
+      if (!item?.vod) return;
       isLiveMode = false;
 
       const episodes = getEpisodesList(item);
       const targetEp = episodes[epIdx] || episodes[0];
-      if (!targetEp || !targetEp.url) return;
+      if (!targetEp?.url) return;
 
       let rawUrl = targetEp.url;
       if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
@@ -1525,15 +1490,11 @@
           }).catch(() => setStatus("请轻触画面开始播放"));
         });
 
-        hls.on(Hls.Events.ERROR, (event, data) => {
+        hls.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) {
             switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                hls.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
-                break;
+              case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
+              case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
               default:
                 destroyHlsInstance();
                 showFailTip();
@@ -1573,8 +1534,8 @@
         line = line.trim();
         if (line.startsWith('#EXTINF:')) {
           const rawName = (line.split(',')[1] || '').trim();
-          const tvgNameMatch = line.match(/tvg-name="([^"]+)"/);
-          const name = tvgNameMatch ? tvgNameMatch[1] : (rawName || '未命名频道');
+          const tvgMatch = line.match(/tvg-name="([^"]+)"/);
+          const name = tvgMatch ? tvgMatch[1] : (rawName || '未命名频道');
           const groupMatch = line.match(/group-title="([^"]+)"/);
           const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
           temp = { name, group };
@@ -1582,9 +1543,7 @@
           if (isSafeUrl(line)) {
             if (!groups[temp.group]) groups[temp.group] = {};
             if (!groups[temp.group][temp.name]) groups[temp.group][temp.name] = [];
-            if (!groups[temp.group][temp.name].includes(line)) {
-              groups[temp.group][temp.name].push(line);
-            }
+            if (!groups[temp.group][temp.name].includes(line)) groups[temp.group][temp.name].push(line);
           }
           temp = null;
         }
@@ -1650,7 +1609,7 @@
             document.querySelectorAll('.channel-row.expanded').forEach(el => el !== rowEl && el.classList.remove('expanded'));
             if (!isExpanded) {
               rowEl.classList.add('expanded');
-              panelEl.querySelector('.source-item') && panelEl.querySelector('.source-item').click();
+              panelEl.querySelector('.source-item')?.click();
             } else {
               rowEl.classList.remove('expanded');
             }
@@ -1683,7 +1642,7 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    // 重点：开页直接从 D1 读取，完全取消每次打开网站的自动外部拉取
+    // 开页只从 D1 纯净加载，零多余外部请求
     window.addEventListener('DOMContentLoaded', async () => {
       const cachedSites = await getD1Data(KEY_SITES, null);
       if (cachedSites) {
