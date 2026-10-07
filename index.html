@@ -147,9 +147,10 @@
     }
     .btn-sort-speed:active { background: #1e702e; }
 
+    /* 折叠大卡片容器 */
     .title-group-box { border-bottom: 1px solid #252525; background: #161616; }
     .title-group-header {
-      padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;
       cursor: pointer; user-select: none; transition: background 0.15s;
     }
     .title-group-header:hover { background: #1f1f1f; }
@@ -168,17 +169,25 @@
     .group-body-panel { display: none; background: #111; padding: 6px 10px 12px 10px; border-top: 1px solid #222; }
     .title-group-box.expanded .group-body-panel { display: block; }
 
-    .episodes-collapse-box { 
-      background: #181818; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;
+    /* 单个源专属的直接展示卡片（不折叠） */
+    .single-source-card {
+      border-bottom: 1px solid #252525; background: #161616; padding: 10px 12px; transition: background 0.15s;
     }
-    .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #ddd; }
+    .single-source-card.active-group { background: #152438; border-left: 3px solid #0070f3; }
+    .single-top-row { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+
+    /* 选集容器 */
+    .episodes-collapse-box { 
+      background: #181818; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px;
+    }
+    .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #ddd; cursor: pointer; }
     .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; margin-top: 8px; max-height: 140px; overflow-y: auto; }
     .ep-item { background: #222; border: 1px solid #333; padding: 5px 2px; border-radius: 4px; font-size: 11px; color: #bbb; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ep-item.active { background: #0070f3; color: #fff; border-color: #0070f3; font-weight: bold; }
 
     .source-sub-card { 
       display: flex; align-items: center; justify-content: space-between;
-      padding: 9px 12px; margin-top: 6px; background: #191919; border: 1px solid #282828; 
+      padding: 8px 12px; margin-top: 6px; background: #191919; border: 1px solid #282828; 
       border-radius: 6px; cursor: pointer; transition: background 0.15s;
     }
     .source-sub-card:hover { background: #222; }
@@ -186,10 +195,9 @@
     
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .card-sitename-tag { background: #2a2a2a; padding: 2px 6px; border-radius: 3px; font-size: 11px; color: #ddd; font-weight: 500; }
-    .source-sub-card.active-sub .card-sitename-tag { background: #0070f3; color: #fff; }
+    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: #0070f3; color: #fff; }
     
-    /* 动态清晰度徽章样式 */
-    .card-quality { font-size: 10px; background: #283e2e; color: #4ade80; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+    .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .card-quality.q-4k { background: #4a2828; color: #f87171; }
     .card-quality.q-1080 { background: #283e2e; color: #4ade80; }
     .card-quality.q-720 { background: #26354a; color: #60a5fa; }
@@ -408,7 +416,6 @@
       return t.startsWith('http://') || t.startsWith('https://');
     }
 
-    // 智能画质解析：剔除原先强行标记 720p 的逻辑
     function parseQualityTag(remarks) {
       if (!remarks) return { text: '正片', cls: 'q-normal' };
       const r = remarks.toUpperCase();
@@ -639,7 +646,6 @@
       }
     });
 
-    // 关键优化：根据真实底层解码高度动态校准画质徽章
     video.addEventListener('loadedmetadata', () => {
       if (video.videoHeight && routeBadge.style.display !== 'none') {
         let realRes = '720p';
@@ -1215,6 +1221,8 @@
               activeSubItemId = groupedVodList[0].items[0].id;
               currentActiveEp = 0;
               playCurrentVodSource(groupedVodList[0].items[0], 0);
+
+              // 自动测速：对首个剧目和列表里的单源剧目直接启动自动测速
               startSpeedTest();
             }
           }
@@ -1226,9 +1234,9 @@
       }
     }
 
+    /* 精准高效测速：只测已展开的剧目 + 单源剧目（折叠收起的绝对不测） */
     async function startSpeedTest() {
-      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (!activeGroup?.items?.length) return;
+      if (!groupedVodList?.length) return;
       
       const sortBtn = document.querySelector('.btn-sort-speed');
       if (sortBtn) {
@@ -1236,18 +1244,36 @@
         sortBtn.disabled = true;
       }
 
-      await Promise.allSettled(activeGroup.items.map(async (item) => {
+      // 提取符合条件的源：当前展开的剧目下的所有源 + 所有单源剧目下的那个唯一样本
+      const targetItemsToTest = [];
+
+      groupedVodList.forEach(group => {
+        if (group.items.length === 1) {
+          // 单个源：带着一起测
+          targetItemsToTest.push({ group, item: group.items[0] });
+        } else if (group.title === activeGroupTitle) {
+          // 多个源但当前展开了：带着一起测
+          group.items.forEach(item => targetItemsToTest.push({ group, item }));
+        }
+        // 其余折叠收起的多个源：坚决不测，节省资源
+      });
+
+      await Promise.allSettled(targetItemsToTest.map(async ({ item }) => {
         const episodes = getEpisodesList(item);
         const targetEp = episodes[currentActiveEp] || episodes[0];
         const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
         item.ping = await probeStreamLatency(testUrl);
       }));
 
-      activeGroup.items.sort((a, b) => {
-        const pa = a.ping < 0 ? 9999 : a.ping;
-        const pb = b.ping < 0 ? 9999 : b.ping;
-        return pa - pb;
-      });
+      // 对展开的这组内部进行速度重排
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      if (activeGroup && activeGroup.items.length > 1) {
+        activeGroup.items.sort((a, b) => {
+          const pa = a.ping < 0 ? 9999 : a.ping;
+          const pb = b.ping < 0 ? 9999 : b.ping;
+          return pa - pb;
+        });
+      }
 
       renderGroupedVodSources();
 
@@ -1257,6 +1283,7 @@
       }
     }
 
+    /* 渲染核心：1个源的直接平铺直出（不折叠），多个源的折叠聚合 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -1275,11 +1302,88 @@
       container.appendChild(headerBar);
 
       groupedVodList.forEach((group) => {
+        const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+
+        /* 重点分支一：只有 1 个源的剧目，扁平化直接展示，坚决不折叠 */
+        if (group.items.length === 1) {
+          const item = group.items[0];
+          const isCurrentActive = (item.id === activeSubItemId);
+          const singleCard = document.createElement('div');
+          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+
+          const q = parseQualityTag(item.vod.vod_remarks);
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+          singleCard.innerHTML = `
+            <div class="single-top-row">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap" style="flex:1;">
+                <div class="group-main-title">${escapeHtml(group.title)}</div>
+                <div class="group-meta-tag">
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
+                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                </div>
+              </div>
+            </div>
+          `;
+
+          // 点击单源头部直接播放
+          singleCard.querySelector('.single-top-row').onclick = () => {
+            activeGroupTitle = group.title;
+            activeSubItemId = item.id;
+            renderGroupedVodSources();
+            playCurrentVodSource(item, currentActiveEp);
+          };
+
+          // 如果激活了当前单源，展示选集
+          if (isCurrentActive) {
+            const episodes = getEpisodesList(item);
+            if (episodes.length > 0) {
+              const collapseBox = document.createElement('div');
+              collapseBox.className = 'episodes-collapse-box';
+              collapseBox.innerHTML = `
+                <div class="episodes-header">
+                  <span>📺 选集 (${episodes.length} 集) - 第 ${currentActiveEp + 1} 集</span>
+                  <span id="ep-arrow" style="font-size:11px;color:#888;">▼ 折叠</span>
+                </div>
+                <div class="episodes-grid" id="episodes-grid-list"></div>
+              `;
+
+              const epGrid = collapseBox.querySelector('#episodes-grid-list');
+              episodes.forEach((ep, epIdx) => {
+                const btn = document.createElement('button');
+                btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+                btn.textContent = ep.name;
+                btn.onclick = (e) => {
+                  e.stopPropagation();
+                  currentActiveEp = epIdx;
+                  renderGroupedVodSources();
+                  playCurrentVodSource(item, epIdx);
+                };
+                epGrid.appendChild(btn);
+              });
+
+              collapseBox.querySelector('.episodes-header').onclick = (e) => {
+                e.stopPropagation();
+                const isHide = epGrid.style.display === 'none';
+                epGrid.style.display = isHide ? 'grid' : 'none';
+                collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+              };
+
+              singleCard.appendChild(collapseBox);
+            }
+          }
+
+          container.appendChild(singleCard);
+          return;
+        }
+
+        /* 重点分支二：有 2 个及以上源的剧目，保持同名折叠聚合 */
         const isCurrentActiveGroup = (group.title === activeGroupTitle);
         const groupCard = document.createElement('div');
         groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
-
-        const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
 
         groupCard.innerHTML = `
           <div class="title-group-header">
@@ -1339,8 +1443,7 @@
               btn.onclick = (e) => {
                 e.stopPropagation();
                 currentActiveEp = epIdx;
-                document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
-                btn.classList.add('active');
+                renderGroupedVodSources();
                 playCurrentVodSource(currentSubItem, epIdx);
               };
               epGrid.appendChild(btn);
@@ -1361,20 +1464,10 @@
             const subCard = document.createElement('div');
             subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
             
-            // 采用真实语义解析，不再全部无脑显示 720p
             const q = parseQualityTag(item.vod.vod_remarks);
 
-            let pingText = "待测速";
-            let pingClass = "metric-ping-wait";
-            if (item.ping >= 0) {
-              if (item.ping >= 9999) {
-                pingText = "超时/异常";
-                pingClass = "metric-ping-err";
-              } else {
-                pingText = `${item.ping}ms`;
-                pingClass = item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err';
-              }
-            }
+            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
             subCard.innerHTML = `
               <div class="source-sub-left">
@@ -1642,7 +1735,6 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    // 开页只从 D1 纯净加载，零多余外部请求
     window.addEventListener('DOMContentLoaded', async () => {
       const cachedSites = await getD1Data(KEY_SITES, null);
       if (cachedSites) {
