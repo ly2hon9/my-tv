@@ -378,7 +378,6 @@
     </div>
   </div>
 
-  <!-- 订阅配置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
@@ -1151,7 +1150,6 @@
 
     function normalizeTitle(rawTitle) { return rawTitle ? String(rawTitle).trim() : "未知影视"; }
 
-    // 放宽至 10 路线并发请求，大幅削减等待时间
     async function asyncPool(poolLimit, array, iteratorFn) {
       const ret = [];
       const executing = [];
@@ -1176,14 +1174,13 @@
       } catch (_) { return 9999; }
     }
 
-    /* 极速搜索：流式渲染，首个结果秒起播，且只对当前展开组测速 */
+    /* 核心改造：搜完所有源之后，直接针对默认展开的首个大剧目自动触发测速！ */
     async function fastStreamSearchVod(keyword) {
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在并发检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       let autoPlayLock = false;
-      let hasTriggeredTest = false;
 
       await asyncPool(10, parsedSites, async (site) => {
         let apiUrl = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
@@ -1217,22 +1214,15 @@
               group.items.push(itemResult);
             });
 
-            // 边搜边刷，无感知呈现
             if (currentView === 'normal') renderGroupedVodSources();
 
-            // 首个大组出现，立刻起播
+            // 首个大剧目出来时直接挂载起播并标记为当前展开组
             if (!autoPlayLock && groupedVodList.length > 0) {
               autoPlayLock = true;
               activeGroupTitle = groupedVodList[0].title;
               activeSubItemId = groupedVodList[0].items[0].id;
               currentActiveEp = 0;
               playCurrentVodSource(groupedVodList[0].items[0], 0);
-
-              // 仅启动一次测速：只测这一个展开项内部的源
-              if (!hasTriggeredTest) {
-                hasTriggeredTest = true;
-                setTimeout(() => startSpeedTest(), 200);
-              }
             }
           }
         } catch (_) {}
@@ -1240,15 +1230,18 @@
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
         container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到《${escapeHtml(keyword)}》，请更换关键词</div>`;
+        return;
       }
+
+      // 所有源全部搜集落定后，立刻针对当前展开的大卡片自动进行测速并重排！
+      startSpeedTest();
     }
 
-    /* 严控范围测速：坚决不测收起的项，只测当前唯一展开的剧目 */
+    /* 严控范围测速：只测当前默认展开或用户点开的剧目内部所有源 */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
 
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      // 如果展开组只有 1 个源或未展开，无需测速
       if (!activeGroup || activeGroup.items.length <= 1) return;
 
       const sortBtn = document.querySelector('.btn-sort-speed');
@@ -1257,7 +1250,7 @@
         sortBtn.disabled = true;
       }
 
-      // 仅测当前唯一展开剧目内的子线路，严禁测其他任何未展开的条目！
+      // 只对展开大组底下的所有源站测速（收起的多源和单源坚决不测）
       await Promise.allSettled(activeGroup.items.map(async (item) => {
         const episodes = getEpisodesList(item);
         const targetEp = episodes[currentActiveEp] || episodes[0];
@@ -1265,7 +1258,7 @@
         item.ping = await probeStreamLatency(testUrl);
       }));
 
-      // 对展开组内部进行速度重排
+      // 展开项内部源按物理延迟从低到高排列（最快的自动排到最上面）
       activeGroup.items.sort((a, b) => {
         const pa = a.ping < 0 ? 9999 : a.ping;
         const pb = b.ping < 0 ? 9999 : b.ping;
@@ -1280,7 +1273,6 @@
       }
     }
 
-    /* 渲染核心：多源折叠组稳居顶部，单源组整齐排在下方 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
@@ -1290,7 +1282,6 @@
         return;
       }
 
-      // 分割：多源组与单源组
       const multiGroups = groupedVodList.filter(g => g.items.length > 1);
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
 
@@ -1302,7 +1293,7 @@
       `;
       container.appendChild(headerBar);
 
-      // 1. 多源聚合卡片（排在最上方）
+      // 1. 多源聚合卡片区（排在最上面）
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1345,7 +1336,6 @@
                 playCurrentVodSource(group.items[0], 0);
               }
               renderGroupedVodSources();
-              // 仅对当前展开的这个大组启动针对性测速
               startSpeedTest();
             }
           };
@@ -1430,7 +1420,7 @@
         });
       }
 
-      // 2. 单源平铺卡片（排在多源下方，不展开则不测速）
+      // 2. 单源平铺区（排在多源下方，默认不折叠，不展开不测速）
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
