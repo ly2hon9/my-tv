@@ -1204,7 +1204,7 @@
       }
     }
 
-    async function fetchWithSmartProxy(targetUrl, timeout = 2200, signal = null) {
+    async function fetchWithSmartProxy(targetUrl, timeout = 2500, signal = null) {
       const fetchWithTimer = (url) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeout);
@@ -1250,26 +1250,17 @@
         if (currentView === 'normal' && currentMode === 'vod') {
           renderGroupedVodSources();
         }
-      }, 250);
+      }, 200);
     }
 
-    /* 优化短剧与碰瓷过滤规则 */
-    function isJunkShortDrama(name, type) {
-      const n = (name || '').toLowerCase();
-      const t = (type || '').toLowerCase();
-      if (t.includes('短剧') || t.includes('爽剧') || t.includes('微短剧')) return true;
-      const junkKeywords = ['望子成龙', '望夫成龙', '弃子成龙', '翻身成龙', '看我护母成龙', '赘婿', '战神归来', '九十九天', '99天', '我竟是', '逆袭从'];
-      return junkKeywords.some(k => n.includes(k));
-    }
-
-    /* 极速全源搜索 + 短剧强力净化 */
+    /* 核心重构：不做任何硬编码过滤，采用标准苹果CMS片名+演员双路全量抓取 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全网检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
@@ -1278,16 +1269,7 @@
         if (!Array.isArray(dataList)) return;
         dataList.forEach((item, itemIdx) => {
           const vodName = (item.vod_name || '').trim();
-          const vodType = (item.type_name || '').trim();
-          const vodActor = (item.vod_actor || '').trim();
-          const lowerName = vodName.toLowerCase();
-          const lowerActor = vodActor.toLowerCase();
-
-          // 核心拦截 1：片名和演员均不含关键词，直接剔除
-          if (!lowerName.includes(kw) && !lowerActor.includes(kw)) return;
-
-          // 核心拦截 2：过滤“xx之望子成龙”等垃圾短剧
-          if (isJunkShortDrama(vodName, vodType)) return;
+          if (!vodName) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
           const itemResult = {
@@ -1302,8 +1284,8 @@
             group = {
               title: vodName,
               poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
-              type: vodType,
-              actor: vodActor,
+              type: item.type_name || '',
+              actor: item.vod_actor || '',
               items: []
             };
             groupedVodList.push(group);
@@ -1315,12 +1297,25 @@
         });
       };
 
-      await asyncPool(16, parsedSites, async (site) => {
+      // 47 个源站并行发请求：同时检索片名(wd)与主演(actor)
+      await asyncPool(14, parsedSites, async (site) => {
         if (currentSignal.aborted) return;
         const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
+        const urlActor = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&actor=${encodeURIComponent(keyword)}&out=json&pg=1`;
+
         try {
-          const res = await fetchWithSmartProxy(urlWd, 2200, currentSignal);
-          processList(JSON.parse(res).list, site);
+          const [resWd, resActor] = await Promise.allSettled([
+            fetchWithSmartProxy(urlWd, 2500, currentSignal),
+            fetchWithSmartProxy(urlActor, 2500, currentSignal)
+          ]);
+
+          if (resWd.status === 'fulfilled') {
+            try { processList(JSON.parse(resWd.value).list, site); } catch (_) {}
+          }
+          if (resActor.status === 'fulfilled') {
+            try { processList(JSON.parse(resActor.value).list, site); } catch (_) {}
+          }
+
           scheduleRenderVodSources();
         } catch (_) {}
       });
@@ -1328,35 +1323,15 @@
       if (currentSignal.aborted) return;
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的正片影视</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
         return;
       }
 
-      // 精准电影排序：主演含该关键词或正牌电影直接置顶，动漫与历史片后移
+      // 自然排序：片名完全匹配或源站多的优先靠前
       groupedVodList.sort((a, b) => {
-        let scoreA = 0, scoreB = 0;
-        const aName = a.title.toLowerCase();
-        const bName = b.title.toLowerCase();
-        const aActor = (a.actor || '').toLowerCase();
-        const bActor = (b.actor || '').toLowerCase();
-
-        if (aName === kw) scoreA += 100;
-        if (bName === kw) scoreB += 100;
-
-        if (aActor.includes(kw)) scoreA += 60;
-        if (bActor.includes(kw)) scoreB += 60;
-
-        // 电影类型提权，动漫少儿降权
-        if ((a.type || '').includes('电影') || (a.type || '').includes('动作')) scoreA += 20;
-        if ((b.type || '').includes('电影') || (b.type || '').includes('动作')) scoreB += 20;
-
-        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 30;
-        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 30;
-
-        scoreA += a.items.length * 2;
-        scoreB += b.items.length * 2;
-
-        return scoreB - scoreA;
+        const aExact = a.title.toLowerCase() === kw ? 100 : 0;
+        const bExact = b.title.toLowerCase() === kw ? 100 : 0;
+        return (bExact + b.items.length) - (aExact + a.items.length);
       });
 
       renderGroupedVodSources();
