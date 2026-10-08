@@ -551,7 +551,6 @@
           <span class="btn-clear-kw" id="clear-kw" onclick="clearSearchInput()">✕</span>
         </div>
         <button class="btn-search" onclick="triggerSearch()">搜索</button>
-        <!-- 主界面快捷主题切换按钮 -->
         <button type="button" class="btn-quick-theme" id="main-quick-theme-btn" onclick="toggleGlobalThemeClick()" title="切换白天/夜间主题"></button>
       </div>
 
@@ -571,7 +570,6 @@
     </div>
   </div>
 
-  <!-- 普通注册用户【个人账户】退出弹窗 -->
   <div id="user-account-modal-mask">
     <div class="custom-modal-content" style="max-width: 320px; text-align: center;">
       <h3>
@@ -586,7 +584,6 @@
     </div>
   </div>
 
-  <!-- 主管理员设置与数据管理弹窗 -->
   <div id="modal-mask">
     <div id="source-modal" class="custom-modal-content">
       <h3>
@@ -682,7 +679,6 @@
     </div>
   </div>
 
-  <!-- 分组视频源勾选弹窗 -->
   <div id="user-perm-modal-mask">
     <div class="custom-modal-content" style="max-width: 440px;">
       <h3>
@@ -705,7 +701,6 @@
     </div>
   </div>
 
-  <!-- 用户分组一键切换弹窗 -->
   <div id="user-group-assign-modal-mask">
     <div class="custom-modal-content" style="max-width: 360px;">
       <h3>
@@ -1416,8 +1411,12 @@
       input.focus();
     }
 
-    function toggleGateTheme() {
-      document.getElementById('auth-gate-screen').classList.toggle('dark-theme');
+    const SVG_EYE_OPEN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    const SVG_EYE_SLASH = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
+    function renderGateEyeIcon(isVisible) {
+      const btn = document.getElementById('gate-eye-toggle');
+      if (btn) btn.innerHTML = isVisible ? SVG_EYE_OPEN : SVG_EYE_SLASH;
     }
 
     function toggleGatePasswordVisibility() {
@@ -1425,6 +1424,54 @@
       const isVisible = (pwd.type === 'text');
       pwd.type = isVisible ? 'password' : 'text';
       renderGateEyeIcon(!isVisible);
+    }
+
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+    function applyGlobalTheme(themeMode) {
+      currentThemeSetting = themeMode;
+      let isDark = false;
+
+      if (themeMode === 'light') {
+        isDark = false;
+      } else if (themeMode === 'dark') {
+        isDark = true;
+      } else {
+        const hour = new Date().getHours();
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        isDark = prefersDark || (hour >= 19 || hour < 6);
+      }
+
+      document.body.classList.toggle('theme-light', !isDark);
+
+      const gateScreen = document.getElementById('auth-gate-screen');
+      if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
+
+      const gateThemeBtn = document.getElementById('gate-theme-toggle');
+      if (gateThemeBtn) gateThemeBtn.innerHTML = isDark ? SVG_MOON : SVG_SUN;
+
+      const mainThemeBtn = document.getElementById('main-quick-theme-btn');
+      if (mainThemeBtn) mainThemeBtn.innerHTML = isDark ? SVG_MOON : SVG_SUN;
+
+      const sel = document.getElementById('sys-theme-select');
+      if (sel) sel.value = themeMode;
+    }
+
+    function toggleGlobalThemeClick() {
+      const isCurrentlyDark = !document.body.classList.contains('theme-light');
+      const newMode = isCurrentlyDark ? 'light' : 'dark';
+      applyGlobalTheme(newMode);
+      localStorage.setItem(KEY_THEME_PREF, newMode);
+      setD1Data(KEY_THEME_PREF, newMode);
+      showGestureTip(newMode === 'light' ? "☀️ 已切至白天白色主题" : "🌙 已切至夜间黑色主题");
+    }
+
+    function changeSystemTheme(val) {
+      applyGlobalTheme(val);
+      localStorage.setItem(KEY_THEME_PREF, val);
+      setD1Data(KEY_THEME_PREF, val);
+      showGestureTip("✓ 主题外观已更新");
     }
 
     function showGateError(msg) {
@@ -2158,12 +2205,51 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 敏感/成人特征源精准判定函数 */
+    /* 精准深度识别源站名称是否包含 18+ 标识 */
     function isNSFWSource(siteName) {
       if (!siteName) return false;
       const lower = siteName.toLowerCase();
-      const nsfwKeywords = ['🔞', '麻豆', '番号', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花', 'souv', '黄色', '成人', '福利', '色情'];
+      const nsfwKeywords = [
+        '🔞', '麻豆', '番号', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花',
+        'souav', 'souv', '黄色', '成人', '福利', '色情', 'jkun', '森林', '辣椒',
+        '鲨鱼', '滴滴', '精品资源', '155-', '玉兔', '小鸡', '乐播'
+      ];
       return nsfwKeywords.some(kw => lower.includes(kw));
+    }
+
+    /* 核心加固：整组级敏感内容判定 (包括分类包含 cosplay、真人自拍等) */
+    function isGroupNSFW(group) {
+      if (!group) return false;
+      const typeStr = (group.type || '').toLowerCase();
+      const titleStr = (group.title || '').toLowerCase();
+      const adultTypeWords = ['自拍', '真人自拍', 'cosplay', '写真', '伦理', '成人', '福利', '三级', '情色', '色情', '偷拍', '无码', '有码', 'av', '女优', '同人'];
+
+      // 1. 分类包含敏感特征
+      if (adultTypeWords.some(w => typeStr.includes(w))) return true;
+
+      // 2. 标题包含敏感词
+      if (['自拍', '真人自拍', 'cosplay', '无码', '有码', 'h版', '18+'].some(w => titleStr.includes(w))) return true;
+
+      // 3. 子源站大多或全部属于 18+ 敏感源
+      if (group.items && group.items.length > 0) {
+        const nsfwItemCount = group.items.filter(i => {
+          const iSite = isNSFWSource(i.siteName);
+          const iType = (i.vod?.type_name || '').toLowerCase();
+          return iSite || adultTypeWords.some(w => iType.includes(w));
+        }).length;
+        if (nsfwItemCount >= Math.ceil(group.items.length / 2)) return true;
+      }
+      return false;
+    }
+
+    function getGroupBestPing(group) {
+      if (!group.items || group.items.length === 0) return 9999;
+      let best = 9999;
+      group.items.forEach(i => {
+        const p = i.ping < 0 ? 9999 : i.ping;
+        if (p < best) best = p;
+      });
+      return best;
     }
 
     async function fastStreamSearchVod(keyword) {
@@ -2282,9 +2368,7 @@
         return;
       }
 
-      /* ==========================================================
-         核心排序规则加固：严格剥离 🔞 敏感源沉底，即使测速极快也绝不靠前
-      ========================================================== */
+      // 子源排序：普通源在先，18+ 源在后
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2297,7 +2381,12 @@
         });
       });
 
+      // 整组排序：绝对隔离！正规影视在前，18+/真人自拍在后！
       groupedVodList.sort((a, b) => {
+        const nsfwA = isGroupNSFW(a) ? 1 : 0;
+        const nsfwB = isGroupNSFW(b) ? 1 : 0;
+        if (nsfwA !== nsfwB) return nsfwA - nsfwB; // 0 (普通) 绝对排在 1 (18+) 前面！
+
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
         const bName = b.title.toLowerCase();
@@ -2317,17 +2406,6 @@
 
         if (aName === kw) scoreA += 80;
         if (bName === kw) scoreB += 80;
-
-        const isJunkA = aType.includes('短剧') || aType.includes('爽剧') || aType.includes('微短剧') ||
-                        ['望子成龙', '弃子成龙', '翻身成龙', '护母成龙', '乘成龙', '战神', '赘婿'].some(k => aName.includes(k));
-        const isJunkB = bType.includes('短剧') || bType.includes('爽剧') || bType.includes('微短剧') ||
-                        ['望子成龙', '弃子成龙', '翻身成龙', '护母成龙', '乘成龙', '战神', '赘婿'].some(k => bName.includes(k));
-
-        if (isJunkA) scoreA -= 200;
-        if (isJunkB) scoreB -= 200;
-
-        if (aType.includes('动漫') || aType.includes('少儿')) scoreA -= 30;
-        if (bType.includes('动漫') || bType.includes('少儿')) scoreB -= 30;
 
         scoreA += a.items.length * 2;
         scoreB += b.items.length * 2;
@@ -2385,6 +2463,7 @@
         }
       }));
 
+      // 测速完后对组内线路进行排序
       if (activeGroup && activeGroup.items.length > 1) {
         activeGroup.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2411,6 +2490,238 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
+    /* 渲染单张或多源卡片辅助函数 */
+    function renderCardNode(group, isSingle) {
+      if (isSingle) {
+        const item = group.items[0];
+        const isCurrentActive = (item.id === activeSubItemId);
+        let singleCard = domNodeCache.get(group.title);
+
+        if (!singleCard || !singleCard.classList.contains('single-source-card')) {
+          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+          const q = parseQualityTag(item.vod.vod_remarks);
+          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+          singleCard = document.createElement('div');
+          singleCard.className = 'single-source-card';
+          singleCard.innerHTML = `
+            <div class="single-top-row">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap" style="flex:1;">
+                <div class="group-main-title">${escapeHtml(group.title)}</div>
+                <div class="group-meta-tag">
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                </div>
+              </div>
+            </div>
+          `;
+
+          singleCard.querySelector('.single-top-row').onclick = () => {
+            activeGroupTitle = group.title;
+            activeSubItemId = item.id;
+            renderGroupedVodSources();
+            playCurrentVodSource(item, currentActiveEp);
+          };
+
+          domNodeCache.set(group.title, singleCard);
+        }
+
+        singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+
+        const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
+        if (oldCollapse) oldCollapse.remove();
+
+        if (isCurrentActive) {
+          const episodes = getEpisodesList(item);
+          if (episodes.length > 0) {
+            const collapseBox = document.createElement('div');
+            collapseBox.className = 'episodes-collapse-box';
+            collapseBox.innerHTML = `
+              <div class="episodes-header">
+                <span>📺 选集 (${episodes.length} 集) - 第 ${currentActiveEp + 1} 集</span>
+                <div class="episodes-actions">
+                  <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                  <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);">▼ 折叠</span>
+                </div>
+              </div>
+              <div class="episodes-grid" id="episodes-grid-list"></div>
+            `;
+
+            const epGrid = collapseBox.querySelector('#episodes-grid-list');
+            const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+
+            displayEps.forEach((ep) => {
+              const epIdx = ep.originalIdx;
+              const btn = document.createElement('button');
+              btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+              btn.textContent = ep.name;
+              btn.onclick = (e) => {
+                e.stopPropagation();
+                currentActiveEp = epIdx;
+                renderGroupedVodSources();
+                playCurrentVodSource(item, epIdx);
+              };
+              epGrid.appendChild(btn);
+            });
+
+            collapseBox.querySelector('.episodes-header').onclick = (e) => {
+              if (e.target.tagName === 'BUTTON') return;
+              e.stopPropagation();
+              const isHide = epGrid.style.display === 'none';
+              epGrid.style.display = isHide ? 'grid' : 'none';
+              collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+            };
+
+            singleCard.appendChild(collapseBox);
+          }
+        }
+        return singleCard;
+      } else {
+        const isCurrentActiveGroup = (group.title === activeGroupTitle);
+        let groupCard = domNodeCache.get(group.title);
+
+        if (!groupCard || groupCard.classList.contains('single-source-card')) {
+          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+          groupCard = document.createElement('div');
+          groupCard.className = 'title-group-box';
+          groupCard.innerHTML = `
+            <div class="title-group-header">
+              <div class="group-header-left">
+                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                <div class="group-info-wrap">
+                  <div class="group-main-title">${escapeHtml(group.title)}</div>
+                  <div class="group-meta-tag">
+                    <span>${escapeHtml(group.type || '影视')}</span>
+                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
+                    <span class="group-badge-count">${group.items.length} 个版本/源</span>
+                  </div>
+                </div>
+              </div>
+              <div class="group-arrow">▶</div>
+            </div>
+          `;
+          domNodeCache.set(group.title, groupCard);
+        } else {
+          const badge = groupCard.querySelector('.group-badge-count');
+          if (badge) badge.textContent = `${group.items.length} 个版本/源`;
+        }
+
+        groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
+
+        const headerEl = groupCard.querySelector('.title-group-header');
+        headerEl.onclick = () => {
+          const isExpanded = groupCard.classList.contains('expanded');
+          document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('expanded'));
+          if (!isExpanded) {
+            groupCard.classList.add('expanded');
+            activeGroupTitle = group.title;
+            if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
+              activeSubItemId = group.items[0].id;
+              currentActiveEp = 0;
+              playCurrentVodSource(group.items[0], 0);
+            }
+            renderGroupedVodSources();
+            startSpeedTest();
+          }
+        };
+
+        const oldPanel = groupCard.querySelector('.group-body-panel');
+        if (oldPanel) oldPanel.remove();
+
+        if (isCurrentActiveGroup) {
+          const bodyPanel = document.createElement('div');
+          bodyPanel.className = 'group-body-panel';
+
+          const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+          const episodes = getEpisodesList(currentSubItem);
+
+          if (episodes.length > 0) {
+            const collapseBox = document.createElement('div');
+            collapseBox.className = 'episodes-collapse-box';
+            collapseBox.innerHTML = `
+              <div class="episodes-header">
+                <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
+                <div class="episodes-actions">
+                  <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                  <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
+                </div>
+              </div>
+              <div class="episodes-grid" id="episodes-grid-list"></div>
+            `;
+
+            const epGrid = collapseBox.querySelector('#episodes-grid-list');
+            const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+
+            displayEps.forEach((ep) => {
+              const epIdx = ep.originalIdx;
+              const btn = document.createElement('button');
+              btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+              btn.textContent = ep.name;
+              btn.onclick = (e) => {
+                e.stopPropagation();
+                currentActiveEp = epIdx;
+                document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+                btn.classList.add('active');
+                playCurrentVodSource(currentSubItem, epIdx);
+              };
+              epGrid.appendChild(btn);
+            });
+
+            collapseBox.querySelector('.episodes-header').onclick = (e) => {
+              if (e.target.tagName === 'BUTTON') return;
+              e.stopPropagation();
+              const isHide = epGrid.style.display === 'none';
+              epGrid.style.display = isHide ? 'grid' : 'none';
+              collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+            };
+
+            bodyPanel.appendChild(collapseBox);
+          }
+
+          group.items.forEach((item) => {
+            const isSubActive = (item.id === activeSubItemId);
+            const subCard = document.createElement('div');
+            subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
+            
+            const q = parseQualityTag(item.vod.vod_remarks);
+            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+
+            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+            subCard.innerHTML = `
+              <div class="source-sub-left">
+                <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+              </div>
+              <div class="card-status-bar">
+                <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
+              </div>
+            `;
+
+            subCard.onclick = (e) => {
+              e.stopPropagation();
+              activeSubItemId = item.id;
+              renderGroupedVodSources();
+              playCurrentVodSource(item, currentActiveEp);
+            };
+
+            bodyPanel.appendChild(subCard);
+          });
+
+          groupCard.appendChild(bodyPanel);
+        }
+        return groupCard;
+      }
+    }
+
+    /* 渲染整个剧集列表 (实现正片区与 🔞 专区绝对隔离) */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -2425,271 +2736,72 @@
 
       const frag = document.createDocumentFragment();
 
-      const multiGroups = groupedVodList.filter(g => g.items.length > 1);
-      const singleGroups = groupedVodList.filter(g => g.items.length === 1);
+      // 1. 严格拆分出正片组与 18+ 专区组
+      const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
+      const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
 
-      singleGroups.sort((a, b) => {
-        const isNsfwA = isNSFWSource(a.items[0].siteName) ? 1 : 0;
-        const isNsfwB = isNSFWSource(b.items[0].siteName) ? 1 : 0;
-        if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+      const normalMulti = normalGroups.filter(g => g.items.length > 1);
+      const normalSingle = normalGroups.filter(g => g.items.length === 1);
 
+      normalSingle.sort((a, b) => {
         const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
         const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
         return pa - pb;
       });
 
+      // 18+ 专区内部根据测速独立排序
+      nsfwGroups.sort((a, b) => {
+        return getGroupBestPing(a) - getGroupBestPing(b);
+      });
+      const nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
+      const nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
+
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
       headerBar.innerHTML = `
-        <span class="sources-header-title">搜索结果 <span>(${multiGroups.length} 组聚合 / ${singleGroups.length} 个单源)${searchStatusText}</span></span>
+        <span class="sources-header-title">搜索结果 <span>(${normalGroups.length} 部正片 / ${nsfwGroups.length} 部其它)${searchStatusText}</span></span>
         <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       frag.appendChild(headerBar);
 
-      if (multiGroups.length > 0) {
+      // 2. 优先渲染【正规影视区】
+      if (normalMulti.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
-        multiTag.textContent = '🎬 聚合源剧目 (版本/源站收纳)';
+        multiTag.textContent = '🎬 聚合源剧目 (正规收纳)';
         frag.appendChild(multiTag);
 
-        multiGroups.forEach((group) => {
-          const isCurrentActiveGroup = (group.title === activeGroupTitle);
-          let groupCard = domNodeCache.get(group.title);
-
-          if (!groupCard || groupCard.classList.contains('single-source-card')) {
-            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-            groupCard = document.createElement('div');
-            groupCard.className = 'title-group-box';
-            groupCard.innerHTML = `
-              <div class="title-group-header">
-                <div class="group-header-left">
-                  <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                  <div class="group-info-wrap">
-                    <div class="group-main-title">${escapeHtml(group.title)}</div>
-                    <div class="group-meta-tag">
-                      <span>${escapeHtml(group.type || '影视')}</span>
-                      ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
-                      <span class="group-badge-count">${group.items.length} 个版本/源</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="group-arrow">▶</div>
-              </div>
-            `;
-            domNodeCache.set(group.title, groupCard);
-          } else {
-            const badge = groupCard.querySelector('.group-badge-count');
-            if (badge) badge.textContent = `${group.items.length} 个版本/源`;
-          }
-
-          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
-
-          const headerEl = groupCard.querySelector('.title-group-header');
-          headerEl.onclick = () => {
-            const isExpanded = groupCard.classList.contains('expanded');
-            document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('expanded'));
-            if (!isExpanded) {
-              groupCard.classList.add('expanded');
-              activeGroupTitle = group.title;
-              if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
-                activeSubItemId = group.items[0].id;
-                currentActiveEp = 0;
-                playCurrentVodSource(group.items[0], 0);
-              }
-              renderGroupedVodSources();
-              startSpeedTest();
-            }
-          };
-
-          const oldPanel = groupCard.querySelector('.group-body-panel');
-          if (oldPanel) oldPanel.remove();
-
-          if (isCurrentActiveGroup) {
-            const bodyPanel = document.createElement('div');
-            bodyPanel.className = 'group-body-panel';
-
-            const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
-            const episodes = getEpisodesList(currentSubItem);
-
-            if (episodes.length > 0) {
-              const collapseBox = document.createElement('div');
-              collapseBox.className = 'episodes-collapse-box';
-              collapseBox.innerHTML = `
-                <div class="episodes-header">
-                  <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
-                  <div class="episodes-actions">
-                    <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                    <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
-                  </div>
-                </div>
-                <div class="episodes-grid" id="episodes-grid-list"></div>
-              `;
-
-              const epGrid = collapseBox.querySelector('#episodes-grid-list');
-              const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
-
-              displayEps.forEach((ep) => {
-                const epIdx = ep.originalIdx;
-                const btn = document.createElement('button');
-                btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-                btn.textContent = ep.name;
-                btn.onclick = (e) => {
-                  e.stopPropagation();
-                  currentActiveEp = epIdx;
-                  document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
-                  btn.classList.add('active');
-                  playCurrentVodSource(currentSubItem, epIdx);
-                };
-                epGrid.appendChild(btn);
-              });
-
-              collapseBox.querySelector('.episodes-header').onclick = (e) => {
-                if (e.target.tagName === 'BUTTON') return;
-                e.stopPropagation();
-                const isHide = epGrid.style.display === 'none';
-                epGrid.style.display = isHide ? 'grid' : 'none';
-                collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-              };
-
-              bodyPanel.appendChild(collapseBox);
-            }
-
-            group.items.forEach((item) => {
-              const isSubActive = (item.id === activeSubItemId);
-              const subCard = document.createElement('div');
-              subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
-              
-              const q = parseQualityTag(item.vod.vod_remarks);
-              const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-              let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-              let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-              subCard.innerHTML = `
-                <div class="source-sub-left">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                </div>
-                <div class="card-status-bar">
-                  <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
-                </div>
-              `;
-
-              subCard.onclick = (e) => {
-                e.stopPropagation();
-                activeSubItemId = item.id;
-                renderGroupedVodSources();
-                playCurrentVodSource(item, currentActiveEp);
-              };
-
-              bodyPanel.appendChild(subCard);
-            });
-
-            groupCard.appendChild(bodyPanel);
-          }
-
-          frag.appendChild(groupCard);
+        normalMulti.forEach(group => {
+          frag.appendChild(renderCardNode(group, false));
         });
       }
 
-      if (singleGroups.length > 0) {
+      if (normalSingle.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
         singleTag.textContent = '⚡ 独立单源影视 (按响应速度排列)';
         frag.appendChild(singleTag);
 
-        singleGroups.forEach((group) => {
-          const item = group.items[0];
-          const isCurrentActive = (item.id === activeSubItemId);
-          let singleCard = domNodeCache.get(group.title);
+        normalSingle.forEach(group => {
+          frag.appendChild(renderCardNode(group, true));
+        });
+      }
 
-          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
-            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-            const q = parseQualityTag(item.vod.vod_remarks);
-            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+      // 3. 绝对置底渲染【🔞 专区】(单独在此测速优选，绝不上浮)
+      if (nsfwGroups.length > 0) {
+        const nsfwTag = document.createElement('div');
+        nsfwTag.className = 'section-divider-tag';
+        nsfwTag.style.color = '#f87171';
+        nsfwTag.textContent = '🔞 其它专区 (已强制置底 / 内部独立测速)';
+        frag.appendChild(nsfwTag);
 
-            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+        nsfwMulti.forEach(group => {
+          frag.appendChild(renderCardNode(group, false));
+        });
 
-            singleCard = document.createElement('div');
-            singleCard.className = 'single-source-card';
-            singleCard.innerHTML = `
-              <div class="single-top-row">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap" style="flex:1;">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-
-            singleCard.querySelector('.single-top-row').onclick = () => {
-              activeGroupTitle = group.title;
-              activeSubItemId = item.id;
-              renderGroupedVodSources();
-              playCurrentVodSource(item, currentActiveEp);
-            };
-
-            domNodeCache.set(group.title, singleCard);
-          }
-
-          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
-
-          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
-          if (oldCollapse) oldCollapse.remove();
-
-          if (isCurrentActive) {
-            const episodes = getEpisodesList(item);
-            if (episodes.length > 0) {
-              const collapseBox = document.createElement('div');
-              collapseBox.className = 'episodes-collapse-box';
-              collapseBox.innerHTML = `
-                <div class="episodes-header">
-                  <span>📺 选集 (${episodes.length} 集) - 第 ${currentActiveEp + 1} 集</span>
-                  <div class="episodes-actions">
-                    <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                    <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);">▼ 折叠</span>
-                  </div>
-                </div>
-                <div class="episodes-grid" id="episodes-grid-list"></div>
-              `;
-
-              const epGrid = collapseBox.querySelector('#episodes-grid-list');
-              const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
-
-              displayEps.forEach((ep) => {
-                const epIdx = ep.originalIdx;
-                const btn = document.createElement('button');
-                btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-                btn.textContent = ep.name;
-                btn.onclick = (e) => {
-                  e.stopPropagation();
-                  currentActiveEp = epIdx;
-                  renderGroupedVodSources();
-                  playCurrentVodSource(item, epIdx);
-                };
-                epGrid.appendChild(btn);
-              });
-
-              collapseBox.querySelector('.episodes-header').onclick = (e) => {
-                if (e.target.tagName === 'BUTTON') return;
-                e.stopPropagation();
-                const isHide = epGrid.style.display === 'none';
-                epGrid.style.display = isHide ? 'grid' : 'none';
-                collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-              };
-
-              singleCard.appendChild(collapseBox);
-            }
-          }
-
-          frag.appendChild(singleCard);
+        nsfwSingle.forEach(group => {
+          frag.appendChild(renderCardNode(group, true));
         });
       }
 
@@ -2950,6 +3062,8 @@
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
       document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
+
+      renderGateEyeIcon(false);
 
       try {
         const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
