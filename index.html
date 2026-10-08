@@ -440,6 +440,44 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
+    /* 核心算法：提取片名主干与版本标签（实现国语、粤语、解说深度聚合） */
+    function parseTitleAndVersion(rawName) {
+      if (!rawName) return { canonical: "未知影视", version: "" };
+      let str = String(rawName).trim();
+      let version = "";
+
+      // 提取括号/标点内的版本特征词（解说、国粤语、画质）
+      const tagRegex = /[\[\(\（\【\［\{]([^\]\)\）\】\］\}]+)[\]\)\）\】\］\}]/g;
+      let match;
+      const tags = [];
+      while ((match = tagRegex.exec(str)) !== null) {
+        tags.push(match[1]);
+      }
+      if (tags.length > 0) {
+        version = tags.join(' ');
+      }
+
+      // 剔除括号及其内部说明
+      let cleaned = str.replace(/[\[\(\（\【\［\{].*?[\]\)\）\】\］\}]/g, '').trim();
+
+      // 剥离裸露在标题尾部的修饰词（如“新警察故事粤语版”、“A计划国语”）
+      const suffixRegex = /(国语版|粤语版|普通话版|英语版|日语版|韩语版|电影解说|解说版|解说|国语|粤语|原声|双语|中字|双字|中英字幕|HD|BD|4K|1080P|720P|2160P|超清|高清|蓝光|抢先版|TC|TS)$/i;
+      while (suffixRegex.test(cleaned)) {
+        const found = cleaned.match(suffixRegex);
+        if (found) {
+          if (!version.includes(found[0])) version = (version ? version + ' ' : '') + found[0];
+          cleaned = cleaned.replace(suffixRegex, '').trim();
+        }
+      }
+
+      cleaned = cleaned.replace(/[\s\:\：\-\_\·]+$/, '').trim();
+
+      return {
+        canonical: cleaned || rawName,
+        version: version.trim()
+      };
+    }
+
     async function getD1Data(key, defaultVal = '') {
       try {
         const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
@@ -787,12 +825,14 @@
         return;
       }
 
-      container.innerHTML = `
-        <div class="sources-header-bar">
-          <span class="sources-header-title">⭐ 我的收藏 (${favs.length})</span>
-          <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
-        </div>
+      const frag = document.createDocumentFragment();
+      const headerBar = document.createElement('div');
+      headerBar.className = 'sources-header-bar';
+      headerBar.innerHTML = `
+        <span class="sources-header-title">⭐ 我的收藏 (${favs.length})</span>
+        <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
       `;
+      frag.appendChild(headerBar);
 
       favs.forEach((item, idx) => {
         const card = document.createElement('div');
@@ -825,8 +865,10 @@
             triggerSearch();
           }
         };
-        container.appendChild(card);
+        frag.appendChild(card);
       });
+
+      container.replaceChildren(frag);
     }
 
     async function removeFavoriteItem(idx) {
@@ -847,15 +889,17 @@
         return;
       }
 
-      container.innerHTML = `
-        <div class="sources-header-bar">
-          <span class="sources-header-title">🕒 播放历史 (${history.length})</span>
-          <div>
-            <button class="btn-search" style="padding:2px 8px;font-size:11px;background:#cf222e;margin-right:6px;" onclick="clearAllHistory()">清空</button>
-            <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
-          </div>
+      const frag = document.createDocumentFragment();
+      const headerBar = document.createElement('div');
+      headerBar.className = 'sources-header-bar';
+      headerBar.innerHTML = `
+        <span class="sources-header-title">🕒 播放历史 (${history.length})</span>
+        <div>
+          <button class="btn-search" style="padding:2px 8px;font-size:11px;background:#cf222e;margin-right:6px;" onclick="clearAllHistory()">清空</button>
+          <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
         </div>
       `;
+      frag.appendChild(headerBar);
 
       history.forEach((item, idx) => {
         const card = document.createElement('div');
@@ -883,8 +927,10 @@
           updateFavIconState();
           manualPlayOnly(item.url);
         };
-        container.appendChild(card);
+        frag.appendChild(card);
       });
+
+      container.replaceChildren(frag);
     }
 
     async function removeHistoryItem(idx) {
@@ -1245,6 +1291,7 @@
       } catch (_) { return 9999; }
     }
 
+    /* 优化点一：防抖渲染，消除频繁重绘引发的屏幕闪烁 */
     function scheduleRenderVodSources() {
       if (renderFrameTimer) return;
       renderFrameTimer = setTimeout(() => {
@@ -1252,27 +1299,20 @@
         if (currentView === 'normal' && currentMode === 'vod') {
           renderGroupedVodSources();
         }
-      }, 200);
+      }, 350);
     }
 
-    // 明星经典作品本地字典（完美解决搜人名搜不到真实代表作的痛点）
     const STAR_WORKS_MAP = {
       '成龙': ['警察故事', '醉拳', 'A计划', '神话', '十二生肖', '宝贝计划', '新警察故事', '尖峰时刻', '飞鹰计划', '快餐车', '红番区'],
       '周星驰': ['功夫', '大话西游', '少林足球', '喜剧之王', '唐伯虎点秋香', '九品芝麻官', '国产凌凌漆', '逃学威龙', '食神', '大内密探零零发'],
-      '李连杰': ['黄飞鸿', '精武英雄', '方世玉', '太极张三丰', '中南海保镖', '霍元甲', '英雄', '龙门飞甲', '倚天屠龙记之魔教教主'],
-      '刘德华': ['无间道', '天下无贼', '暗战', '拆弹专家', '投名状', '门徒', '天若有情', '赌侠', '桃姐'],
-      '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双', '辣手神探'],
-      '甄子丹': ['叶问', '杀破狼', '导火线', '武侠', '追龙', '怒火·重案', '锦衣卫'],
-      '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生'],
-      '沈腾': ['夏洛特烦恼', '西虹市首富', '飞驰人生', '独行月球', '抓娃娃', '疯狂的外星人'],
-      '吴京': ['战狼', '战狼2', '流浪地球', '长津湖', '杀破狼', '太极宗师'],
-      '王宝强': ['唐人街探案', '人在囧途', '盲井', '八角笼中', 'Hello!树先生'],
-      '葛优': ['让子弹飞', '活着', '非诚勿扰', '大腕', '甲方乙方', '霸王别姬'],
-      '徐峥': ['我不是药神', '泰囧', '港囧', '人在囧途', '心花路放'],
-      '梁朝伟': ['花样年华', '重庆森林', '无间道', '春光乍泄', '一代宗师', '色·戒']
+      '李连杰': ['黄飞鸿', '精武英雄', '方世玉', '太极张三丰', '中南海保镖', '霍元甲', '英雄', '龙门飞甲'],
+      '刘德华': ['无间道', '天下无贼', '暗战', '拆弹专家', '投名状', '门徒', '天若有情', '赌侠'],
+      '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双'],
+      '甄子丹': ['叶问', '杀破狼', '导火线', '武侠', '追龙', '怒火·重案'],
+      '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 终极搜索算法：多轮标准检索 + 代表作扩展 + 强力垃圾拦截 + 深度加权排序 */
+    /* 核心检索：合并同名版本，支持国语、粤语、解说深度归拢 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1284,7 +1324,6 @@
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
 
-      // 提取演员代表作词组
       let starClassics = [];
       for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
         if (kw === star.toLowerCase() || kw.includes(star.toLowerCase())) {
@@ -1293,7 +1332,6 @@
         }
       }
 
-      // 构建检索任务池：主词全量 47 源并发 + 影星前 4 部核心代表作快速并发扫描
       const searchTasks = [];
       parsedSites.forEach(site => {
         searchTasks.push({ site, term: keyword });
@@ -1310,34 +1348,39 @@
       const processList = (dataList, site) => {
         if (!Array.isArray(dataList)) return;
         dataList.forEach((item, itemIdx) => {
-          const vodName = (item.vod_name || '').trim();
+          const rawVodName = (item.vod_name || '').trim();
           const vodType = (item.type_name || '').trim();
           const vodActor = (item.vod_actor || '').trim();
-          if (!vodName) return;
+          if (!rawVodName) return;
 
-          const lowerName = vodName.toLowerCase();
+          const lowerName = rawVodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
-          // 核心拦截：必须包含搜索关键词，或者吻合明星代表作！
-          // 彻底排除没有该关键词的泄露杂片（如《一路向海的少年》《妈妈发疯了》）
           const isRelevant = lowerName.includes(kw) || 
                              lowerActor.includes(kw) || 
                              starClassics.some(c => lowerName.includes(c.toLowerCase()));
           
           if (!isRelevant) return;
 
-          const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
+          // 核心：解析出主干片名与版本说明（如新警察故事、粤语版）
+          const parsed = parseTitleAndVersion(rawVodName);
+          const canonicalTitle = parsed.canonical;
+          const versionTag = parsed.version;
+
+          const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
           const itemResult = {
             id: uniqueId,
             siteName: site.name,
+            versionTag: versionTag,
             vod: item,
             ping: -1
           };
 
-          let group = groupedVodList.find(g => g.title === vodName);
+          // 统一归类到纯净的主干片名大组里
+          let group = groupedVodList.find(g => g.title === canonicalTitle);
           if (!group) {
             group = {
-              title: vodName,
+              title: canonicalTitle,
               poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
               type: vodType,
               actor: vodActor,
@@ -1352,7 +1395,6 @@
         });
       };
 
-      // 16 路线并发高速扫描
       await asyncPool(16, searchTasks, async ({ site, term }) => {
         if (currentSignal.aborted) return;
         const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
@@ -1370,7 +1412,7 @@
         return;
       }
 
-      // 深度加权排序：让正牌经典电影置顶，套路短剧大幅沉底
+      // 深度加权排序：经典电影置顶，短剧大幅沉底
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1380,23 +1422,18 @@
         const aType = (a.type || '').toLowerCase();
         const bType = (b.type || '').toLowerCase();
 
-        // 1. 如果完全吻合明星代表作，巨额提权
         if (starClassics.some(c => aName.includes(c.toLowerCase()))) scoreA += 180;
         if (starClassics.some(c => bName.includes(c.toLowerCase()))) scoreB += 180;
 
-        // 2. 主演真实包含人名，巨额提权
         if (aActor.includes(kw)) scoreA += 120;
         if (bActor.includes(kw)) scoreB += 120;
 
-        // 3. 电影/动作类型提权
         if (aType.includes('电影') || aType.includes('动作')) scoreA += 40;
         if (bType.includes('电影') || bType.includes('动作')) scoreB += 40;
 
-        // 4. 标题完全等于搜索词
         if (aName === kw) scoreA += 80;
         if (bName === kw) scoreB += 80;
 
-        // 5. 垃圾短剧、爽剧强力惩罚（沉底）
         const isJunkA = aType.includes('短剧') || aType.includes('爽剧') || aType.includes('微短剧') ||
                         ['望子成龙', '弃子成龙', '翻身成龙', '护母成龙', '乘成龙', '战神', '赘婿'].some(k => aName.includes(k));
         const isJunkB = bType.includes('短剧') || bType.includes('爽剧') || bType.includes('微短剧') ||
@@ -1405,9 +1442,8 @@
         if (isJunkA) scoreA -= 200;
         if (isJunkB) scoreB -= 200;
 
-        // 6. 动画片适当降权（排在真人电影后面）
-        if (aType.includes('动漫') || aType.includes('少儿') || aType.includes('动画')) scoreA -= 30;
-        if (bType.includes('动漫') || bType.includes('少儿') || bType.includes('动画')) scoreB -= 30;
+        if (aType.includes('动漫') || aType.includes('少儿')) scoreA -= 30;
+        if (bType.includes('动漫') || bType.includes('少儿')) scoreB -= 30;
 
         scoreA += a.items.length * 2;
         scoreB += b.items.length * 2;
@@ -1471,14 +1507,16 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
+    /* 优化点二：采用 DocumentFragment + replaceChildren 实现无白屏原子级瞬间更新（彻底杜绝闪烁） */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
-      container.innerHTML = '';
 
       if (!groupedVodList?.length) {
         container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入关键词搜索</div>`;
         return;
       }
+
+      const frag = document.createDocumentFragment();
 
       const multiGroups = groupedVodList.filter(g => g.items.length > 1);
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
@@ -1495,14 +1533,14 @@
         <span class="sources-header-title">搜索结果 <span>(${multiGroups.length} 组聚合 / ${singleGroups.length} 个单源)</span></span>
         <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
-      container.appendChild(headerBar);
+      frag.appendChild(headerBar);
 
-      // 1. 多源聚合卡片区
+      // 1. 多源聚合卡片区（同名版本折叠）
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
-        multiTag.textContent = '🎬 聚合源剧目 (多源站收纳)';
-        container.appendChild(multiTag);
+        multiTag.textContent = '🎬 聚合源剧目 (版本/源站收纳)';
+        frag.appendChild(multiTag);
 
         multiGroups.forEach((group) => {
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
@@ -1520,7 +1558,7 @@
                   <div class="group-meta-tag">
                     <span>${escapeHtml(group.type || '影视')}</span>
                     ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span class="group-badge-count">${group.items.length} 个源站</span>
+                    <span class="group-badge-count">${group.items.length} 个版本/源</span>
                   </div>
                 </div>
               </div>
@@ -1601,13 +1639,15 @@
               subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
               
               const q = parseQualityTag(item.vod.vod_remarks);
+              // 展示版本标记（如：暴风资源 · 粤语版）
+              const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
               let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
               let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
               subCard.innerHTML = `
                 <div class="source-sub-left">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
                 </div>
                 <div class="card-status-bar">
@@ -1628,7 +1668,7 @@
             groupCard.appendChild(bodyPanel);
           }
 
-          container.appendChild(groupCard);
+          frag.appendChild(groupCard);
         });
       }
 
@@ -1637,7 +1677,7 @@
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
         singleTag.textContent = '⚡ 独立单源影视 (按响应速度排列)';
-        container.appendChild(singleTag);
+        frag.appendChild(singleTag);
 
         singleGroups.forEach((group) => {
           const item = group.items[0];
@@ -1647,6 +1687,7 @@
 
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const q = parseQualityTag(item.vod.vod_remarks);
+          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
           let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
           let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
@@ -1657,7 +1698,7 @@
               <div class="group-info-wrap" style="flex:1;">
                 <div class="group-main-title">${escapeHtml(group.title)}</div>
                 <div class="group-meta-tag">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(item.siteName)}</span>
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
                   ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
                   <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
@@ -1718,9 +1759,12 @@
             }
           }
 
-          container.appendChild(singleCard);
+          frag.appendChild(singleCard);
         });
       }
+
+      // 原子级单帧替换，杜绝白屏闪烁
+      container.replaceChildren(frag);
     }
 
     function getEpisodesList(item) {
