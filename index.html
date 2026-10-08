@@ -284,6 +284,7 @@
 
     <video id="video" playsinline webkit-playsinline></video>
 
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -380,6 +381,7 @@
     </div>
   </div>
 
+  <!-- 订阅配置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
@@ -1253,23 +1255,76 @@
       }, 200);
     }
 
-    /* 核心重构：不做任何硬编码过滤，采用标准苹果CMS片名+演员双路全量抓取 */
+    // 明星经典作品本地字典（完美解决搜人名搜不到真实代表作的痛点）
+    const STAR_WORKS_MAP = {
+      '成龙': ['警察故事', '醉拳', 'A计划', '神话', '十二生肖', '宝贝计划', '新警察故事', '尖峰时刻', '飞鹰计划', '快餐车', '红番区'],
+      '周星驰': ['功夫', '大话西游', '少林足球', '喜剧之王', '唐伯虎点秋香', '九品芝麻官', '国产凌凌漆', '逃学威龙', '食神', '大内密探零零发'],
+      '李连杰': ['黄飞鸿', '精武英雄', '方世玉', '太极张三丰', '中南海保镖', '霍元甲', '英雄', '龙门飞甲', '倚天屠龙记之魔教教主'],
+      '刘德华': ['无间道', '天下无贼', '暗战', '拆弹专家', '投名状', '门徒', '天若有情', '赌侠', '桃姐'],
+      '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双', '辣手神探'],
+      '甄子丹': ['叶问', '杀破狼', '导火线', '武侠', '追龙', '怒火·重案', '锦衣卫'],
+      '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生'],
+      '沈腾': ['夏洛特烦恼', '西虹市首富', '飞驰人生', '独行月球', '抓娃娃', '疯狂的外星人'],
+      '吴京': ['战狼', '战狼2', '流浪地球', '长津湖', '杀破狼', '太极宗师'],
+      '王宝强': ['唐人街探案', '人在囧途', '盲井', '八角笼中', 'Hello!树先生'],
+      '葛优': ['让子弹飞', '活着', '非诚勿扰', '大腕', '甲方乙方', '霸王别姬'],
+      '徐峥': ['我不是药神', '泰囧', '港囧', '人在囧途', '心花路放'],
+      '梁朝伟': ['花样年华', '重庆森林', '无间道', '春光乍泄', '一代宗师', '色·戒']
+    };
+
+    /* 终极搜索算法：多轮标准检索 + 代表作扩展 + 强力垃圾拦截 + 深度加权排序 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全网检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在智能检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
+
+      // 提取演员代表作词组
+      let starClassics = [];
+      for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
+        if (kw === star.toLowerCase() || kw.includes(star.toLowerCase())) {
+          starClassics = works;
+          break;
+        }
+      }
+
+      // 构建检索任务池：主词全量 47 源并发 + 影星前 4 部核心代表作快速并发扫描
+      const searchTasks = [];
+      parsedSites.forEach(site => {
+        searchTasks.push({ site, term: keyword });
+      });
+
+      if (starClassics.length > 0) {
+        starClassics.slice(0, 4).forEach(film => {
+          parsedSites.slice(0, 16).forEach(site => {
+            searchTasks.push({ site, term: film });
+          });
+        });
+      }
 
       const processList = (dataList, site) => {
         if (!Array.isArray(dataList)) return;
         dataList.forEach((item, itemIdx) => {
           const vodName = (item.vod_name || '').trim();
+          const vodType = (item.type_name || '').trim();
+          const vodActor = (item.vod_actor || '').trim();
           if (!vodName) return;
+
+          const lowerName = vodName.toLowerCase();
+          const lowerActor = vodActor.toLowerCase();
+
+          // 核心拦截：必须包含搜索关键词，或者吻合明星代表作！
+          // 彻底排除没有该关键词的泄露杂片（如《一路向海的少年》《妈妈发疯了》）
+          const isRelevant = lowerName.includes(kw) || 
+                             lowerActor.includes(kw) || 
+                             starClassics.some(c => lowerName.includes(c.toLowerCase()));
+          
+          if (!isRelevant) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
           const itemResult = {
@@ -1284,8 +1339,8 @@
             group = {
               title: vodName,
               poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
-              type: item.type_name || '',
-              actor: item.vod_actor || '',
+              type: vodType,
+              actor: vodActor,
               items: []
             };
             groupedVodList.push(group);
@@ -1297,25 +1352,13 @@
         });
       };
 
-      // 47 个源站并行发请求：同时检索片名(wd)与主演(actor)
-      await asyncPool(14, parsedSites, async (site) => {
+      // 16 路线并发高速扫描
+      await asyncPool(16, searchTasks, async ({ site, term }) => {
         if (currentSignal.aborted) return;
-        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
-        const urlActor = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&actor=${encodeURIComponent(keyword)}&out=json&pg=1`;
-
+        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
         try {
-          const [resWd, resActor] = await Promise.allSettled([
-            fetchWithSmartProxy(urlWd, 2500, currentSignal),
-            fetchWithSmartProxy(urlActor, 2500, currentSignal)
-          ]);
-
-          if (resWd.status === 'fulfilled') {
-            try { processList(JSON.parse(resWd.value).list, site); } catch (_) {}
-          }
-          if (resActor.status === 'fulfilled') {
-            try { processList(JSON.parse(resActor.value).list, site); } catch (_) {}
-          }
-
+          const res = await fetchWithSmartProxy(urlWd, 2500, currentSignal);
+          processList(JSON.parse(res).list, site);
           scheduleRenderVodSources();
         } catch (_) {}
       });
@@ -1327,11 +1370,49 @@
         return;
       }
 
-      // 自然排序：片名完全匹配或源站多的优先靠前
+      // 深度加权排序：让正牌经典电影置顶，套路短剧大幅沉底
       groupedVodList.sort((a, b) => {
-        const aExact = a.title.toLowerCase() === kw ? 100 : 0;
-        const bExact = b.title.toLowerCase() === kw ? 100 : 0;
-        return (bExact + b.items.length) - (aExact + a.items.length);
+        let scoreA = 0, scoreB = 0;
+        const aName = a.title.toLowerCase();
+        const bName = b.title.toLowerCase();
+        const aActor = (a.actor || '').toLowerCase();
+        const bActor = (b.actor || '').toLowerCase();
+        const aType = (a.type || '').toLowerCase();
+        const bType = (b.type || '').toLowerCase();
+
+        // 1. 如果完全吻合明星代表作，巨额提权
+        if (starClassics.some(c => aName.includes(c.toLowerCase()))) scoreA += 180;
+        if (starClassics.some(c => bName.includes(c.toLowerCase()))) scoreB += 180;
+
+        // 2. 主演真实包含人名，巨额提权
+        if (aActor.includes(kw)) scoreA += 120;
+        if (bActor.includes(kw)) scoreB += 120;
+
+        // 3. 电影/动作类型提权
+        if (aType.includes('电影') || aType.includes('动作')) scoreA += 40;
+        if (bType.includes('电影') || bType.includes('动作')) scoreB += 40;
+
+        // 4. 标题完全等于搜索词
+        if (aName === kw) scoreA += 80;
+        if (bName === kw) scoreB += 80;
+
+        // 5. 垃圾短剧、爽剧强力惩罚（沉底）
+        const isJunkA = aType.includes('短剧') || aType.includes('爽剧') || aType.includes('微短剧') ||
+                        ['望子成龙', '弃子成龙', '翻身成龙', '护母成龙', '乘成龙', '战神', '赘婿'].some(k => aName.includes(k));
+        const isJunkB = bType.includes('短剧') || bType.includes('爽剧') || bType.includes('微短剧') ||
+                        ['望子成龙', '弃子成龙', '翻身成龙', '护母成龙', '乘成龙', '战神', '赘婿'].some(k => bName.includes(k));
+
+        if (isJunkA) scoreA -= 200;
+        if (isJunkB) scoreB -= 200;
+
+        // 6. 动画片适当降权（排在真人电影后面）
+        if (aType.includes('动漫') || aType.includes('少儿') || aType.includes('动画')) scoreA -= 30;
+        if (bType.includes('动漫') || bType.includes('少儿') || bType.includes('动画')) scoreB -= 30;
+
+        scoreA += a.items.length * 2;
+        scoreB += b.items.length * 2;
+
+        return scoreB - scoreA;
       });
 
       renderGroupedVodSources();
@@ -1709,7 +1790,9 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => { setStatus("", false); });
+        }).catch(() => {
+          setStatus("", false);
+        });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1730,7 +1813,9 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => { setStatus("", false); });
+          }).catch(() => {
+            setStatus("", false);
+          });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
