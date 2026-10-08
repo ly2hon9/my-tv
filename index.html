@@ -120,7 +120,7 @@
     }
     .gate-remember-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888; }
     .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
-    .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
+    .gate-switch-link { color: #54a56a; cursor: font-weight: 500; }
 
     .gate-submit-btn {
       width: 100%; height: 42px; background: #b0d4bb;
@@ -759,7 +759,6 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
-    // 强化字符归一化，用于跨采集站精准聚拢
     function normalizeCleanKey(str) {
       if (!str) return '';
       return String(str).toLowerCase()
@@ -767,13 +766,11 @@
         .replace(/[（(].*?[)）]/g, '');
     }
 
-    // 终极智能片名清洗与版本拆分
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
       let str = String(rawName).trim();
       let versionList = [];
 
-      // 1. 递归提取并消除所有括号内容 (如 [4K修复], (粤语版), 【国语中字】)
       const bracketRegex = /[\[\(\（\【\［\{]([^\]\)\）\】\］\}]+)[\]\)\）\】\］\}]/g;
       let m;
       while ((m = bracketRegex.exec(str)) !== null) {
@@ -781,9 +778,8 @@
       }
       let cleaned = str.replace(bracketRegex, ' ').trim();
 
-      // 2. 递归剥离年份、音轨、字幕、画质、版本等修饰词
       const endPatterns = [
-        /\s*(19\d{2}|20\d{2})\s*$/i, // 年份 (1985, 2006等)
+        /\s*(19\d{2}|20\d{2})\s*$/i,
         /\s*(国语|粤语|英语|韩语|日语|俄语|法语|双语|双字|中字|中英|中英双字|中英双语|国粤|国粤双语|中文字幕|英文字幕|原声|内嵌中字|内嵌字幕)\s*$/i,
         /\s*(4K|2160P|1080P|720P|HD|BD|TC|TS|DVD|蓝光|超清|高清|标清|修复版|4K修复|蓝光重制|重置版|重制版)\s*$/i,
         /\s*(抢先版|完整版|未删减版|未删减|加长版|公映版|院线版|电影版|剧场版|TV版|原版|正片|纯净版|解说版|解说)\s*$/i
@@ -806,13 +802,11 @@
         }
       }
 
-      // 3. 清理开头的干扰词 (如 "经典电影: ", "成龙系列 - ")
       cleaned = cleaned.replace(/^(经典|最新|高清|电影|精选)[\:\：\-\_\s]+/, '').trim();
       cleaned = cleaned.replace(/[\s\:\：\-\_\·\/\|\\]+$/, '').trim();
 
-      const finalCanonical = cleaned || rawName.trim();
       return { 
-        canonical: finalCanonical, 
+        canonical: cleaned || rawName.trim(), 
         version: versionList.join(' ').trim() 
       };
     }
@@ -937,8 +931,7 @@
     let isSearchingActive = false;
     let currentSearchingWord = "";
 
-    /* 顶部快捷分类选择状态 */
-    let currentCategoryFilter = 'auto'; // 'auto' | 'multi' | 'single' | 'nsfw'
+    let currentCategoryFilter = 'auto';
 
     let adminAccount = null;
     let authConfig = { requireLogin: false };
@@ -2306,7 +2299,7 @@
 
       isSearchingActive = true;
       currentSearchingWord = keyword;
-      currentCategoryFilter = 'auto'; // 每次新搜索自动定位分类
+      currentCategoryFilter = 'auto';
 
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
@@ -2361,15 +2354,22 @@
           const lowerName = rawVodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
-          const isRelevant = lowerName.includes(kw) || 
-                             lowerActor.includes(kw) || 
-                             starClassics.some(c => lowerName.includes(c.toLowerCase()));
-          
-          if (!isRelevant) return;
-
           const parsed = parseTitleAndVersion(rawVodName);
           const canonicalTitle = parsed.canonical;
           const versionTag = parsed.version;
+
+          // 核心修复：代表作匹配必须是精确片名相等，杜绝“神话”二字匹配到其他无关短剧
+          const isExactClassic = starClassics.some(c => {
+            const cleanC = c.toLowerCase();
+            const cleanCanonical = canonicalTitle.toLowerCase();
+            return cleanCanonical === cleanC || cleanCanonical === (cleanC + '电影') || cleanCanonical === ('电影' + cleanC);
+          });
+
+          const isRelevant = lowerName.includes(kw) || 
+                             lowerActor.includes(kw) || 
+                             isExactClassic;
+          
+          if (!isRelevant) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
           const itemResult = {
@@ -2380,7 +2380,6 @@
             ping: -1
           };
 
-          // 核心改进：双重归一化对比，彻底将同名变体拉入同一个聚合组
           const cleanKey = normalizeCleanKey(canonicalTitle);
           let group = groupedVodList.find(g => {
             return g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey;
@@ -2396,7 +2395,6 @@
             };
             groupedVodList.push(group);
           } else {
-            // 保持海报与信息更丰富
             if (!group.poster && isSafeUrl(item.vod_pic)) group.poster = item.vod_pic;
             if (!group.actor && vodActor) group.actor = vodActor;
           }
@@ -2425,7 +2423,6 @@
         return;
       }
 
-      // 子源排序
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2438,7 +2435,6 @@
         });
       });
 
-      // 整组排序
       groupedVodList.sort((a, b) => {
         const nsfwA = isGroupNSFW(a) ? 1 : 0;
         const nsfwB = isGroupNSFW(b) ? 1 : 0;
@@ -2452,8 +2448,8 @@
         const aType = (a.type || '').toLowerCase();
         const bType = (b.type || '').toLowerCase();
 
-        if (starClassics.some(c => aName.includes(c.toLowerCase()))) scoreA += 180;
-        if (starClassics.some(c => bName.includes(c.toLowerCase()))) scoreB += 180;
+        if (starClassics.some(c => aName === c.toLowerCase())) scoreA += 180;
+        if (starClassics.some(c => bName === c.toLowerCase())) scoreB += 180;
 
         if (aActor.includes(kw)) scoreA += 120;
         if (bActor.includes(kw)) scoreB += 120;
@@ -2795,7 +2791,6 @@
 
       const frag = document.createDocumentFragment();
 
-      // 1. 拆分正片与 🌶️ 其它专区
       const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
       const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
 
@@ -2804,7 +2799,7 @@
 
       normalSingle.sort((a, b) => {
         const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
-        const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
+        const pb = b.items[0].ping < 0 ? 9999 : b.ping;
         return pa - pb;
       });
 
@@ -2817,7 +2812,6 @@
       const countNsfw = nsfwGroups.length;
       const countTotal = countMulti + countSingle + countNsfw;
 
-      // 自动确定当前激活的分类 Tab
       if (currentCategoryFilter === 'auto' ||
           (currentCategoryFilter === 'multi' && countMulti === 0) ||
           (currentCategoryFilter === 'single' && countSingle === 0) ||
@@ -2828,7 +2822,6 @@
         else currentCategoryFilter = 'multi';
       }
 
-      // 2. 顶部状态统计栏
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
@@ -2838,7 +2831,6 @@
       `;
       frag.appendChild(headerBar);
 
-      // 3. 顶部快捷分类药丸切换栏
       let filterPillsHtml = '';
 
       if (countMulti > 0) {
@@ -2870,7 +2862,6 @@
         frag.appendChild(filterBar);
       }
 
-      // 4. 直呈选中分类卡片
       if (currentCategoryFilter === 'multi') {
         normalMulti.forEach(group => {
           frag.appendChild(renderCardNode(group, false));
