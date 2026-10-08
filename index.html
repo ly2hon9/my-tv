@@ -231,12 +231,14 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
+    /* 弹窗样式 */
     #modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
     #source-modal { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); }
     #source-modal h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .input-label { font-size: 12px; color: #aaa; margin-top: 10px; margin-bottom: 4px; display: block; }
-    #source-modal input { width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
+    #source-modal input, #source-modal select { width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
     .sub-stats { font-size: 12px; color: #0070f3; margin-top: 6px; }
+    .last-sync-time { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
     
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .btn-action { padding: 8px 14px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
@@ -372,7 +374,8 @@
 
       <div class="mode-tab-group">
         <button class="mode-tab" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
-        <button class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 选集与换源</button>
+        <!-- 优化：将“选集与换源”更名为更加大气自然的“影视剧场” -->
+        <button class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
       </div>
     </div>
     <div id="channel-list">
@@ -393,6 +396,17 @@
 
       <label class="input-label">电视直播源地址（M3U）：</label>
       <input type="text" id="source-m3u-input" placeholder="输入直播源 M3U 地址">
+
+      <!-- 新增：自定义自动同步时间间隔与最后更新时间展示 -->
+      <label class="input-label">自动更新周期：</label>
+      <select id="auto-sync-interval">
+        <option value="0">仅手动更新 (推荐)</option>
+        <option value="12">每 12 小时自动更新</option>
+        <option value="24">每 24 小时 (1 天) 自动更新</option>
+        <option value="72">每 3 天自动更新</option>
+        <option value="168">每 7 天自动更新</option>
+      </select>
+      <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="closeSourceModal()">取消</button>
@@ -460,6 +474,8 @@
     const KEY_SITES = "cached_parsed_sites";
     const KEY_HISTORY = "history_list_v2";
     const KEY_FAVS = "favorites_list_v2";
+    const KEY_LAST_SYNC = "last_subscription_sync_time";
+    const KEY_SYNC_INTERVAL = "subscription_sync_interval";
 
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     const B58_MAP = {};
@@ -491,9 +507,7 @@
 
       const result = new Uint8Array(leadingOnes + bytes.length);
       for (let i = 0; i < leadingOnes; i++) result[i] = 0;
-      for (let i = 0; i < bytes.length; i++) {
-        result[leadingOnes + i] = bytes[bytes.length - 1 - i];
-      }
+      for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
 
@@ -1019,6 +1033,13 @@
     async function openSourceModal() {
       document.getElementById('sub-url-input').value = await getD1Data(KEY_SUB, '');
       document.getElementById('source-m3u-input').value = await getD1Data(KEY_M3U, '');
+      
+      const savedInterval = await getD1Data(KEY_SYNC_INTERVAL, '0');
+      document.getElementById('auto-sync-interval').value = savedInterval;
+
+      const lastTime = await getD1Data(KEY_LAST_SYNC, '');
+      document.getElementById('last-sync-time-label').textContent = lastTime ? `最后更新时间：${lastTime}` : '最后更新时间：从未更新';
+      
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -1027,15 +1048,20 @@
     async function saveToD1() {
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
+      const interval = document.getElementById('auto-sync-interval').value;
+
       if (m3uUrl) await setD1Data(KEY_M3U, m3uUrl);
       if (subUrl) await setD1Data(KEY_SUB, subUrl);
+      await setD1Data(KEY_SYNC_INTERVAL, interval);
+
       closeSourceModal();
-      alert("配置已保存到云数据库！若需拉取最新影视/电视源，请在弹窗点击【🔄 同步更新源】。");
+      alert("配置与定时更新周期已保存到云数据库！");
     }
 
     async function manualSyncSubscription() {
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
+      const interval = document.getElementById('auto-sync-interval').value;
 
       if (!subUrl && !m3uUrl) { alert("请先输入订阅或直播源地址！"); return; }
       const syncBtn = document.getElementById('btn-modal-sync');
@@ -1044,6 +1070,7 @@
 
       if (subUrl) await setD1Data(KEY_SUB, subUrl);
       if (m3uUrl) await setD1Data(KEY_M3U, m3uUrl);
+      await setD1Data(KEY_SYNC_INTERVAL, interval);
 
       let msg = [];
       if (subUrl) {
@@ -1069,10 +1096,50 @@
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
+      // 记录最新同步时间并存入 D1
+      const nowStr = new Date().toLocaleString();
+      await setD1Data(KEY_LAST_SYNC, nowStr);
+      document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowStr}`;
+
       syncBtn.textContent = "🔄 同步更新源";
       syncBtn.disabled = false;
       closeSourceModal();
       alert("同步完成:\n" + msg.join('\n'));
+    }
+
+    // 静默检测并执行自动定时同步更新
+    async function checkAutoSyncSchedule() {
+      const intervalHours = parseInt(await getD1Data(KEY_SYNC_INTERVAL, '0'), 10);
+      if (intervalHours <= 0) return; // 0 代表仅手动
+
+      const lastTimeStr = await getD1Data(KEY_LAST_SYNC, '');
+      if (!lastTimeStr) {
+        // 从未更新过则立即静默同步一次
+        await triggerSilentSync();
+        return;
+      }
+
+      const lastTime = new Date(lastTimeStr).getTime();
+      const now = Date.now();
+      const diffHours = (now - lastTime) / (1000 * 60 * 60);
+
+      if (diffHours >= intervalHours) {
+        await triggerSilentSync();
+      }
+    }
+
+    async function triggerSilentSync() {
+      const subUrl = await getD1Data(KEY_SUB, '');
+      if (!subUrl) return;
+      try {
+        let text = await fetchWithSmartProxy(subUrl, 6000);
+        let sites = parseSubscriptionPayload(text);
+        if (sites.length > 0) {
+          parsedSites = sites;
+          await setD1Data(KEY_SITES, JSON.stringify(parsedSites));
+          await setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
+        }
+      } catch (_) {}
     }
 
     function extractSitesFromAnyJson(parsed) {
@@ -1190,7 +1257,6 @@
       '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双']
     };
 
-    /* 优化重点：搜完不自动起播！列表全部静默展示，由用户自选 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1275,7 +1341,6 @@
         return;
       }
 
-      // 智能人名偏好排序
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1302,7 +1367,6 @@
       });
 
       renderGroupedVodSources();
-      // 不再自动起播，不擅自切流
     }
 
     async function startSpeedTest() {
@@ -1677,7 +1741,9 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => { setStatus("", false); });
+        }).catch(() => {
+          setStatus("", false);
+        });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1698,7 +1764,9 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => { setStatus("", false); });
+          }).catch(() => {
+            setStatus("", false);
+          });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
@@ -1863,6 +1931,8 @@
       }
       initTv();
       switchMode('vod');
+      // 页面加载完成后静默检查自动更新周期
+      checkAutoSyncSchedule();
     });
   </script>
 </body>
