@@ -268,6 +268,37 @@
       padding: 3px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
     }
 
+    /* 顶部快捷分类药丸过滤栏 */
+    .section-filter-bar {
+      display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+      background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
+      overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+      position: sticky; top: 0; z-index: 5;
+    }
+    .section-filter-bar::-webkit-scrollbar { display: none; }
+    .filter-pill-btn {
+      background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub);
+      padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: all 0.2s ease;
+      display: inline-flex; align-items: center; gap: 3px; outline: none;
+    }
+    .filter-pill-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
+    .filter-pill-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0, 112, 243, 0.35); font-weight: 600;
+    }
+
+    /* 分类大标题栏（可点击一键折叠） */
+    .section-divider-tag { 
+      padding: 9px 14px; font-size: 12px; font-weight: 600; color: var(--text-sub); 
+      background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); 
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; user-select: none; transition: background 0.15s, color 0.15s;
+    }
+    .section-divider-tag:hover { background: var(--bg-card-hover); color: var(--text-main); }
+    .sec-collapse-arrow { font-size: 11px; color: var(--text-sub); transition: transform 0.2s ease; }
+    .section-divider-tag.collapsed .sec-collapse-arrow { transform: rotate(-90deg); }
+
     .title-group-box { border-bottom: 1px solid var(--border-color); background: var(--bg-card); transition: background 0.2s; }
     .title-group-header {
       padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;
@@ -290,8 +321,6 @@
     .single-source-card { border-bottom: 1px solid var(--border-color); background: var(--bg-card); padding: 10px 12px; transition: background 0.15s; }
     .single-source-card.active-group { background: var(--accent-soft); border-left: 3px solid var(--accent); }
     .single-top-row { display: flex; gap: 10px; align-items: center; cursor: pointer; }
-
-    .section-divider-tag { padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--text-sub); background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); }
 
     .episodes-collapse-box { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px; }
     .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--text-main); }
@@ -886,6 +915,10 @@
 
     let isSearchingActive = false;
     let currentSearchingWord = "";
+
+    /* 顶部快捷分类与大分类折叠状态 */
+    let currentCategoryFilter = 'all'; // 'all' | 'multi' | 'single' | 'nsfw'
+    let categoryCollapseStates = { multi: false, single: false, nsfw: false };
 
     let adminAccount = null;
     let authConfig = { requireLogin: false };
@@ -2205,7 +2238,7 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 精准深度识别源站名称是否包含 18+ 标识 */
+    /* 精准识别源站名称是否包含敏感标识 */
     function isNSFWSource(siteName) {
       if (!siteName) return false;
       const lower = siteName.toLowerCase();
@@ -2217,20 +2250,16 @@
       return nsfwKeywords.some(kw => lower.includes(kw));
     }
 
-    /* 核心加固：整组级敏感内容判定 (包括分类包含 cosplay、真人自拍等) */
+    /* 敏感内容判定 */
     function isGroupNSFW(group) {
       if (!group) return false;
       const typeStr = (group.type || '').toLowerCase();
       const titleStr = (group.title || '').toLowerCase();
       const adultTypeWords = ['自拍', '真人自拍', 'cosplay', '写真', '伦理', '成人', '福利', '三级', '情色', '色情', '偷拍', '无码', '有码', 'av', '女优', '同人'];
 
-      // 1. 分类包含敏感特征
       if (adultTypeWords.some(w => typeStr.includes(w))) return true;
-
-      // 2. 标题包含敏感词
       if (['自拍', '真人自拍', 'cosplay', '无码', '有码', 'h版', '18+'].some(w => titleStr.includes(w))) return true;
 
-      // 3. 子源站大多或全部属于 18+ 敏感源
       if (group.items && group.items.length > 0) {
         const nsfwItemCount = group.items.filter(i => {
           const iSite = isNSFWSource(i.siteName);
@@ -2259,6 +2288,8 @@
 
       isSearchingActive = true;
       currentSearchingWord = keyword;
+      currentCategoryFilter = 'all'; // 每次搜索重置筛选器
+      categoryCollapseStates = { multi: false, single: false, nsfw: false };
 
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
@@ -2368,7 +2399,7 @@
         return;
       }
 
-      // 子源排序：普通源在先，18+ 源在后
+      // 子源排序
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2381,11 +2412,11 @@
         });
       });
 
-      // 整组排序：绝对隔离！正规影视在前，18+/真人自拍在后！
+      // 整组排序
       groupedVodList.sort((a, b) => {
         const nsfwA = isGroupNSFW(a) ? 1 : 0;
         const nsfwB = isGroupNSFW(b) ? 1 : 0;
-        if (nsfwA !== nsfwB) return nsfwA - nsfwB; // 0 (普通) 绝对排在 1 (18+) 前面！
+        if (nsfwA !== nsfwB) return nsfwA - nsfwB;
 
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -2463,7 +2494,6 @@
         }
       }));
 
-      // 测速完后对组内线路进行排序
       if (activeGroup && activeGroup.items.length > 1) {
         activeGroup.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2488,6 +2518,18 @@
       isEpisodeReversed = !isEpisodeReversed;
       renderGroupedVodSources();
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
+    }
+
+    /* 快捷分类过滤切换 */
+    function setCategoryFilter(filterKey) {
+      currentCategoryFilter = filterKey;
+      renderGroupedVodSources();
+    }
+
+    /* 大类折叠展开切换 */
+    function toggleCategoryCollapse(catKey) {
+      categoryCollapseStates[catKey] = !categoryCollapseStates[catKey];
+      renderGroupedVodSources();
     }
 
     /* 渲染单张或多源卡片辅助函数 */
@@ -2721,7 +2763,7 @@
       }
     }
 
-    /* 渲染整个剧集列表 (实现正片区与 🔞 专区绝对隔离) */
+    /* 渲染整个剧集列表（含顶部药丸过滤栏、大分类可折叠、无匹配自动隐藏） */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -2736,7 +2778,7 @@
 
       const frag = document.createDocumentFragment();
 
-      // 1. 严格拆分出正片组与 18+ 专区组
+      // 1. 拆分正片与 🌶️ 其它专区
       const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
       const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
 
@@ -2749,60 +2791,125 @@
         return pa - pb;
       });
 
-      // 18+ 专区内部根据测速独立排序
-      nsfwGroups.sort((a, b) => {
-        return getGroupBestPing(a) - getGroupBestPing(b);
-      });
+      nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
       const nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
       const nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
 
+      const countMulti = normalMulti.length;
+      const countSingle = normalSingle.length;
+      const countNsfw = nsfwGroups.length;
+      const countTotal = countMulti + countSingle + countNsfw;
+
+      // 如果当前选中的分类没有数据，自动重置为全部
+      if ((currentCategoryFilter === 'multi' && countMulti === 0) ||
+          (currentCategoryFilter === 'single' && countSingle === 0) ||
+          (currentCategoryFilter === 'nsfw' && countNsfw === 0)) {
+        currentCategoryFilter = 'all';
+      }
+
+      // 2. 顶部状态统计栏
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
       headerBar.innerHTML = `
-        <span class="sources-header-title">搜索结果 <span>(${normalGroups.length} 部正片 / ${nsfwGroups.length} 部其它)${searchStatusText}</span></span>
+        <span class="sources-header-title">搜索结果 (${countTotal} 部)${searchStatusText}</span>
         <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       frag.appendChild(headerBar);
 
-      // 2. 优先渲染【正规影视区】
-      if (normalMulti.length > 0) {
+      // 3. 顶部快捷分类药丸过滤栏（有对应数据才生成标签）
+      const filterBar = document.createElement('div');
+      filterBar.className = 'section-filter-bar';
+
+      let filterPillsHtml = `
+        <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'all' ? 'active' : ''}" onclick="setCategoryFilter('all')">
+          全部(${countTotal})
+        </button>
+      `;
+
+      if (countMulti > 0) {
+        filterPillsHtml += `
+          <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'multi' ? 'active' : ''}" onclick="setCategoryFilter('multi')">
+            🎬 聚合源(${countMulti})
+          </button>
+        `;
+      }
+      if (countSingle > 0) {
+        filterPillsHtml += `
+          <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'single' ? 'active' : ''}" onclick="setCategoryFilter('single')">
+            ⚡ 独立单源(${countSingle})
+          </button>
+        `;
+      }
+      if (countNsfw > 0) {
+        filterPillsHtml += `
+          <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'nsfw' ? 'active' : ''}" onclick="setCategoryFilter('nsfw')">
+            🌶️ 其它专区(${countNsfw})
+          </button>
+        `;
+      }
+      filterBar.innerHTML = filterPillsHtml;
+      frag.appendChild(filterBar);
+
+      // 4. 渲染【🎬 聚合源剧目】（有片源且在筛选范围内才显示）
+      if (countMulti > 0 && (currentCategoryFilter === 'all' || currentCategoryFilter === 'multi')) {
+        const isCollapsed = !!categoryCollapseStates.multi;
         const multiTag = document.createElement('div');
-        multiTag.className = 'section-divider-tag';
-        multiTag.textContent = '🎬 聚合源剧目 (正规收纳)';
+        multiTag.className = 'section-divider-tag ' + (isCollapsed ? 'collapsed' : '');
+        multiTag.innerHTML = `
+          <span>🎬 聚合源剧目</span>
+          <span class="sec-collapse-arrow">▼</span>
+        `;
+        multiTag.onclick = () => toggleCategoryCollapse('multi');
         frag.appendChild(multiTag);
 
-        normalMulti.forEach(group => {
-          frag.appendChild(renderCardNode(group, false));
-        });
+        if (!isCollapsed) {
+          normalMulti.forEach(group => {
+            frag.appendChild(renderCardNode(group, false));
+          });
+        }
       }
 
-      if (normalSingle.length > 0) {
+      // 5. 渲染【⚡ 独立单源影视】（有片源且在筛选范围内才显示）
+      if (countSingle > 0 && (currentCategoryFilter === 'all' || currentCategoryFilter === 'single')) {
+        const isCollapsed = !!categoryCollapseStates.single;
         const singleTag = document.createElement('div');
-        singleTag.className = 'section-divider-tag';
-        singleTag.textContent = '⚡ 独立单源影视 (按响应速度排列)';
+        singleTag.className = 'section-divider-tag ' + (isCollapsed ? 'collapsed' : '');
+        singleTag.innerHTML = `
+          <span>⚡ 独立单源影视</span>
+          <span class="sec-collapse-arrow">▼</span>
+        `;
+        singleTag.onclick = () => toggleCategoryCollapse('single');
         frag.appendChild(singleTag);
 
-        normalSingle.forEach(group => {
-          frag.appendChild(renderCardNode(group, true));
-        });
+        if (!isCollapsed) {
+          normalSingle.forEach(group => {
+            frag.appendChild(renderCardNode(group, true));
+          });
+        }
       }
 
-      // 3. 绝对置底渲染【🔞 专区】(单独在此测速优选，绝不上浮)
-      if (nsfwGroups.length > 0) {
+      // 6. 渲染【🌶️ 其它专区】（有片源且在筛选范围内才显示）
+      if (countNsfw > 0 && (currentCategoryFilter === 'all' || currentCategoryFilter === 'nsfw')) {
+        const isCollapsed = !!categoryCollapseStates.nsfw;
         const nsfwTag = document.createElement('div');
-        nsfwTag.className = 'section-divider-tag';
+        nsfwTag.className = 'section-divider-tag ' + (isCollapsed ? 'collapsed' : '');
         nsfwTag.style.color = '#f87171';
-        nsfwTag.textContent = '🔞 其它专区 (已强制置底 / 内部独立测速)';
+        nsfwTag.innerHTML = `
+          <span>🌶️ 其它专区</span>
+          <span class="sec-collapse-arrow">▼</span>
+        `;
+        nsfwTag.onclick = () => toggleCategoryCollapse('nsfw');
         frag.appendChild(nsfwTag);
 
-        nsfwMulti.forEach(group => {
-          frag.appendChild(renderCardNode(group, false));
-        });
-
-        nsfwSingle.forEach(group => {
-          frag.appendChild(renderCardNode(group, true));
-        });
+        if (!isCollapsed) {
+          nsfwMulti.forEach(group => {
+            frag.appendChild(renderCardNode(group, false));
+          });
+          nsfwSingle.forEach(group => {
+            frag.appendChild(renderCardNode(group, true));
+          });
+        }
       }
 
       container.replaceChildren(frag);
