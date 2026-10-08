@@ -231,7 +231,6 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
-    /* 弹窗样式 */
     #modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
     #source-modal { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); }
     #source-modal h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
@@ -360,7 +359,7 @@
     <div id="search-box">
       <div class="search-row-primary">
         <div class="search-input-wrap">
-          <input type="text" id="filter" placeholder="搜索片名、演员 (如: 成龙、周星驰)、频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
+          <input type="text" id="filter" placeholder="搜索片名、演员 (如: 成龙、三上悠亚)、电视频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
           <span class="btn-clear-kw" id="clear-kw" onclick="clearSearchInput()">✕</span>
         </div>
         <button class="btn-search" onclick="triggerSearch()">搜索</button>
@@ -374,7 +373,6 @@
 
       <div class="mode-tab-group">
         <button class="mode-tab" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
-        <!-- 优化：将“选集与换源”更名为更加大气自然的“影视剧场” -->
         <button class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
       </div>
     </div>
@@ -397,7 +395,6 @@
       <label class="input-label">电视直播源地址（M3U）：</label>
       <input type="text" id="source-m3u-input" placeholder="输入直播源 M3U 地址">
 
-      <!-- 新增：自定义自动同步时间间隔与最后更新时间展示 -->
       <label class="input-label">自动更新周期：</label>
       <select id="auto-sync-interval">
         <option value="0">仅手动更新 (推荐)</option>
@@ -515,6 +512,7 @@
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
+    let totalChannelsCount = 0; // 记录电视频道总数
     let currentStreamUrl = "";
     
     let groupedVodList = [];
@@ -1092,11 +1090,11 @@
       if (m3uUrl) {
         try {
           await initTv();
-          msg.push(`电视直播源已刷新`);
+          // 精确统计并显示电视直播源的频道数量
+          msg.push(`电视直播源已更新: ${totalChannelsCount} 个`);
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
-      // 记录最新同步时间并存入 D1
       const nowStr = new Date().toLocaleString();
       await setD1Data(KEY_LAST_SYNC, nowStr);
       document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowStr}`;
@@ -1107,14 +1105,12 @@
       alert("同步完成:\n" + msg.join('\n'));
     }
 
-    // 静默检测并执行自动定时同步更新
     async function checkAutoSyncSchedule() {
       const intervalHours = parseInt(await getD1Data(KEY_SYNC_INTERVAL, '0'), 10);
-      if (intervalHours <= 0) return; // 0 代表仅手动
+      if (intervalHours <= 0) return;
 
       const lastTimeStr = await getD1Data(KEY_LAST_SYNC, '');
       if (!lastTimeStr) {
-        // 从未更新过则立即静默同步一次
         await triggerSilentSync();
         return;
       }
@@ -1184,7 +1180,7 @@
         filterInput.placeholder = "搜索电视频道...";
         renderList(groups, false);
       } else {
-        filterInput.placeholder = "搜索片名、演员 (如: 成龙、周星驰)、频道...";
+        filterInput.placeholder = "搜索片名、演员 (如: 成龙、三上悠亚)、电视频道...";
         if (groupedVodList.length > 0) renderGroupedVodSources();
         else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入片名或演员名，自动拉取各源站并排序换源 🔍</div>`;
       }
@@ -1257,13 +1253,14 @@
       '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双']
     };
 
+    /* 优化重点：取消 slice(0, 8) 截断，全量 47 个源站并行扫描，确保三上悠亚等特定资源全部搜得到 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源智能检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源全量检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
@@ -1285,10 +1282,12 @@
           const lowerName = vodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
+          // 宽松判定：片名或演员含关键词，或在关联词组中
           const isRelated = searchTerms.some(term => {
             const t = term.toLowerCase();
             return lowerName.includes(t) || lowerActor.includes(t);
-          });
+          }) || lowerName.includes(kw) || lowerActor.includes(kw);
+
           if (!isRelated) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
@@ -1317,14 +1316,16 @@
         });
       };
 
+      // 构建全量源站查询任务（绝不截断丢弃任何一个源）
       const queryTasks = [];
       searchTerms.forEach(term => {
-        parsedSites.slice(0, 8).forEach(site => {
+        parsedSites.forEach(site => {
           queryTasks.push({ site, term });
         });
       });
 
-      await asyncPool(10, queryTasks, async ({ site, term }) => {
+      // 拓宽至 12 并发通道，快速跑完
+      await asyncPool(12, queryTasks, async ({ site, term }) => {
         if (currentSignal.aborted) return;
         const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
         try {
@@ -1356,9 +1357,6 @@
 
         if (searchTerms.includes(a.title)) scoreA += 40;
         if (searchTerms.includes(b.title)) scoreB += 40;
-
-        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 40;
-        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 40;
 
         scoreA += a.items.length * 2;
         scoreB += b.items.length * 2;
@@ -1448,7 +1446,6 @@
       `;
       container.appendChild(headerBar);
 
-      // 1. 多源聚合卡片区
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1583,7 +1580,6 @@
         });
       }
 
-      // 2. 单源平铺卡片区
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
@@ -1807,6 +1803,7 @@
 
     function parseM3U(content) {
       groups = {};
+      totalChannelsCount = 0;
       const lines = content.split('\n');
       let temp = null;
       for (let line of lines) {
@@ -1821,7 +1818,10 @@
         } else if (line && !line.startsWith('#') && temp) {
           if (isSafeUrl(line)) {
             if (!groups[temp.group]) groups[temp.group] = {};
-            if (!groups[temp.group][temp.name]) groups[temp.group][temp.name] = [];
+            if (!groups[temp.group][temp.name]) {
+              groups[temp.group][temp.name] = [];
+              totalChannelsCount++; // 精准统计频道个数
+            }
             if (!groups[temp.group][temp.name].includes(line)) groups[temp.group][temp.name].push(line);
           }
           temp = null;
@@ -1931,7 +1931,6 @@
       }
       initTv();
       switchMode('vod');
-      // 页面加载完成后静默检查自动更新周期
       checkAutoSyncSchedule();
     });
   </script>
