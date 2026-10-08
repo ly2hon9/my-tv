@@ -267,7 +267,7 @@
       padding: 3px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
     }
 
-    /* 顶部快捷分类药丸过滤栏 */
+    /* 顶部快捷分类药丸切换栏 */
     .section-filter-bar {
       display: flex; align-items: center; gap: 6px; padding: 8px 12px;
       background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
@@ -759,29 +759,62 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
+    // 强化字符归一化，用于跨采集站精准聚拢
+    function normalizeCleanKey(str) {
+      if (!str) return '';
+      return String(str).toLowerCase()
+        .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+]+/g, '')
+        .replace(/[（(].*?[)）]/g, '');
+    }
+
+    // 终极智能片名清洗与版本拆分
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
       let str = String(rawName).trim();
-      let version = "";
+      let versionList = [];
 
-      const tagRegex = /[\[\(\（\【\［\{]([^\]\)\）\】\］\}]+)[\]\)\）\】\］\}]/g;
-      let match;
-      const tags = [];
-      while ((match = tagRegex.exec(str)) !== null) tags.push(match[1]);
-      if (tags.length > 0) version = tags.join(' ');
+      // 1. 递归提取并消除所有括号内容 (如 [4K修复], (粤语版), 【国语中字】)
+      const bracketRegex = /[\[\(\（\【\［\{]([^\]\)\）\】\］\}]+)[\]\)\）\】\］\}]/g;
+      let m;
+      while ((m = bracketRegex.exec(str)) !== null) {
+        if (m[1] && m[1].trim()) versionList.push(m[1].trim());
+      }
+      let cleaned = str.replace(bracketRegex, ' ').trim();
 
-      let cleaned = str.replace(/[\[\(\（\【\［\{].*?[\]\)\）\】\］\}]/g, '').trim();
-      const suffixRegex = /(国语版|粤语版|普通话版|英语版|日语版|韩语版|电影解说|解说版|解说|国语|粤语|原声|双语|中字|双字|中英字幕|HD|BD|4K|1080P|720P|2160P|超清|高清|蓝光|抢先版|TC|TS)$/i;
-      while (suffixRegex.test(cleaned)) {
-        const found = cleaned.match(suffixRegex);
-        if (found) {
-          if (!version.includes(found[0])) version = (version ? version + ' ' : '') + found[0];
-          cleaned = cleaned.replace(suffixRegex, '').trim();
+      // 2. 递归剥离年份、音轨、字幕、画质、版本等修饰词
+      const endPatterns = [
+        /\s*(19\d{2}|20\d{2})\s*$/i, // 年份 (1985, 2006等)
+        /\s*(国语|粤语|英语|韩语|日语|俄语|法语|双语|双字|中字|中英|中英双字|中英双语|国粤|国粤双语|中文字幕|英文字幕|原声|内嵌中字|内嵌字幕)\s*$/i,
+        /\s*(4K|2160P|1080P|720P|HD|BD|TC|TS|DVD|蓝光|超清|高清|标清|修复版|4K修复|蓝光重制|重置版|重制版)\s*$/i,
+        /\s*(抢先版|完整版|未删减版|未删减|加长版|公映版|院线版|电影版|剧场版|TV版|原版|正片|纯净版|解说版|解说)\s*$/i
+      ];
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        cleaned = cleaned.replace(/[\s\:\：\-\_\·\/\|\\]+$/, '').trim();
+        for (const pattern of endPatterns) {
+          const match = cleaned.match(pattern);
+          if (match) {
+            const matchedTag = match[0].trim();
+            if (matchedTag && !versionList.includes(matchedTag)) {
+              versionList.push(matchedTag);
+            }
+            cleaned = cleaned.replace(pattern, '').trim();
+            changed = true;
+          }
         }
       }
-      cleaned = cleaned.replace(/[\s\:\：\-\_\·]+$/, '').trim();
 
-      return { canonical: cleaned || rawName, version: version.trim() };
+      // 3. 清理开头的干扰词 (如 "经典电影: ", "成龙系列 - ")
+      cleaned = cleaned.replace(/^(经典|最新|高清|电影|精选)[\:\：\-\_\s]+/, '').trim();
+      cleaned = cleaned.replace(/[\s\:\：\-\_\·\/\|\\]+$/, '').trim();
+
+      const finalCanonical = cleaned || rawName.trim();
+      return { 
+        canonical: finalCanonical, 
+        version: versionList.join(' ').trim() 
+      };
     }
 
     async function getD1Data(key, defaultVal = '') {
@@ -1446,7 +1479,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2225,7 +2258,6 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 精准识别源站名称是否包含敏感标识 */
     function isNSFWSource(siteName) {
       if (!siteName) return false;
       const lower = siteName.toLowerCase();
@@ -2237,7 +2269,6 @@
       return nsfwKeywords.some(kw => lower.includes(kw));
     }
 
-    /* 敏感内容判定 */
     function isGroupNSFW(group) {
       if (!group) return false;
       const typeStr = (group.type || '').toLowerCase();
@@ -2275,7 +2306,7 @@
 
       isSearchingActive = true;
       currentSearchingWord = keyword;
-      currentCategoryFilter = 'auto'; // 每次新搜索重置为自动选择最佳分类
+      currentCategoryFilter = 'auto'; // 每次新搜索自动定位分类
 
       const container = document.getElementById('channel-list');
       container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
@@ -2349,7 +2380,12 @@
             ping: -1
           };
 
-          let group = groupedVodList.find(g => g.title === canonicalTitle);
+          // 核心改进：双重归一化对比，彻底将同名变体拉入同一个聚合组
+          const cleanKey = normalizeCleanKey(canonicalTitle);
+          let group = groupedVodList.find(g => {
+            return g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey;
+          });
+
           if (!group) {
             group = {
               title: canonicalTitle,
@@ -2359,6 +2395,10 @@
               items: []
             };
             groupedVodList.push(group);
+          } else {
+            // 保持海报与信息更丰富
+            if (!group.poster && isSafeUrl(item.vod_pic)) group.poster = item.vod_pic;
+            if (!group.actor && vodActor) group.actor = vodActor;
           }
 
           if (!group.items.some(i => i.id === uniqueId)) {
@@ -2506,13 +2546,11 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
-    /* 快捷分类切换 */
     function setCategoryFilter(filterKey) {
       currentCategoryFilter = filterKey;
       renderGroupedVodSources();
     }
 
-    /* 渲染单张或多源卡片辅助函数 */
     function renderCardNode(group, isSingle) {
       if (isSingle) {
         const item = group.items[0];
@@ -2743,7 +2781,6 @@
       }
     }
 
-    /* 渲染整个剧集列表（直连卡片列表，无冗余中间折叠条） */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -2801,7 +2838,7 @@
       `;
       frag.appendChild(headerBar);
 
-      // 3. 顶部快捷分类药丸切换栏（有对应数据才生成按钮）
+      // 3. 顶部快捷分类药丸切换栏
       let filterPillsHtml = '';
 
       if (countMulti > 0) {
@@ -2833,7 +2870,7 @@
         frag.appendChild(filterBar);
       }
 
-      // 4. 直接输出选中分类的影片列表（彻底去除中间折叠层）
+      // 4. 直呈选中分类卡片
       if (currentCategoryFilter === 'multi') {
         normalMulti.forEach(group => {
           frag.appendChild(renderCardNode(group, false));
