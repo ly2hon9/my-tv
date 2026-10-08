@@ -13,6 +13,104 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
+    /* ============================================================
+       全屏极简登录门禁系统 (仿图设计)
+    ============================================================ */
+    #auth-gate-screen {
+      position: fixed; inset: 0; z-index: 9999999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: linear-gradient(180deg, #edf5f8 0%, #f4f7f6 45%, #fcfdfc 100%);
+      transition: background 0.3s ease;
+    }
+    #auth-gate-screen.dark-theme {
+      background: linear-gradient(180deg, #0e1114 0%, #15181c 50%, #1a1e22 100%);
+    }
+
+    .gate-top-bar {
+      position: absolute; top: 18px; right: 20px;
+    }
+    .gate-theme-btn {
+      background: none; border: none; font-size: 19px; cursor: pointer; color: #555; line-height: 1; padding: 4px;
+    }
+    #auth-gate-screen.dark-theme .gate-theme-btn { color: #facc15; }
+
+    .gate-card {
+      background: #ffffff; border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.06);
+      width: 86%; max-width: 320px; padding: 30px 24px;
+      box-sizing: border-box; text-align: center;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #auth-gate-screen.dark-theme .gate-card {
+      background: #1e2126; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    }
+
+    .gate-logo {
+      font-size: 26px; font-weight: 800; color: #54a56a;
+      letter-spacing: 2px; margin-bottom: 24px; font-family: -apple-system, sans-serif;
+    }
+
+    .gate-input-box {
+      display: flex; align-items: center; background: #f7f8fa;
+      border: 1px solid #eef0f4; border-radius: 8px; padding: 0 12px;
+      height: 44px; margin-bottom: 14px; box-sizing: border-box;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #auth-gate-screen.dark-theme .gate-input-box {
+      background: #14161a; border-color: #2b3038;
+    }
+    .gate-input-box:focus-within {
+      border-color: #72b784; background: #fff;
+    }
+    #auth-gate-screen.dark-theme .gate-input-box:focus-within {
+      background: #111316; border-color: #54a56a;
+    }
+
+    .gate-input-icon {
+      font-size: 14px; color: #999; flex-shrink: 0; margin-right: 8px; user-select: none;
+    }
+    .gate-input-box input {
+      border: none; background: transparent; outline: none;
+      font-size: 13px; color: #333; flex: 1; width: 100%;
+    }
+    #auth-gate-screen.dark-theme .gate-input-box input {
+      color: #eee;
+    }
+    .gate-input-box input::placeholder { color: #aaa; }
+
+    .gate-eye-btn {
+      background: none; border: none; font-size: 15px; cursor: pointer; color: #999; padding: 0 2px; flex-shrink: 0; line-height: 1;
+    }
+
+    .gate-options-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: #888; margin-top: 4px; margin-bottom: 22px; user-select: none;
+    }
+    .gate-remember-wrap {
+      display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888;
+    }
+    .gate-remember-wrap input {
+      accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer;
+    }
+    .gate-switch-link {
+      color: #54a56a; cursor: pointer; font-weight: 500;
+    }
+
+    .gate-submit-btn {
+      width: 100%; height: 42px; background: #7ab88b;
+      color: #fff; font-size: 14px; font-weight: 600; border: none;
+      border-radius: 8px; cursor: pointer; transition: background 0.2s, transform 0.1s;
+    }
+    .gate-submit-btn:hover { background: #68ab7a; }
+    .gate-submit-btn:active { transform: scale(0.98); }
+
+    .gate-error-tip {
+      font-size: 12px; color: #ef4444; margin-top: 10px; display: none; text-align: center;
+    }
+
+    /* ============================================================
+       播放器与页面主体
+    ============================================================ */
     #player-wrap { 
       width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; 
       flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default;
@@ -236,8 +334,8 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
-    /* 弹窗样式 */
-    #modal-mask, #auth-modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    /* 设置通用弹窗 */
+    #modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
     .custom-modal-content { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
     .custom-modal-content h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .input-label { font-size: 12px; color: #aaa; margin-top: 10px; margin-bottom: 4px; display: block; }
@@ -245,7 +343,6 @@
     .sub-stats { font-size: 12px; color: #0070f3; margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
 
-    /* 折叠管理卡片样式 */
     .collapsible-setting-box { margin-top: 12px; background: #141414; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
     .collapsible-setting-header { padding: 10px 12px; font-size: 12px; color: #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #222; user-select: none; }
     .collapsible-setting-header:hover { background: #282828; }
@@ -288,6 +385,41 @@
   </style>
 </head>
 <body>
+
+  <!-- ============================================================
+       全屏极简登录门禁 (高保真仿图设计，阻断未授权操作)
+  ============================================================ -->
+  <div id="auth-gate-screen">
+    <div class="gate-top-bar">
+      <button type="button" id="gate-theme-toggle" class="gate-theme-btn" onclick="toggleGateTheme()" title="切换明暗主题">🌙</button>
+    </div>
+    <div class="gate-card">
+      <div class="gate-logo">TV</div>
+      
+      <div class="gate-input-box">
+        <span class="gate-input-icon">👤</span>
+        <input type="text" id="gate-username" placeholder="输入用户名" autocomplete="username">
+      </div>
+      
+      <div class="gate-input-box">
+        <span class="gate-input-icon">🔒</span>
+        <input type="password" id="gate-password" placeholder="输入访问密码" autocomplete="current-password">
+        <button type="button" class="gate-eye-btn" onclick="toggleGatePasswordVisibility()" title="显示/隐藏密码">👁</button>
+      </div>
+      
+      <div class="gate-options-row">
+        <label class="gate-remember-wrap">
+          <input type="checkbox" id="gate-remember-pwd" checked>
+          <span>记住密码</span>
+        </label>
+        <span class="gate-switch-link" id="gate-switch-link" onclick="switchGateAuthMode()">注册新账号</span>
+      </div>
+      
+      <button type="button" class="gate-submit-btn" id="gate-submit-btn" onclick="submitGateAuth()">登 录</button>
+      
+      <div id="gate-error-msg" class="gate-error-tip"></div>
+    </div>
+  </div>
 
   <div id="player-wrap">
     <div id="top-bar">
@@ -390,10 +522,8 @@
       <div class="search-row-secondary">
         <button class="btn-tool-mid" id="btn-show-fav" onclick="switchSidebarView('fav')">⭐ 我的收藏</button>
         <button class="btn-tool-mid" id="btn-show-history" onclick="switchSidebarView('history')">🕒 播放历史</button>
-        <!-- 功能 1：改名为“设置” -->
         <button class="btn-source-mgr" id="btn-open-settings" onclick="openSourceModal()">⚙ 设置</button>
-        <!-- 账号入口按钮 -->
-        <button class="btn-user-entry" id="btn-user-entry" onclick="openAuthModal()">👤 登录</button>
+        <button class="btn-user-entry" id="btn-user-entry" onclick="openGateLoginModal()">👤 登录</button>
       </div>
 
       <div class="mode-tab-group">
@@ -406,7 +536,7 @@
     </div>
   </div>
 
-  <!-- 设置弹窗 -->
+  <!-- 设置与数据管理弹窗 -->
   <div id="modal-mask">
     <div id="source-modal" class="custom-modal-content">
       <h3>
@@ -414,12 +544,12 @@
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
 
-      <!-- 功能 4：主账户登录免密直达开关 -->
+      <!-- 主账户强制登录开关 -->
       <div class="auth-switch-row">
         <span>🔒 强制账号登录验证访问</span>
         <input type="checkbox" id="auth-require-toggle" class="toggle-checkbox" onchange="toggleRequireLoginSwitch(this.checked)">
       </div>
-      <div style="font-size: 11px; color: #777; margin-top: 4px; margin-bottom: 8px;">开启后访客必须输入账号密码登录；关闭后可免密直接打开网页观影。</div>
+      <div style="font-size: 11px; color: #777; margin-top: 4px; margin-bottom: 8px;">开启后访客必须输入密码通过门禁；关闭后任何人可免密打开直接观影。</div>
 
       <label class="input-label">影视订阅地址：</label>
       <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
@@ -438,7 +568,7 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <!-- 功能 3：账号管理与源分组权限面板（默认折叠） -->
+      <!-- 账号与权限管理 -->
       <div class="collapsible-setting-box">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
           <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
@@ -474,33 +604,6 @@
         <button class="btn-action btn-cancel" onclick="closeSourceModal()">取消</button>
         <button class="btn-action btn-sync" id="btn-modal-sync" onclick="manualSyncSubscription()">🔄 同步更新源</button>
         <button class="btn-action btn-save" onclick="saveToD1()">保存配置</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 功能 2：登录与注册弹窗 -->
-  <div id="auth-modal-mask">
-    <div id="auth-modal" class="custom-modal-content" style="max-width: 380px;">
-      <h3 style="margin-bottom: 16px;">
-        <span id="auth-modal-title">🔐 用户登录</span>
-        <span id="btn-close-auth" style="font-size:14px;color:#888;cursor:pointer;" onclick="closeAuthModal()">✕</span>
-      </h3>
-
-      <div id="auth-msg-box" style="display:none; font-size:12px; color:#f87171; margin-bottom:10px;"></div>
-
-      <label class="input-label">账号：</label>
-      <input type="text" id="auth-username" placeholder="请输入账号名">
-
-      <label class="input-label">密码：</label>
-      <input type="password" id="auth-password" placeholder="请输入密码">
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
-        <span id="btn-switch-auth-mode" style="font-size:12px; color:#0070f3; cursor:pointer;" onclick="switchAuthMode()">没有账号？点击注册新账号</span>
-      </div>
-
-      <div class="modal-actions" style="margin-top:20px;">
-        <button class="btn-action btn-cancel" id="btn-auth-cancel" onclick="closeAuthModal()">取消</button>
-        <button class="btn-action btn-save" id="btn-auth-submit" onclick="submitAuthForm()">立即登录</button>
       </div>
     </div>
   </div>
@@ -587,10 +690,10 @@
     const KEY_LAST_SYNC = "last_subscription_sync_time";
     const KEY_SYNC_INTERVAL = "subscription_sync_interval";
 
-    // 账号权限相关 D1 存储键
     const KEY_AUTH_CONFIG = "sys_auth_config_v1";
     const KEY_USERS_LIST = "sys_users_list_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
+    const KEY_SAVED_CREDS = "local_saved_remember_creds";
 
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     const B58_MAP = {};
@@ -645,15 +748,14 @@
     let currentSearchAbortController = null;
     let renderFrameTimer = null;
 
-    // 搜索状态锁，保证检索提示绝不误闪退
     let isSearchingActive = false;
     let currentSearchingWord = "";
 
-    // 账号与权限状态
-    let authConfig = { requireLogin: false, adminUser: "admin", adminPass: "admin888" };
+    // 默认启用强制登录保护，未登录无法跳过
+    let authConfig = { requireLogin: true, adminUser: "admin", adminPass: "admin888" };
     let userList = [];
-    let currentUser = null; // { username, role: 'admin' | 'user', allowedSites: [] }
-    let authModalMode = 'login'; // 'login' 或 'register'
+    let currentUser = null;
+    let gateAuthMode = 'login'; // 'login' | 'register'
 
     const domNodeCache = new Map();
 
@@ -1169,103 +1271,87 @@
       input.focus();
     }
 
-    /* =======================================
-       功能 2 & 3 & 4：账号体系、权限与设置
-    ======================================= */
-    function toggleCollapseSection(bodyId, arrowId) {
-      const el = document.getElementById(bodyId);
-      const arrow = document.getElementById(arrowId);
-      const isHide = el.style.display === 'none' || el.style.display === '';
-      el.style.display = isHide ? 'block' : 'none';
-      arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
+    /* ============================================================
+       全屏极简门禁与账号权限核心逻辑 (高保真仿图 15)
+    ============================================================ */
+    function toggleGateTheme() {
+      const screen = document.getElementById('auth-gate-screen');
+      screen.classList.toggle('dark-theme');
     }
 
-    function updateCurrentUserUI() {
-      const userBtn = document.getElementById('btn-user-entry');
-      const settingsBtn = document.getElementById('btn-open-settings');
+    function toggleGatePasswordVisibility() {
+      const pwd = document.getElementById('gate-password');
+      pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    }
 
+    function switchGateAuthMode() {
+      const isLogin = gateAuthMode === 'login';
+      gateAuthMode = isLogin ? 'register' : 'login';
+      document.getElementById('gate-submit-btn').textContent = isLogin ? '注 册' : '登 录';
+      document.getElementById('gate-switch-link').textContent = isLogin ? '返回账号登录' : '注册新账号';
+      document.getElementById('gate-error-msg').style.display = 'none';
+    }
+
+    function showGateError(msg) {
+      const err = document.getElementById('gate-error-msg');
+      err.textContent = msg;
+      err.style.display = 'block';
+    }
+
+    function openGateLoginModal() {
       if (currentUser) {
-        userBtn.textContent = `👤 ${currentUser.username} (${currentUser.role === 'admin' ? '主账户' : '成员'})`;
-        userBtn.style.color = currentUser.role === 'admin' ? '#facc15' : '#4ade80';
-
-        // 功能 2 严格保证：普通注册账号无权更改设置，隐藏设置按钮
-        if (currentUser.role === 'admin') {
-          settingsBtn.style.display = 'block';
-        } else {
-          settingsBtn.style.display = 'none';
+        if (confirm(`当前登录为【${currentUser.username}】\n确定要退出登录吗？`)) {
+          logoutCurrentUser();
         }
-      } else {
-        userBtn.textContent = "👤 登录";
-        userBtn.style.color = '#4ade80';
-        // 未登录时，如果未强制登录，保留管理员可点击设置按钮（打开时会校验密码）
-        settingsBtn.style.display = 'block';
-      }
-    }
-
-    function openAuthModal(mode = 'login') {
-      authModalMode = mode;
-      document.getElementById('auth-modal-title').textContent = mode === 'login' ? '🔐 用户登录' : '📝 注册新账号';
-      document.getElementById('btn-auth-submit').textContent = mode === 'login' ? '立即登录' : '立即注册';
-      document.getElementById('btn-switch-auth-mode').textContent = mode === 'login' ? '没有账号？点击注册新账号' : '已有账号？返回登录界面';
-      document.getElementById('auth-username').value = '';
-      document.getElementById('auth-password').value = '';
-      document.getElementById('auth-msg-box').style.display = 'none';
-
-      // 若处于强制登录状态且未登录，禁止关闭
-      const forceLogin = authConfig.requireLogin && !currentUser;
-      document.getElementById('btn-close-auth').style.display = forceLogin ? 'none' : 'block';
-      document.getElementById('btn-auth-cancel').style.display = forceLogin ? 'none' : 'block';
-
-      document.getElementById('auth-modal-mask').style.display = 'flex';
-    }
-
-    function closeAuthModal() {
-      if (authConfig.requireLogin && !currentUser) {
-        alert("系统已开启强制登录，请输入账号密码登录后使用！");
         return;
       }
-      document.getElementById('auth-modal-mask').style.display = 'none';
+      gateAuthMode = 'login';
+      document.getElementById('gate-submit-btn').textContent = '登 录';
+      document.getElementById('gate-switch-link').textContent = '注册新账号';
+      document.getElementById('gate-error-msg').style.display = 'none';
+      document.getElementById('auth-gate-screen').style.display = 'flex';
     }
 
-    function switchAuthMode() {
-      openAuthModal(authModalMode === 'login' ? 'register' : 'login');
-    }
-
-    async function submitAuthForm() {
-      const u = (document.getElementById('auth-username').value || '').trim();
-      const p = (document.getElementById('auth-password').value || '').trim();
-      const msgBox = document.getElementById('auth-msg-box');
+    async function submitGateAuth() {
+      const u = (document.getElementById('gate-username').value || '').trim();
+      const p = (document.getElementById('gate-password').value || '').trim();
+      const remember = document.getElementById('gate-remember-pwd').checked;
 
       if (!u || !p) {
-        msgBox.textContent = "请完整输入账号与密码！";
-        msgBox.style.display = 'block';
+        showGateError("请输入用户名与密码！");
         return;
       }
 
-      if (authModalMode === 'login') {
-        // 校验主账户
+      if (gateAuthMode === 'login') {
+        // 验证主管理员
         if (u === authConfig.adminUser && p === authConfig.adminPass) {
           currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
         } else {
-          // 校验普通成员账号
+          // 验证普通成员账号
           const found = userList.find(item => item.username === u && item.password === p);
           if (found) {
             currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || ['*'] };
           } else {
-            msgBox.textContent = "账号或密码错误！";
-            msgBox.style.display = 'block';
+            showGateError("用户名或密码错误！");
             return;
           }
         }
+
+        // 处理记住密码状态
+        if (remember) {
+          localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, p }));
+        } else {
+          localStorage.removeItem(KEY_SAVED_CREDS);
+        }
+
         localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
         updateCurrentUserUI();
-        document.getElementById('auth-modal-mask').style.display = 'none';
+        document.getElementById('auth-gate-screen').style.display = 'none';
         alert(`欢迎回来，${currentUser.username}！`);
       } else {
-        // 注册新账号（注册账号默认为普通角色，只可用不可改）
+        // 注册普通账号
         if (u === authConfig.adminUser || userList.some(item => item.username === u)) {
-          msgBox.textContent = "该账号名已存在，请更换其他名字！";
-          msgBox.style.display = 'block';
+          showGateError("该用户名已被注册，请更换！");
           return;
         }
 
@@ -1274,26 +1360,55 @@
         await setD1Data(KEY_USERS_LIST, userList);
 
         currentUser = { username: u, role: 'user', allowedSites: ['*'] };
+        if (remember) {
+          localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, p }));
+        }
         localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
         updateCurrentUserUI();
-        document.getElementById('auth-modal-mask').style.display = 'none';
-        alert(`注册成功！已为您登录：${u}（普通账号拥有完整观影权限）`);
+        document.getElementById('auth-gate-screen').style.display = 'none';
+        alert(`注册成功！已为您登录：${u}`);
       }
     }
 
-    function logoutUser() {
-      if (!confirm("确定退出当前登录状态吗？")) return;
+    function logoutCurrentUser() {
       currentUser = null;
       localStorage.removeItem(KEY_CURRENT_USER);
+      localStorage.removeItem(KEY_SAVED_CREDS);
       updateCurrentUserUI();
-      if (authConfig.requireLogin) {
-        openAuthModal('login');
+      document.getElementById('gate-username').value = '';
+      document.getElementById('gate-password').value = '';
+      document.getElementById('auth-gate-screen').style.display = 'flex';
+    }
+
+    function updateCurrentUserUI() {
+      const userBtn = document.getElementById('btn-user-entry');
+      const settingsBtn = document.getElementById('btn-open-settings');
+
+      if (currentUser) {
+        userBtn.textContent = `👤 ${currentUser.username}`;
+        userBtn.style.color = currentUser.role === 'admin' ? '#facc15' : '#4ade80';
+
+        // 普通注册账号绝对不可更改任何设置（隐藏设置按钮）
+        if (currentUser.role === 'admin') {
+          settingsBtn.style.display = 'block';
+        } else {
+          settingsBtn.style.display = 'none';
+        }
       } else {
-        alert("已成功退出登录！");
+        userBtn.textContent = "👤 登录";
+        userBtn.style.color = '#4ade80';
+        settingsBtn.style.display = 'block';
       }
     }
 
-    // 渲染管理面板中的用户列表
+    function toggleCollapseSection(bodyId, arrowId) {
+      const el = document.getElementById(bodyId);
+      const arrow = document.getElementById(arrowId);
+      const isHide = el.style.display === 'none' || el.style.display === '';
+      el.style.display = isHide ? 'block' : 'none';
+      arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
+    }
+
     function renderUsersManagerList() {
       const container = document.getElementById('users-items-container');
       document.getElementById('user-count-badge').textContent = userList.length;
@@ -1308,7 +1423,7 @@
           <div class="site-toggle-row">
             <div>
               <span style="color:#ddd; font-weight:500;">👤 ${escapeHtml(user.username)}</span>
-              <span style="font-size:10px; color:#888; margin-left:6px;">(权限: ${user.allowedSites && user.allowedSites[0] !== '*' ? user.allowedSites.length + ' 个分组源' : '全部可用源'})</span>
+              <span style="font-size:10px; color:#888; margin-left:6px;">(${user.allowedSites && user.allowedSites[0] !== '*' ? user.allowedSites.length + ' 个专属源' : '全部源'})</span>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
               <button type="button" class="btn-action btn-cancel" style="padding:2px 6px; font-size:10px;" onclick="configureUserSourceGroup(${idx})">⚙ 权限</button>
@@ -1343,7 +1458,6 @@
       renderUsersManagerList();
     }
 
-    // 功能 3：自定义源分组权限配置
     async function configureUserSourceGroup(idx) {
       const user = userList[idx];
       const currentAllowed = user.allowedSites || ['*'];
@@ -1353,17 +1467,12 @@
       if (input === null) return;
       
       const trimmed = input.trim();
-      if (trimmed === '*' || trimmed === '') {
-        user.allowedSites = ['*'];
-      } else {
-        user.allowedSites = trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
-      }
+      user.allowedSites = (trimmed === '*' || trimmed === '') ? ['*'] : trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
       await setD1Data(KEY_USERS_LIST, userList);
       renderUsersManagerList();
-      alert(`已成功更新【${user.username}】的源访问权限！`);
+      alert(`已成功更新【${user.username}】的权限！`);
     }
 
-    // 功能 4：主账户开关控制
     async function toggleRequireLoginSwitch(checked) {
       authConfig.requireLogin = checked;
       await setD1Data(KEY_AUTH_CONFIG, authConfig);
@@ -1431,16 +1540,14 @@
     }
 
     async function openSourceModal() {
-      // 若当前登录者是普通用户，坚决不允许修改设置
       if (currentUser && currentUser.role !== 'admin') {
-        alert("权限不足：普通账号仅具备观影权限，无法修改系统设置！");
+        alert("普通注册账号不可修改系统设置！");
         return;
       }
-      // 若未登录主账户且开启了需要权限，先验证管理员身份
       if (!currentUser || currentUser.role !== 'admin') {
-        const pass = prompt("该操作需要主账户权限，请输入主账户密码：");
+        const pass = prompt("该操作需要主账户权限，请输入密码：");
         if (pass !== authConfig.adminPass) {
-          alert("密码错误，无法进入设置！");
+          alert("密码错误，无法打开设置！");
           return;
         }
         currentUser = { username: authConfig.adminUser, role: 'admin', allowedSites: ['*'] };
@@ -1477,7 +1584,7 @@
       await setD1Data(KEY_USERS_LIST, userList);
 
       closeSourceModal();
-      alert("全部系统设置与账号权限配置已成功保存至云数据库！");
+      alert("全部设置已成功保存！");
     }
 
     async function manualSyncSubscription() {
@@ -1693,7 +1800,6 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 功能 5 核心修复：解决检索提示闪退消失的问题，全流程保持状态可见 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1709,7 +1815,6 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
-      // 根据用户账号权限过滤可用源
       let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
       if (currentUser && currentUser.allowedSites && currentUser.allowedSites[0] !== '*') {
         availableSites = availableSites.filter(s => currentUser.allowedSites.includes(s.name));
@@ -1717,7 +1822,7 @@
 
       if (availableSites.length === 0) {
         isSearchingActive = false;
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">当前账号没有可用的视频源，请联系主账户分配权限</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">当前账号未分配可用的视频源，请联系主账户</div>`;
         return;
       }
 
@@ -1801,14 +1906,13 @@
       });
 
       if (currentSignal.aborted) return;
-      isSearchingActive = false; // 检索全部完成
+      isSearchingActive = false;
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
         container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
         return;
       }
 
-      // 排序加权
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1921,7 +2025,6 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
-    /* 优化重点：防止在加载过程中误显“输入关键词”，保持状态平稳更新 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -2456,9 +2559,8 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    // 初始化系统：装载设置、权限与验证登录开关
+    // 初始化系统：装载设置、权限与门禁验证
     window.addEventListener('DOMContentLoaded', async () => {
-      // 1. 读取基础配置与视频源
       const cachedSites = await getD1Data(KEY_SITES, null);
       if (cachedSites) {
         try {
@@ -2470,7 +2572,6 @@
       const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
       try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
 
-      // 2. 读取账号与登录开关
       const authCfgStr = await getD1Data(KEY_AUTH_CONFIG, '');
       if (authCfgStr) {
         try { authConfig = JSON.parse(authCfgStr); } catch (_) {}
@@ -2481,16 +2582,35 @@
         try { userList = JSON.parse(usersStr); } catch (_) {}
       }
 
-      const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
-      if (localUserStr) {
-        try { currentUser = JSON.parse(localUserStr); } catch (_) {}
+      // 尝试自动恢复“记住密码”凭证
+      const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
+      if (savedCredsStr) {
+        try {
+          const { u, p } = JSON.parse(savedCredsStr);
+          if (u === authConfig.adminUser && p === authConfig.adminPass) {
+            currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
+          } else {
+            const found = userList.find(item => item.username === u && item.password === p);
+            if (found) {
+              currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || ['*'] };
+            }
+          }
+        } catch (_) {}
+      } else {
+        const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
+        if (localUserStr) {
+          try { currentUser = JSON.parse(localUserStr); } catch (_) {}
+        }
       }
 
       updateCurrentUserUI();
 
-      // 功能 4：若开启了强制登录开关且当前未登录，弹出登录弹窗拦截
+      // 门禁判定：若启用了强制登录且当前未授权，全屏锁死
+      const gateScreen = document.getElementById('auth-gate-screen');
       if (authConfig.requireLogin && !currentUser) {
-        openAuthModal('login');
+        gateScreen.style.display = 'flex';
+      } else {
+        gateScreen.style.display = 'none';
       }
 
       initTv();
