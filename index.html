@@ -120,15 +120,13 @@
     
     .btn-tool-mid { 
       flex: 1; background: #2b2b2b; border: 1px solid #444; color: #eee; border-radius: 6px; 
-      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center;
-    }
+      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center; }
     .btn-tool-mid:hover { background: #383838; }
     .btn-tool-mid.active { background: #0070f3; border-color: #0070f3; color: #fff; }
     
     .btn-source-mgr { 
       flex: 1; background: #2b2b2b; border: 1px solid #444; color: #eee; border-radius: 6px; 
-      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center;
-    }
+      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center; }
 
     .mode-tab-group { display: flex; gap: 6px; }
     .mode-tab { flex: 1; padding: 6px 0; background: #252525; border: 1px solid #383838; color: #999; font-size: 12px; border-radius: 4px; cursor: pointer; text-align: center; }
@@ -240,17 +238,25 @@
     .sub-stats { font-size: 12px; color: #0070f3; margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
 
-    /* 新增：视频采集源管理折叠区域样式 */
-    .sites-manager-box { margin-top: 12px; background: #141414; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
-    .sites-manager-header { padding: 9px 12px; font-size: 12px; color: #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #222; user-select: none; }
+    /* 视频采集源管理 & 手动添加 */
+    .sites-manager-box { margin-top: 14px; background: #141414; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+    .sites-manager-header { padding: 10px 12px; font-size: 12px; color: #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #222; user-select: none; }
     .sites-manager-header:hover { background: #282828; }
-    .sites-manager-list { max-height: 160px; overflow-y: auto; padding: 6px 10px; display: none; }
-    .site-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #222; font-size: 12px; }
+    .sites-manager-list { max-height: 220px; overflow-y: auto; padding: 10px; display: none; }
+    
+    .add-site-form { display: flex; gap: 6px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #282828; }
+    .add-site-form input { padding: 6px 8px !important; font-size: 11px !important; background: #1a1a1a !important; border: 1px solid #444 !important; border-radius: 4px !important; color: #fff !important; }
+    .btn-add-site { background: #0070f3; color: #fff; border: none; border-radius: 4px; padding: 0 10px; font-size: 11px; cursor: pointer; white-space: nowrap; font-weight: 500; }
+    
+    .site-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #202020; font-size: 12px; }
     .site-toggle-row:last-child { border-bottom: none; }
-    .site-toggle-name { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
-    .btn-site-toggle { padding: 2px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
+    .site-toggle-name { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+    .site-actions-group { display: flex; align-items: center; gap: 6px; }
+    .btn-site-toggle { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
     .btn-site-toggle.enabled { background: #238636; color: #fff; }
-    .btn-site-toggle.disabled { background: #444; color: #888; }
+    .btn-site-toggle.disabled { background: #3f3f3f; color: #888; }
+    .btn-site-del { background: none; border: none; color: #888; font-size: 13px; cursor: pointer; padding: 2px 4px; }
+    .btn-site-del:hover { color: #f87171; }
     
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .btn-action { padding: 8px 14px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
@@ -418,13 +424,22 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <!-- 优化新增：已拉取视频源管理列表（默认折叠） -->
+      <!-- 视频采集源管理 & 手动添加源 -->
       <div class="sites-manager-box">
         <div class="sites-manager-header" onclick="toggleSitesListCollapse()">
           <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
           <span id="sites-toggle-arrow">▼ 展开</span>
         </div>
-        <div id="sites-manager-list" class="sites-manager-list"></div>
+        <div id="sites-manager-list" class="sites-manager-list">
+          <!-- 手动添加源输入框 -->
+          <div class="add-site-form">
+            <input type="text" id="new-site-name" placeholder="名称 (如: 极速资源)" style="flex: 1.2;">
+            <input type="text" id="new-site-api" placeholder="接口 API (https://...)" style="flex: 2;">
+            <button type="button" class="btn-add-site" onclick="addNewCustomSite()">+ 添加</button>
+          </div>
+          <!-- 动态源列表 -->
+          <div id="sites-items-container"></div>
+        </div>
       </div>
 
       <div class="modal-actions">
@@ -462,7 +477,6 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
-    /* 片名归一化与版本提取算法（将国语版、粤语版、电影解说合并） */
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
       let str = String(rawName).trim();
@@ -471,9 +485,7 @@
       const tagRegex = /[\[\(\（\【\［\{]([^\]\)\）\】\］\}]+)[\]\)\）\】\］\}]/g;
       let match;
       const tags = [];
-      while ((match = tagRegex.exec(str)) !== null) {
-        tags.push(match[1]);
-      }
+      while ((match = tagRegex.exec(str)) !== null) tags.push(match[1]);
       if (tags.length > 0) version = tags.join(' ');
 
       let cleaned = str.replace(/[\[\(\（\【\［\{].*?[\]\)\）\】\］\}]/g, '').trim();
@@ -565,7 +577,7 @@
     }
 
     let parsedSites = [];
-    let disabledSites = []; // 禁用的源站列表
+    let disabledSites = [];
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
@@ -582,9 +594,6 @@
     let hls = null;
     let currentSearchAbortController = null;
     let renderFrameTimer = null;
-
-    // 核心防抖防闪烁缓存池
-    const domNodeCache = new Map();
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
@@ -1098,24 +1107,27 @@
       input.focus();
     }
 
-    /* 渲染视频采集源管理列表 */
+    /* 渲染视频采集源列表与操作按钮 */
     function renderSitesManagerList() {
-      const listEl = document.getElementById('sites-manager-list');
+      const container = document.getElementById('sites-items-container');
       document.getElementById('sites-count-badge').textContent = parsedSites.length;
 
       if (!parsedSites || parsedSites.length === 0) {
-        listEl.innerHTML = '<div style="padding:10px;text-align:center;color:#666;font-size:12px;">暂无解析到的视频源，请先同步订阅</div>';
+        container.innerHTML = '<div style="padding:10px;text-align:center;color:#666;font-size:12px;">暂无解析到的视频源，请先同步订阅或手动添加</div>';
         return;
       }
 
-      listEl.innerHTML = parsedSites.map((site) => {
+      container.innerHTML = parsedSites.map((site) => {
         const isDis = disabledSites.includes(site.name);
         return `
           <div class="site-toggle-row">
             <span class="site-toggle-name">🎬 ${escapeHtml(site.name)}</span>
-            <button class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
-              ${isDis ? '已禁用' : '已启用'}
-            </button>
+            <div class="site-actions-group">
+              <button class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
+                ${isDis ? '已禁用' : '已启用'}
+              </button>
+              <button class="btn-site-del" title="删除该源" onclick="deleteSite('${escapeHtml(site.name)}')">✕</button>
+            </div>
           </div>
         `;
       }).join('');
@@ -1134,6 +1146,44 @@
       if (idx >= 0) disabledSites.splice(idx, 1);
       else disabledSites.push(siteName);
 
+      await setD1Data(KEY_DISABLED_SITES, disabledSites);
+      renderSitesManagerList();
+    }
+
+    /* 手动添加新采集源 */
+    async function addNewCustomSite() {
+      const nameInput = document.getElementById('new-site-name');
+      const apiInput = document.getElementById('new-site-api');
+      const name = (nameInput.value || '').trim();
+      const api = (apiInput.value || '').trim();
+
+      if (!name || !api) {
+        alert('请完整填写源站名称和接口地址！');
+        return;
+      }
+      if (!isSafeUrl(api)) {
+        alert('接口地址不正确，必须以 http:// 或 https:// 开头！');
+        return;
+      }
+      if (parsedSites.some(s => s.name === name)) {
+        alert('已存在同名源站，请修改名称！');
+        return;
+      }
+
+      parsedSites.unshift({ name, api });
+      await setD1Data(KEY_SITES, parsedSites);
+      nameInput.value = '';
+      apiInput.value = '';
+      renderSitesManagerList();
+      alert(`已成功添加源站：${name}`);
+    }
+
+    /* 手动删除采集源 */
+    async function deleteSite(siteName) {
+      if (!confirm(`确定要移除采集源【${siteName}】吗？`)) return;
+      parsedSites = parsedSites.filter(s => s.name !== siteName);
+      disabledSites = disabledSites.filter(n => n !== siteName);
+      await setD1Data(KEY_SITES, parsedSites);
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
     }
@@ -1166,9 +1216,10 @@
       if (subUrl) await setD1Data(KEY_SUB, subUrl);
       await setD1Data(KEY_SYNC_INTERVAL, interval);
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
+      await setD1Data(KEY_SITES, parsedSites);
 
       closeSourceModal();
-      alert("配置与源站开关状态已保存到云数据库！");
+      alert("配置与源站设置已成功保存！");
     }
 
     async function manualSyncSubscription() {
@@ -1206,7 +1257,6 @@
       if (m3uUrl) {
         try {
           await initTv();
-          // 精准展示“X个频道 (共X个源)”
           msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
@@ -1353,11 +1403,17 @@
 
     async function probeStreamLatency(testUrl) {
       if (!isSafeUrl(testUrl)) return 9999;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2000);
       const t0 = performance.now();
       try {
-        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
-        return Math.round(performance.now() - t0);
-      } catch (_) { return 9999; }
+        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
+        clearTimeout(timer);
+        return Math.max(1, Math.round(performance.now() - t0));
+      } catch (_) {
+        clearTimeout(timer);
+        return 9999;
+      }
     }
 
     function scheduleRenderVodSources() {
@@ -1380,7 +1436,6 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 核心检索：启用源过滤、代表作扩展、防抖防闪更新 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1390,10 +1445,8 @@
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在智能检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
-      domNodeCache.clear(); // 新搜索清空节点缓存池
       const kw = keyword.toLowerCase().trim();
 
-      // 仅保留启用的源站
       const activeSites = parsedSites.filter(s => !disabledSites.includes(s.name));
       if (activeSites.length === 0) {
         container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">所有视频源均已被禁用，请在【订阅配置】中重新启用</div>`;
@@ -1486,7 +1539,6 @@
         return;
       }
 
-      // 排序加权
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1528,6 +1580,7 @@
       renderGroupedVodSources();
     }
 
+    /* 测速全面修复：多源+单源无遗漏、实时反馈与回退探测 */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
 
@@ -1541,30 +1594,52 @@
 
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
       if (activeGroup && activeGroup.items.length > 1) {
-        activeGroup.items.forEach(item => targetItemsToTest.push(item));
+        activeGroup.items.forEach(item => targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) }));
       }
 
       groupedVodList.forEach(group => {
         if (group.items.length === 1) {
-          targetItemsToTest.push(group.items[0]);
+          targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
         }
       });
 
-      if (targetItemsToTest.length > 0) {
-        await Promise.allSettled(targetItemsToTest.map(async (item) => {
-          const episodes = getEpisodesList(item);
-          const targetEp = episodes[currentActiveEp] || episodes[0];
-          const testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
-          item.ping = await probeStreamLatency(testUrl);
-        }));
-
-        if (activeGroup && activeGroup.items.length > 1) {
-          activeGroup.items.sort((a, b) => {
-            const pa = a.ping < 0 ? 9999 : a.ping;
-            const pb = b.ping < 0 ? 9999 : b.ping;
-            return pa - pb;
-          });
+      // 1. 立即将 UI 上所有的待测速徽章翻转为“测速中...”视觉状态
+      targetItemsToTest.forEach(({ item }) => {
+        const el = document.getElementById(`ping-badge-${item.id}`);
+        if (el) {
+          el.textContent = "测速中...";
+          el.className = "metric-ping-wait";
         }
+      });
+
+      // 2. 并发执行测速并进行即时节点内容刷新
+      await Promise.allSettled(targetItemsToTest.map(async ({ item, site }) => {
+        const episodes = getEpisodesList(item);
+        const targetEp = episodes[currentActiveEp] || episodes[0];
+        let testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
+
+        // 回退探测：若直链尚不可用，以采集源接口 API 作为速度探测依据
+        if (!isSafeUrl(testUrl)) {
+          testUrl = site?.api || '';
+        }
+
+        item.ping = await probeStreamLatency(testUrl);
+
+        const el = document.getElementById(`ping-badge-${item.id}`);
+        if (el) {
+          const isErr = item.ping >= 9999 || item.ping < 0;
+          el.textContent = isErr ? "超时" : `${item.ping}ms`;
+          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        }
+      }));
+
+      // 3. 内部按测速结果自排序
+      if (activeGroup && activeGroup.items.length > 1) {
+        activeGroup.items.sort((a, b) => {
+          const pa = a.ping < 0 ? 9999 : a.ping;
+          const pb = b.ping < 0 ? 9999 : b.ping;
+          return pa - pb;
+        });
       }
 
       renderGroupedVodSources();
@@ -1581,7 +1656,6 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
-    /* 优化重点：利用节点池复用 DOM，实现零白屏、零重载、零闪烁渲染 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -1609,7 +1683,7 @@
       `;
       frag.appendChild(headerBar);
 
-      // 1. 多源聚合卡片区（折叠）
+      // 1. 多源聚合卡片区
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1617,38 +1691,28 @@
         frag.appendChild(multiTag);
 
         multiGroups.forEach((group) => {
+          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const isCurrentActiveGroup = (group.title === activeGroupTitle);
-          let groupCard = domNodeCache.get(group.title);
 
-          // 若卡片已存在且不是单源卡片，直接复用以避免重新渲染海报图片
-          if (!groupCard || groupCard.classList.contains('single-source-card')) {
-            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-            groupCard = document.createElement('div');
-            groupCard.className = 'title-group-box';
-            groupCard.innerHTML = `
-              <div class="title-group-header">
-                <div class="group-header-left">
-                  <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                  <div class="group-info-wrap">
-                    <div class="group-main-title">${escapeHtml(group.title)}</div>
-                    <div class="group-meta-tag">
-                      <span>${escapeHtml(group.type || '影视')}</span>
-                      ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
-                      <span class="group-badge-count">${group.items.length} 个版本/源</span>
-                    </div>
+          const groupCard = document.createElement('div');
+          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
+
+          groupCard.innerHTML = `
+            <div class="title-group-header">
+              <div class="group-header-left">
+                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                <div class="group-info-wrap">
+                  <div class="group-main-title">${escapeHtml(group.title)}</div>
+                  <div class="group-meta-tag">
+                    <span>${escapeHtml(group.type || '影视')}</span>
+                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
+                    <span class="group-badge-count">${group.items.length} 个版本/源</span>
                   </div>
                 </div>
-                <div class="group-arrow">▶</div>
               </div>
-            `;
-            domNodeCache.set(group.title, groupCard);
-          } else {
-            // 已存在卡片只更新数字，不重新挂载 img
-            const badge = groupCard.querySelector('.group-badge-count');
-            if (badge) badge.textContent = `${group.items.length} 个版本/源`;
-          }
-
-          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
+              <div class="group-arrow">▶</div>
+            </div>
+          `;
 
           const headerEl = groupCard.querySelector('.title-group-header');
           headerEl.onclick = () => {
@@ -1666,10 +1730,6 @@
               startSpeedTest();
             }
           };
-
-          // 清理旧 body-panel 并重新绑定选集与源卡片
-          const oldPanel = groupCard.querySelector('.group-body-panel');
-          if (oldPanel) oldPanel.remove();
 
           if (isCurrentActiveGroup) {
             const bodyPanel = document.createElement('div');
@@ -1738,7 +1798,7 @@
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
                 </div>
                 <div class="card-status-bar">
-                  <span class="${pingClass}">${pingText}</span>
+                  <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
                 </div>
               `;
 
@@ -1769,47 +1829,37 @@
         singleGroups.forEach((group) => {
           const item = group.items[0];
           const isCurrentActive = (item.id === activeSubItemId);
-          let singleCard = domNodeCache.get(group.title);
-
-          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
-            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-            const q = parseQualityTag(item.vod.vod_remarks);
-            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-            singleCard = document.createElement('div');
-            singleCard.className = 'single-source-card';
-            singleCard.innerHTML = `
-              <div class="single-top-row">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap" style="flex:1;">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-
-            singleCard.querySelector('.single-top-row').onclick = () => {
-              activeGroupTitle = group.title;
-              activeSubItemId = item.id;
-              renderGroupedVodSources();
-              playCurrentVodSource(item, currentActiveEp);
-            };
-
-            domNodeCache.set(group.title, singleCard);
-          }
-
+          const singleCard = document.createElement('div');
           singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
 
-          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
-          if (oldCollapse) oldCollapse.remove();
+          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+          const q = parseQualityTag(item.vod.vod_remarks);
+          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+          singleCard.innerHTML = `
+            <div class="single-top-row">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap" style="flex:1;">
+                <div class="group-main-title">${escapeHtml(group.title)}</div>
+                <div class="group-meta-tag">
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                </div>
+              </div>
+            </div>
+          `;
+
+          singleCard.querySelector('.single-top-row').onclick = () => {
+            activeGroupTitle = group.title;
+            activeSubItemId = item.id;
+            renderGroupedVodSources();
+            playCurrentVodSource(item, currentActiveEp);
+          };
 
           if (isCurrentActive) {
             const episodes = getEpisodesList(item);
@@ -1860,7 +1910,6 @@
         });
       }
 
-      // 原子级单帧内存挂载，彻底杜绝闪屏
       container.replaceChildren(frag);
     }
 
@@ -1931,9 +1980,7 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => {
-          setStatus("", false);
-        });
+        }).catch(() => { setStatus("", false); });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1954,9 +2001,7 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => {
-            setStatus("", false);
-          });
+          }).catch(() => { setStatus("", false); });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
