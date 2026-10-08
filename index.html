@@ -10,9 +10,6 @@
   <title>拾光影视</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
   <style>
-    /* ============================================================
-       全局响应式动态主题变量系统
-    ============================================================ */
     :root {
       --bg-base: #0f0f0f;
       --bg-sidebar: #161616;
@@ -33,7 +30,6 @@
       --card-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
 
-    /* 白天浅色明亮主题变量 */
     body.theme-light {
       --bg-base: #f1f5f9;
       --bg-sidebar: #f8fafc;
@@ -57,7 +53,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: var(--bg-base); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; transition: background-color 0.25s, color 0.25s; }
 
-    /* 全屏极简登录门禁系统 */
     #auth-gate-screen {
       position: fixed; inset: 0; z-index: 9999999;
       display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -69,9 +64,7 @@
     }
 
     .gate-top-bar { position: absolute; top: 18px; right: 20px; }
-    .gate-theme-btn { 
-      background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; outline: none;
-    }
+    .gate-theme-btn { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; outline: none; }
 
     .gate-card {
       background: #ffffff; border-radius: 20px;
@@ -143,7 +136,6 @@
 
     .gate-error-tip { font-size: 12px; color: #ef4444; margin-top: 10px; display: none; text-align: center; }
 
-    /* 播放器区域 (保持纯黑以保证观影沉浸感) */
     #player-wrap { 
       width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; 
       flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default;
@@ -233,9 +225,6 @@
     .ext-btn { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: none; background: rgba(255,255,255,0.9); cursor: pointer; padding: 0; flex-shrink: 0; }
     .ext-btn svg { width: 14px; height: 14px; }
 
-    /* ============================================================
-       侧边栏与主操作区 (随主题动态变色)
-    ============================================================ */
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-sidebar); border-top: 1px solid var(--border-color); transition: background 0.25s, border-color 0.25s; }
     #search-box { padding: 10px 12px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: background 0.25s, border-color 0.25s; }
 
@@ -248,7 +237,6 @@
 
     .btn-search { background: var(--accent); border: none; color: #fff; border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
     
-    /* 主界面常驻快捷主题切换按钮 */
     .btn-quick-theme {
       background: var(--bg-input); border: 1px solid var(--border-light); border-radius: 6px;
       width: 35px; height: 34px; display: flex; align-items: center; justify-content: center;
@@ -615,7 +603,6 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 选项：主题外观设置 -->
       <label class="input-label">系统主题外观：</label>
       <select id="sys-theme-select" onchange="changeSystemTheme(this.value)">
         <option value="auto">自动调节 (跟随系统时间)</option>
@@ -646,7 +633,6 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <!-- 自定义多视频源分组管理体系 -->
       <div class="collapsible-setting-box">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
           <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
@@ -673,7 +659,6 @@
         </div>
       </div>
 
-      <!-- 视频采集源管理 & 手动添加源 -->
       <div class="collapsible-setting-box">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('sites-manager-body', 'sites-toggle-arrow')">
           <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
@@ -1431,7 +1416,6 @@
       input.focus();
     }
 
-    /* 眼睛图标渲染 (图 2 睁眼、图 3 斜杠闭眼) */
     const SVG_EYE_OPEN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
     const SVG_EYE_SLASH = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
 
@@ -1447,7 +1431,6 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    /* 全局双主题联动系统 (白天太阳/晚上月亮) */
     const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
@@ -1465,14 +1448,11 @@
         isDark = prefersDark || (hour >= 19 || hour < 6);
       }
 
-      // 核心联动：给整个 body 赋予 light 模式类，使主界面全部变色
       document.body.classList.toggle('theme-light', !isDark);
 
-      // 门禁界面同步变色
       const gateScreen = document.getElementById('auth-gate-screen');
       if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
 
-      // 刷新所有太阳/月亮按钮图标
       const gateThemeBtn = document.getElementById('gate-theme-toggle');
       if (gateThemeBtn) gateThemeBtn.innerHTML = isDark ? SVG_MOON : SVG_SUN;
 
@@ -2230,6 +2210,14 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
+    /* 敏感/成人特征源精准判定函数 */
+    function isNSFWSource(siteName) {
+      if (!siteName) return false;
+      const lower = siteName.toLowerCase();
+      const nsfwKeywords = ['🔞', '麻豆', '番号', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花', 'souv', '黄色', '成人', '福利', '色情'];
+      return nsfwKeywords.some(kw => lower.includes(kw));
+    }
+
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -2346,6 +2334,21 @@
         return;
       }
 
+      /* ==========================================================
+         核心排序规则优化：即使 🔞 源测速再快，也强制排在普通源后面
+      ========================================================== */
+      groupedVodList.forEach(group => {
+        group.items.sort((a, b) => {
+          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB; // 普通源在前，🔞 源在后
+
+          const pa = a.ping < 0 ? 9999 : a.ping;
+          const pb = b.ping < 0 ? 9999 : b.ping;
+          return pa - pb; // 同类源按测速排序
+        });
+      });
+
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -2434,8 +2437,13 @@
         }
       }));
 
+      // 测速完成后对展开组的子源进行二次安全排序：🔞 源强制置底
       if (activeGroup && activeGroup.items.length > 1) {
         activeGroup.items.sort((a, b) => {
+          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+
           const pa = a.ping < 0 ? 9999 : a.ping;
           const pb = b.ping < 0 ? 9999 : b.ping;
           return pa - pb;
@@ -2474,6 +2482,10 @@
       const singleGroups = groupedVodList.filter(g => g.items.length === 1);
 
       singleGroups.sort((a, b) => {
+        const isNsfwA = isNSFWSource(a.items[0].siteName) ? 1 : 0;
+        const isNsfwB = isNSFWSource(b.items[0].siteName) ? 1 : 0;
+        if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+
         const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
         const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
         return pa - pb;
@@ -2988,12 +3000,9 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    /* 系统安全启动：加载配置并全局同步黑白主题 */
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
       document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
-
-      renderGateEyeIcon(false);
 
       try {
         const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
@@ -3012,7 +3021,6 @@
         if (localTheme) currentThemeSetting = localTheme;
       } catch (_) {}
 
-      // 核心联动：立即将保存的主题同步应用到整个主网页和门禁！
       applyGlobalTheme(currentThemeSetting);
 
       if (!sourceGroups || sourceGroups.length === 0) {
