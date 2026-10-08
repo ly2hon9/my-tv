@@ -1416,12 +1416,8 @@
       input.focus();
     }
 
-    const SVG_EYE_OPEN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
-    const SVG_EYE_SLASH = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
-
-    function renderGateEyeIcon(isVisible) {
-      const btn = document.getElementById('gate-eye-toggle');
-      if (btn) btn.innerHTML = isVisible ? SVG_EYE_OPEN : SVG_EYE_SLASH;
+    function toggleGateTheme() {
+      document.getElementById('auth-gate-screen').classList.toggle('dark-theme');
     }
 
     function toggleGatePasswordVisibility() {
@@ -1429,54 +1425,6 @@
       const isVisible = (pwd.type === 'text');
       pwd.type = isVisible ? 'password' : 'text';
       renderGateEyeIcon(!isVisible);
-    }
-
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
-    const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
-
-    function applyGlobalTheme(themeMode) {
-      currentThemeSetting = themeMode;
-      let isDark = false;
-
-      if (themeMode === 'light') {
-        isDark = false;
-      } else if (themeMode === 'dark') {
-        isDark = true;
-      } else {
-        const hour = new Date().getHours();
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        isDark = prefersDark || (hour >= 19 || hour < 6);
-      }
-
-      document.body.classList.toggle('theme-light', !isDark);
-
-      const gateScreen = document.getElementById('auth-gate-screen');
-      if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
-
-      const gateThemeBtn = document.getElementById('gate-theme-toggle');
-      if (gateThemeBtn) gateThemeBtn.innerHTML = isDark ? SVG_MOON : SVG_SUN;
-
-      const mainThemeBtn = document.getElementById('main-quick-theme-btn');
-      if (mainThemeBtn) mainThemeBtn.innerHTML = isDark ? SVG_MOON : SVG_SUN;
-
-      const sel = document.getElementById('sys-theme-select');
-      if (sel) sel.value = themeMode;
-    }
-
-    function toggleGlobalThemeClick() {
-      const isCurrentlyDark = !document.body.classList.contains('theme-light');
-      const newMode = isCurrentlyDark ? 'light' : 'dark';
-      applyGlobalTheme(newMode);
-      localStorage.setItem(KEY_THEME_PREF, newMode);
-      setD1Data(KEY_THEME_PREF, newMode);
-      showGestureTip(newMode === 'light' ? "☀️ 已切至白天白色主题" : "🌙 已切至夜间黑色主题");
-    }
-
-    function changeSystemTheme(val) {
-      applyGlobalTheme(val);
-      localStorage.setItem(KEY_THEME_PREF, val);
-      setD1Data(KEY_THEME_PREF, val);
-      showGestureTip("✓ 主题外观已更新");
     }
 
     function showGateError(msg) {
@@ -2335,17 +2283,17 @@
       }
 
       /* ==========================================================
-         核心排序规则优化：即使 🔞 源测速再快，也强制排在普通源后面
+         核心排序规则加固：严格剥离 🔞 敏感源沉底，即使测速极快也绝不靠前
       ========================================================== */
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
           const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
-          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB; // 普通源在前，🔞 源在后
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
 
           const pa = a.ping < 0 ? 9999 : a.ping;
           const pb = b.ping < 0 ? 9999 : b.ping;
-          return pa - pb; // 同类源按测速排序
+          return pa - pb;
         });
       });
 
@@ -2437,7 +2385,6 @@
         }
       }));
 
-      // 测速完成后对展开组的子源进行二次安全排序：🔞 源强制置底
       if (activeGroup && activeGroup.items.length > 1) {
         activeGroup.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
