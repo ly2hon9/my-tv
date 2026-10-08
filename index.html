@@ -284,7 +284,6 @@
 
     <video id="video" playsinline webkit-playsinline></video>
 
-    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -523,7 +522,7 @@
     let isLiveMode = false;
     let hls = null;
     let currentSearchAbortController = null;
-    let renderFrameTimer = null; // 防抖渲染定时器
+    let renderFrameTimer = null;
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
@@ -1205,7 +1204,6 @@
       }
     }
 
-    // 单源超时压缩至 2200ms，快速熔断死源/慢源
     async function fetchWithSmartProxy(targetUrl, timeout = 2200, signal = null) {
       const fetchWithTimer = (url) => {
         const controller = new AbortController();
@@ -1245,7 +1243,6 @@
       } catch (_) { return 9999; }
     }
 
-    // 节流渲染调度器：避免 47 次网络返回造成高频 DOM 撕裂，保持 UI 丝滑
     function scheduleRenderVodSources() {
       if (renderFrameTimer) return;
       renderFrameTimer = setTimeout(() => {
@@ -1256,14 +1253,23 @@
       }, 250);
     }
 
-    /* 极速搜索：16 并发通道 + 2.2s 快速熔断 + 防抖批量渲染，彻底消除卡顿 */
+    /* 优化短剧与碰瓷过滤规则 */
+    function isJunkShortDrama(name, type) {
+      const n = (name || '').toLowerCase();
+      const t = (type || '').toLowerCase();
+      if (t.includes('短剧') || t.includes('爽剧') || t.includes('微短剧')) return true;
+      const junkKeywords = ['望子成龙', '望夫成龙', '弃子成龙', '翻身成龙', '看我护母成龙', '赘婿', '战神归来', '九十九天', '99天', '我竟是', '逆袭从'];
+      return junkKeywords.some(k => n.includes(k));
+    }
+
+    /* 极速全源搜索 + 短剧强力净化 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在极速检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
@@ -1272,12 +1278,16 @@
         if (!Array.isArray(dataList)) return;
         dataList.forEach((item, itemIdx) => {
           const vodName = (item.vod_name || '').trim();
+          const vodType = (item.type_name || '').trim();
           const vodActor = (item.vod_actor || '').trim();
           const lowerName = vodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
-          // 精准关联合格判定
+          // 核心拦截 1：片名和演员均不含关键词，直接剔除
           if (!lowerName.includes(kw) && !lowerActor.includes(kw)) return;
+
+          // 核心拦截 2：过滤“xx之望子成龙”等垃圾短剧
+          if (isJunkShortDrama(vodName, vodType)) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
           const itemResult = {
@@ -1292,7 +1302,7 @@
             group = {
               title: vodName,
               poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
-              type: item.type_name || '',
+              type: vodType,
               actor: vodActor,
               items: []
             };
@@ -1305,14 +1315,12 @@
         });
       };
 
-      // 47 个源仅做精准原词查询，杜绝请求翻倍
       await asyncPool(16, parsedSites, async (site) => {
         if (currentSignal.aborted) return;
         const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
         try {
           const res = await fetchWithSmartProxy(urlWd, 2200, currentSignal);
           processList(JSON.parse(res).list, site);
-          // 节流刷新上屏，保证手机滑动 60 帧丝滑
           scheduleRenderVodSources();
         } catch (_) {}
       });
@@ -1320,21 +1328,30 @@
       if (currentSignal.aborted) return;
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的正片影视</div>`;
         return;
       }
 
-      // 权重精准排序：完全同名优先，动画后置
+      // 精准电影排序：主演含该关键词或正牌电影直接置顶，动漫与历史片后移
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
         const bName = b.title.toLowerCase();
+        const aActor = (a.actor || '').toLowerCase();
+        const bActor = (b.actor || '').toLowerCase();
 
         if (aName === kw) scoreA += 100;
         if (bName === kw) scoreB += 100;
 
-        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 20;
-        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 20;
+        if (aActor.includes(kw)) scoreA += 60;
+        if (bActor.includes(kw)) scoreB += 60;
+
+        // 电影类型提权，动漫少儿降权
+        if ((a.type || '').includes('电影') || (a.type || '').includes('动作')) scoreA += 20;
+        if ((b.type || '').includes('电影') || (b.type || '').includes('动作')) scoreB += 20;
+
+        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 30;
+        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 30;
 
         scoreA += a.items.length * 2;
         scoreB += b.items.length * 2;
@@ -1717,9 +1734,7 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => {
-          setStatus("", false);
-        });
+        }).catch(() => { setStatus("", false); });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1740,9 +1755,7 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => {
-            setStatus("", false);
-          });
+          }).catch(() => { setStatus("", false); });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
