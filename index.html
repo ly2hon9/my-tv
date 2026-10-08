@@ -231,13 +231,26 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
+    /* 弹窗样式 */
     #modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
-    #source-modal { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); }
+    #source-modal { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
     #source-modal h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .input-label { font-size: 12px; color: #aaa; margin-top: 10px; margin-bottom: 4px; display: block; }
     #source-modal input, #source-modal select { width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
     .sub-stats { font-size: 12px; color: #0070f3; margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
+
+    /* 新增：视频采集源管理折叠区域样式 */
+    .sites-manager-box { margin-top: 12px; background: #141414; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
+    .sites-manager-header { padding: 9px 12px; font-size: 12px; color: #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #222; user-select: none; }
+    .sites-manager-header:hover { background: #282828; }
+    .sites-manager-list { max-height: 160px; overflow-y: auto; padding: 6px 10px; display: none; }
+    .site-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #222; font-size: 12px; }
+    .site-toggle-row:last-child { border-bottom: none; }
+    .site-toggle-name { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .btn-site-toggle { padding: 2px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
+    .btn-site-toggle.enabled { background: #238636; color: #fff; }
+    .btn-site-toggle.disabled { background: #444; color: #888; }
     
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .btn-action { padding: 8px 14px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
@@ -405,6 +418,15 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
+      <!-- 优化新增：已拉取视频源管理列表（默认折叠） -->
+      <div class="sites-manager-box">
+        <div class="sites-manager-header" onclick="toggleSitesListCollapse()">
+          <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
+          <span id="sites-toggle-arrow">▼ 展开</span>
+        </div>
+        <div id="sites-manager-list" class="sites-manager-list"></div>
+      </div>
+
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="closeSourceModal()">取消</button>
         <button class="btn-action btn-sync" id="btn-modal-sync" onclick="manualSyncSubscription()">🔄 同步更新源</button>
@@ -440,27 +462,22 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
-    /* 核心算法：提取片名主干与版本标签（实现国语、粤语、解说深度聚合） */
+    /* 片名归一化与版本提取算法（将国语版、粤语版、电影解说合并） */
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
       let str = String(rawName).trim();
       let version = "";
 
-      // 提取括号/标点内的版本特征词（解说、国粤语、画质）
       const tagRegex = /[\[\(\（\【\［\{]([^\]\)\）\】\］\}]+)[\]\)\）\】\］\}]/g;
       let match;
       const tags = [];
       while ((match = tagRegex.exec(str)) !== null) {
         tags.push(match[1]);
       }
-      if (tags.length > 0) {
-        version = tags.join(' ');
-      }
+      if (tags.length > 0) version = tags.join(' ');
 
-      // 剔除括号及其内部说明
       let cleaned = str.replace(/[\[\(\（\【\［\{].*?[\]\)\）\】\］\}]/g, '').trim();
 
-      // 剥离裸露在标题尾部的修饰词（如“新警察故事粤语版”、“A计划国语”）
       const suffixRegex = /(国语版|粤语版|普通话版|英语版|日语版|韩语版|电影解说|解说版|解说|国语|粤语|原声|双语|中字|双字|中英字幕|HD|BD|4K|1080P|720P|2160P|超清|高清|蓝光|抢先版|TC|TS)$/i;
       while (suffixRegex.test(cleaned)) {
         const found = cleaned.match(suffixRegex);
@@ -507,6 +524,7 @@
     const KEY_M3U = "custom_tv_m3u_url";
     const KEY_SUB = "custom_vod_sub_url";
     const KEY_SITES = "cached_parsed_sites";
+    const KEY_DISABLED_SITES = "disabled_sites_list";
     const KEY_HISTORY = "history_list_v2";
     const KEY_FAVS = "favorites_list_v2";
     const KEY_LAST_SYNC = "last_subscription_sync_time";
@@ -547,6 +565,7 @@
     }
 
     let parsedSites = [];
+    let disabledSites = []; // 禁用的源站列表
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
@@ -563,6 +582,9 @@
     let hls = null;
     let currentSearchAbortController = null;
     let renderFrameTimer = null;
+
+    // 核心防抖防闪烁缓存池
+    const domNodeCache = new Map();
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
@@ -699,7 +721,7 @@
         setStatus(`🎉 本集播放完毕，自动连播第 ${nextEpIdx + 1} 集...`, true);
         setTimeout(() => {
           currentActiveEp = nextEpIdx;
-          scheduleRenderVodSources();
+          renderGroupedVodSources();
           playCurrentVodSource(currentItem, nextEpIdx);
         }, 1500);
       }
@@ -811,7 +833,7 @@
       else if (view === 'history') renderHistoryView();
       else {
         if (currentMode === 'tv') renderList(groups, false);
-        else scheduleRenderVodSources();
+        else renderGroupedVodSources();
       }
     }
 
@@ -1076,6 +1098,46 @@
       input.focus();
     }
 
+    /* 渲染视频采集源管理列表 */
+    function renderSitesManagerList() {
+      const listEl = document.getElementById('sites-manager-list');
+      document.getElementById('sites-count-badge').textContent = parsedSites.length;
+
+      if (!parsedSites || parsedSites.length === 0) {
+        listEl.innerHTML = '<div style="padding:10px;text-align:center;color:#666;font-size:12px;">暂无解析到的视频源，请先同步订阅</div>';
+        return;
+      }
+
+      listEl.innerHTML = parsedSites.map((site) => {
+        const isDis = disabledSites.includes(site.name);
+        return `
+          <div class="site-toggle-row">
+            <span class="site-toggle-name">🎬 ${escapeHtml(site.name)}</span>
+            <button class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
+              ${isDis ? '已禁用' : '已启用'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleSitesListCollapse() {
+      const el = document.getElementById('sites-manager-list');
+      const arrow = document.getElementById('sites-toggle-arrow');
+      const isHide = el.style.display === 'none' || el.style.display === '';
+      el.style.display = isHide ? 'block' : 'none';
+      arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
+    }
+
+    async function toggleSiteStatus(siteName) {
+      const idx = disabledSites.indexOf(siteName);
+      if (idx >= 0) disabledSites.splice(idx, 1);
+      else disabledSites.push(siteName);
+
+      await setD1Data(KEY_DISABLED_SITES, disabledSites);
+      renderSitesManagerList();
+    }
+
     async function openSourceModal() {
       document.getElementById('sub-url-input').value = await getD1Data(KEY_SUB, '');
       document.getElementById('source-m3u-input').value = await getD1Data(KEY_M3U, '');
@@ -1086,6 +1148,10 @@
       const lastTime = await getD1Data(KEY_LAST_SYNC, '');
       document.getElementById('last-sync-time-label').textContent = lastTime ? `最后更新时间：${lastTime}` : '最后更新时间：从未更新';
       
+      const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
+      try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
+
+      renderSitesManagerList();
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -1099,9 +1165,10 @@
       if (m3uUrl) await setD1Data(KEY_M3U, m3uUrl);
       if (subUrl) await setD1Data(KEY_SUB, subUrl);
       await setD1Data(KEY_SYNC_INTERVAL, interval);
+      await setD1Data(KEY_DISABLED_SITES, disabledSites);
 
       closeSourceModal();
-      alert("配置与定时更新周期已保存到云数据库！");
+      alert("配置与源站开关状态已保存到云数据库！");
     }
 
     async function manualSyncSubscription() {
@@ -1131,6 +1198,7 @@
             parsedSites = sites;
             await setD1Data(KEY_SITES, JSON.stringify(parsedSites));
             msg.push(`影视源已更新: ${sites.length} 个`);
+            renderSitesManagerList();
           } else msg.push(`影视源解析为空`);
         } catch (e) { msg.push(`影视源更新失败: ${e.message}`); }
       }
@@ -1138,7 +1206,8 @@
       if (m3uUrl) {
         try {
           await initTv();
-          msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 条线路)`);
+          // 精准展示“X个频道 (共X个源)”
+          msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
@@ -1291,7 +1360,6 @@
       } catch (_) { return 9999; }
     }
 
-    /* 优化点一：防抖渲染，消除频繁重绘引发的屏幕闪烁 */
     function scheduleRenderVodSources() {
       if (renderFrameTimer) return;
       renderFrameTimer = setTimeout(() => {
@@ -1312,7 +1380,7 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 核心检索：合并同名版本，支持国语、粤语、解说深度归拢 */
+    /* 核心检索：启用源过滤、代表作扩展、防抖防闪更新 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1322,7 +1390,15 @@
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在智能检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
+      domNodeCache.clear(); // 新搜索清空节点缓存池
       const kw = keyword.toLowerCase().trim();
+
+      // 仅保留启用的源站
+      const activeSites = parsedSites.filter(s => !disabledSites.includes(s.name));
+      if (activeSites.length === 0) {
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">所有视频源均已被禁用，请在【订阅配置】中重新启用</div>`;
+        return;
+      }
 
       let starClassics = [];
       for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
@@ -1333,13 +1409,13 @@
       }
 
       const searchTasks = [];
-      parsedSites.forEach(site => {
+      activeSites.forEach(site => {
         searchTasks.push({ site, term: keyword });
       });
 
       if (starClassics.length > 0) {
         starClassics.slice(0, 4).forEach(film => {
-          parsedSites.slice(0, 16).forEach(site => {
+          activeSites.slice(0, 16).forEach(site => {
             searchTasks.push({ site, term: film });
           });
         });
@@ -1362,7 +1438,6 @@
           
           if (!isRelevant) return;
 
-          // 核心：解析出主干片名与版本说明（如新警察故事、粤语版）
           const parsed = parseTitleAndVersion(rawVodName);
           const canonicalTitle = parsed.canonical;
           const versionTag = parsed.version;
@@ -1376,7 +1451,6 @@
             ping: -1
           };
 
-          // 统一归类到纯净的主干片名大组里
           let group = groupedVodList.find(g => g.title === canonicalTitle);
           if (!group) {
             group = {
@@ -1412,7 +1486,7 @@
         return;
       }
 
-      // 深度加权排序：经典电影置顶，短剧大幅沉底
+      // 排序加权
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1507,7 +1581,7 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
-    /* 优化点二：采用 DocumentFragment + replaceChildren 实现无白屏原子级瞬间更新（彻底杜绝闪烁） */
+    /* 优化重点：利用节点池复用 DOM，实现零白屏、零重载、零闪烁渲染 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -1535,7 +1609,7 @@
       `;
       frag.appendChild(headerBar);
 
-      // 1. 多源聚合卡片区（同名版本折叠）
+      // 1. 多源聚合卡片区（折叠）
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1543,28 +1617,38 @@
         frag.appendChild(multiTag);
 
         multiGroups.forEach((group) => {
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const isCurrentActiveGroup = (group.title === activeGroupTitle);
+          let groupCard = domNodeCache.get(group.title);
 
-          const groupCard = document.createElement('div');
-          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
-
-          groupCard.innerHTML = `
-            <div class="title-group-header">
-              <div class="group-header-left">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span>${escapeHtml(group.type || '影视')}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span class="group-badge-count">${group.items.length} 个版本/源</span>
+          // 若卡片已存在且不是单源卡片，直接复用以避免重新渲染海报图片
+          if (!groupCard || groupCard.classList.contains('single-source-card')) {
+            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+            groupCard = document.createElement('div');
+            groupCard.className = 'title-group-box';
+            groupCard.innerHTML = `
+              <div class="title-group-header">
+                <div class="group-header-left">
+                  <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                  <div class="group-info-wrap">
+                    <div class="group-main-title">${escapeHtml(group.title)}</div>
+                    <div class="group-meta-tag">
+                      <span>${escapeHtml(group.type || '影视')}</span>
+                      ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
+                      <span class="group-badge-count">${group.items.length} 个版本/源</span>
+                    </div>
                   </div>
                 </div>
+                <div class="group-arrow">▶</div>
               </div>
-              <div class="group-arrow">▶</div>
-            </div>
-          `;
+            `;
+            domNodeCache.set(group.title, groupCard);
+          } else {
+            // 已存在卡片只更新数字，不重新挂载 img
+            const badge = groupCard.querySelector('.group-badge-count');
+            if (badge) badge.textContent = `${group.items.length} 个版本/源`;
+          }
+
+          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
 
           const headerEl = groupCard.querySelector('.title-group-header');
           headerEl.onclick = () => {
@@ -1582,6 +1666,10 @@
               startSpeedTest();
             }
           };
+
+          // 清理旧 body-panel 并重新绑定选集与源卡片
+          const oldPanel = groupCard.querySelector('.group-body-panel');
+          if (oldPanel) oldPanel.remove();
 
           if (isCurrentActiveGroup) {
             const bodyPanel = document.createElement('div');
@@ -1639,7 +1727,6 @@
               subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
               
               const q = parseQualityTag(item.vod.vod_remarks);
-              // 展示版本标记（如：暴风资源 · 粤语版）
               const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
               let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
@@ -1682,37 +1769,47 @@
         singleGroups.forEach((group) => {
           const item = group.items[0];
           const isCurrentActive = (item.id === activeSubItemId);
-          const singleCard = document.createElement('div');
-          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+          let singleCard = domNodeCache.get(group.title);
 
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-          const q = parseQualityTag(item.vod.vod_remarks);
-          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
+            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+            const q = parseQualityTag(item.vod.vod_remarks);
+            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
-          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
-          singleCard.innerHTML = `
-            <div class="single-top-row">
-              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-              <div class="group-info-wrap" style="flex:1;">
-                <div class="group-main-title">${escapeHtml(group.title)}</div>
-                <div class="group-meta-tag">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                  <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+            singleCard = document.createElement('div');
+            singleCard.className = 'single-source-card';
+            singleCard.innerHTML = `
+              <div class="single-top-row">
+                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                <div class="group-info-wrap" style="flex:1;">
+                  <div class="group-main-title">${escapeHtml(group.title)}</div>
+                  <div class="group-meta-tag">
+                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                    <span class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          `;
+            `;
 
-          singleCard.querySelector('.single-top-row').onclick = () => {
-            activeGroupTitle = group.title;
-            activeSubItemId = item.id;
-            renderGroupedVodSources();
-            playCurrentVodSource(item, currentActiveEp);
-          };
+            singleCard.querySelector('.single-top-row').onclick = () => {
+              activeGroupTitle = group.title;
+              activeSubItemId = item.id;
+              renderGroupedVodSources();
+              playCurrentVodSource(item, currentActiveEp);
+            };
+
+            domNodeCache.set(group.title, singleCard);
+          }
+
+          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+
+          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
+          if (oldCollapse) oldCollapse.remove();
 
           if (isCurrentActive) {
             const episodes = getEpisodesList(item);
@@ -1763,7 +1860,7 @@
         });
       }
 
-      // 原子级单帧替换，杜绝白屏闪烁
+      // 原子级单帧内存挂载，彻底杜绝闪屏
       container.replaceChildren(frag);
     }
 
@@ -2030,6 +2127,10 @@
           if (Array.isArray(parsed) && parsed.length > 0) parsedSites = parsed;
         } catch (_) {}
       }
+
+      const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
+      try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
+
       initTv();
       switchMode('vod');
       checkAutoSyncSchedule();
