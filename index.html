@@ -120,13 +120,20 @@
     
     .btn-tool-mid { 
       flex: 1; background: #2b2b2b; border: 1px solid #444; color: #eee; border-radius: 6px; 
-      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center; }
+      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center;
+    }
     .btn-tool-mid:hover { background: #383838; }
     .btn-tool-mid.active { background: #0070f3; border-color: #0070f3; color: #fff; }
     
     .btn-source-mgr { 
       flex: 1; background: #2b2b2b; border: 1px solid #444; color: #eee; border-radius: 6px; 
-      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center; }
+      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center;
+    }
+
+    .btn-user-entry {
+      background: #2b2b2b; border: 1px solid #444; color: #4ade80; border-radius: 6px;
+      padding: 7px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
 
     .mode-tab-group { display: flex; gap: 6px; }
     .mode-tab { flex: 1; padding: 6px 0; background: #252525; border: 1px solid #383838; color: #999; font-size: 12px; border-radius: 4px; cursor: pointer; text-align: center; }
@@ -230,33 +237,30 @@
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
     /* 弹窗样式 */
-    #modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
-    #source-modal { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
-    #source-modal h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    #modal-mask, #auth-modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .custom-modal-content { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
+    .custom-modal-content h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .input-label { font-size: 12px; color: #aaa; margin-top: 10px; margin-bottom: 4px; display: block; }
-    #source-modal input, #source-modal select { width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
+    .custom-modal-content input, .custom-modal-content select { width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 13px; outline: none; }
     .sub-stats { font-size: 12px; color: #0070f3; margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
 
-    /* 视频采集源管理 & 手动添加 */
-    .sites-manager-box { margin-top: 14px; background: #141414; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
-    .sites-manager-header { padding: 10px 12px; font-size: 12px; color: #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #222; user-select: none; }
-    .sites-manager-header:hover { background: #282828; }
-    .sites-manager-list { max-height: 220px; overflow-y: auto; padding: 10px; display: none; }
-    
-    .add-site-form { display: flex; gap: 6px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #282828; }
-    .add-site-form input { padding: 6px 8px !important; font-size: 11px !important; background: #1a1a1a !important; border: 1px solid #444 !important; border-radius: 4px !important; color: #fff !important; }
-    .btn-add-site { background: #0070f3; color: #fff; border: none; border-radius: 4px; padding: 0 10px; font-size: 11px; cursor: pointer; white-space: nowrap; font-weight: 500; }
-    
-    .site-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #202020; font-size: 12px; }
+    /* 折叠管理卡片样式 */
+    .collapsible-setting-box { margin-top: 12px; background: #141414; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+    .collapsible-setting-header { padding: 10px 12px; font-size: 12px; color: #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #222; user-select: none; }
+    .collapsible-setting-header:hover { background: #282828; }
+    .collapsible-setting-body { padding: 10px; display: none; }
+
+    .site-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #202020; font-size: 12px; }
     .site-toggle-row:last-child { border-bottom: none; }
-    .site-toggle-name { color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
-    .site-actions-group { display: flex; align-items: center; gap: 6px; }
     .btn-site-toggle { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
     .btn-site-toggle.enabled { background: #238636; color: #fff; }
     .btn-site-toggle.disabled { background: #3f3f3f; color: #888; }
-    .btn-site-del { background: none; border: none; color: #888; font-size: 13px; cursor: pointer; padding: 2px 4px; }
-    .btn-site-del:hover { color: #f87171; }
+    .btn-danger-del { background: none; border: none; color: #888; font-size: 13px; cursor: pointer; padding: 2px 4px; }
+    .btn-danger-del:hover { color: #f87171; }
+
+    .auth-switch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #202020; border-radius: 6px; margin-top: 10px; font-size: 13px; }
+    .toggle-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #0070f3; }
     
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .btn-action { padding: 8px 14px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
@@ -303,7 +307,6 @@
 
     <video id="video" playsinline webkit-playsinline></video>
 
-    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -387,7 +390,10 @@
       <div class="search-row-secondary">
         <button class="btn-tool-mid" id="btn-show-fav" onclick="switchSidebarView('fav')">⭐ 我的收藏</button>
         <button class="btn-tool-mid" id="btn-show-history" onclick="switchSidebarView('history')">🕒 播放历史</button>
-        <button class="btn-source-mgr" onclick="openSourceModal()">⚙ 订阅配置</button>
+        <!-- 功能 1：改名为“设置” -->
+        <button class="btn-source-mgr" id="btn-open-settings" onclick="openSourceModal()">⚙ 设置</button>
+        <!-- 账号入口按钮 -->
+        <button class="btn-user-entry" id="btn-user-entry" onclick="openAuthModal()">👤 登录</button>
       </div>
 
       <div class="mode-tab-group">
@@ -396,17 +402,25 @@
       </div>
     </div>
     <div id="channel-list">
-      <div style="padding: 24px; color: #888; text-align: center;">正在同步资源列表...</div>
+      <div style="padding: 24px; color: #888; text-align: center;">在上方输入关键词搜索 🔍</div>
     </div>
   </div>
 
-  <!-- 订阅配置弹窗 -->
+  <!-- 设置弹窗 -->
   <div id="modal-mask">
-    <div id="source-modal">
+    <div id="source-modal" class="custom-modal-content">
       <h3>
-        <span>订阅与配置 (云数据库存储)</span>
+        <span>⚙ 系统设置与数据管理</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
+
+      <!-- 功能 4：主账户登录免密直达开关 -->
+      <div class="auth-switch-row">
+        <span>🔒 强制账号登录验证访问</span>
+        <input type="checkbox" id="auth-require-toggle" class="toggle-checkbox" onchange="toggleRequireLoginSwitch(this.checked)">
+      </div>
+      <div style="font-size: 11px; color: #777; margin-top: 4px; margin-bottom: 8px;">开启后访客必须输入账号密码登录；关闭后可免密直接打开网页观影。</div>
+
       <label class="input-label">影视订阅地址：</label>
       <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
       <div class="sub-stats">数据将永久安全保存在云数据库中</div>
@@ -424,20 +438,34 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
+      <!-- 功能 3：账号管理与源分组权限面板（默认折叠） -->
+      <div class="collapsible-setting-box">
+        <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
+          <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
+          <span id="accounts-toggle-arrow">▼ 展开</span>
+        </div>
+        <div id="accounts-manager-body" class="collapsible-setting-body">
+          <div style="display:flex; gap:6px; margin-bottom:8px;">
+            <input type="text" id="new-user-name" placeholder="账号名" style="flex:1; padding:6px !important; font-size:11px !important;">
+            <input type="password" id="new-user-pass" placeholder="密码" style="flex:1; padding:6px !important; font-size:11px !important;">
+            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="adminAddNewUser()">+ 添加</button>
+          </div>
+          <div id="users-items-container"></div>
+        </div>
+      </div>
+
       <!-- 视频采集源管理 & 手动添加源 -->
-      <div class="sites-manager-box">
-        <div class="sites-manager-header" onclick="toggleSitesListCollapse()">
+      <div class="collapsible-setting-box">
+        <div class="collapsible-setting-header" onclick="toggleCollapseSection('sites-manager-body', 'sites-toggle-arrow')">
           <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
           <span id="sites-toggle-arrow">▼ 展开</span>
         </div>
-        <div id="sites-manager-list" class="sites-manager-list">
-          <!-- 手动添加源输入框 -->
-          <div class="add-site-form">
-            <input type="text" id="new-site-name" placeholder="名称 (如: 极速资源)" style="flex: 1.2;">
-            <input type="text" id="new-site-api" placeholder="接口 API (https://...)" style="flex: 2;">
-            <button type="button" class="btn-add-site" onclick="addNewCustomSite()">+ 添加</button>
+        <div id="sites-manager-body" class="collapsible-setting-body">
+          <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <input type="text" id="new-site-name" placeholder="源站名称 (如: 极速资源)" style="flex:1.2; padding:6px !important; font-size:11px !important;">
+            <input type="text" id="new-site-api" placeholder="接口 API (https://...)" style="flex:2; padding:6px !important; font-size:11px !important;">
+            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="addNewCustomSite()">+ 添加</button>
           </div>
-          <!-- 动态源列表 -->
           <div id="sites-items-container"></div>
         </div>
       </div>
@@ -450,15 +478,37 @@
     </div>
   </div>
 
+  <!-- 功能 2：登录与注册弹窗 -->
+  <div id="auth-modal-mask">
+    <div id="auth-modal" class="custom-modal-content" style="max-width: 380px;">
+      <h3 style="margin-bottom: 16px;">
+        <span id="auth-modal-title">🔐 用户登录</span>
+        <span id="btn-close-auth" style="font-size:14px;color:#888;cursor:pointer;" onclick="closeAuthModal()">✕</span>
+      </h3>
+
+      <div id="auth-msg-box" style="display:none; font-size:12px; color:#f87171; margin-bottom:10px;"></div>
+
+      <label class="input-label">账号：</label>
+      <input type="text" id="auth-username" placeholder="请输入账号名">
+
+      <label class="input-label">密码：</label>
+      <input type="password" id="auth-password" placeholder="请输入密码">
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+        <span id="btn-switch-auth-mode" style="font-size:12px; color:#0070f3; cursor:pointer;" onclick="switchAuthMode()">没有账号？点击注册新账号</span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn-action btn-cancel" id="btn-auth-cancel" onclick="closeAuthModal()">取消</button>
+        <button class="btn-action btn-save" id="btn-auth-submit" onclick="submitAuthForm()">立即登录</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function escapeHtml(str) {
       if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function isSafeUrl(url) {
@@ -489,7 +539,6 @@
       if (tags.length > 0) version = tags.join(' ');
 
       let cleaned = str.replace(/[\[\(\（\【\［\{].*?[\]\)\）\】\］\}]/g, '').trim();
-
       const suffixRegex = /(国语版|粤语版|普通话版|英语版|日语版|韩语版|电影解说|解说版|解说|国语|粤语|原声|双语|中字|双字|中英字幕|HD|BD|4K|1080P|720P|2160P|超清|高清|蓝光|抢先版|TC|TS)$/i;
       while (suffixRegex.test(cleaned)) {
         const found = cleaned.match(suffixRegex);
@@ -498,13 +547,9 @@
           cleaned = cleaned.replace(suffixRegex, '').trim();
         }
       }
-
       cleaned = cleaned.replace(/[\s\:\：\-\_\·]+$/, '').trim();
 
-      return {
-        canonical: cleaned || rawName,
-        version: version.trim()
-      };
+      return { canonical: cleaned || rawName, version: version.trim() };
     }
 
     async function getD1Data(key, defaultVal = '') {
@@ -541,6 +586,11 @@
     const KEY_FAVS = "favorites_list_v2";
     const KEY_LAST_SYNC = "last_subscription_sync_time";
     const KEY_SYNC_INTERVAL = "subscription_sync_interval";
+
+    // 账号权限相关 D1 存储键
+    const KEY_AUTH_CONFIG = "sys_auth_config_v1";
+    const KEY_USERS_LIST = "sys_users_list_v1";
+    const KEY_CURRENT_USER = "local_current_session_user";
 
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     const B58_MAP = {};
@@ -594,6 +644,18 @@
     let hls = null;
     let currentSearchAbortController = null;
     let renderFrameTimer = null;
+
+    // 搜索状态锁，保证检索提示绝不误闪退
+    let isSearchingActive = false;
+    let currentSearchingWord = "";
+
+    // 账号与权限状态
+    let authConfig = { requireLogin: false, adminUser: "admin", adminPass: "admin888" };
+    let userList = [];
+    let currentUser = null; // { username, role: 'admin' | 'user', allowedSites: [] }
+    let authModalMode = 'login'; // 'login' 或 'register'
+
+    const domNodeCache = new Map();
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
@@ -1107,7 +1169,206 @@
       input.focus();
     }
 
-    /* 渲染视频采集源列表与操作按钮 */
+    /* =======================================
+       功能 2 & 3 & 4：账号体系、权限与设置
+    ======================================= */
+    function toggleCollapseSection(bodyId, arrowId) {
+      const el = document.getElementById(bodyId);
+      const arrow = document.getElementById(arrowId);
+      const isHide = el.style.display === 'none' || el.style.display === '';
+      el.style.display = isHide ? 'block' : 'none';
+      arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
+    }
+
+    function updateCurrentUserUI() {
+      const userBtn = document.getElementById('btn-user-entry');
+      const settingsBtn = document.getElementById('btn-open-settings');
+
+      if (currentUser) {
+        userBtn.textContent = `👤 ${currentUser.username} (${currentUser.role === 'admin' ? '主账户' : '成员'})`;
+        userBtn.style.color = currentUser.role === 'admin' ? '#facc15' : '#4ade80';
+
+        // 功能 2 严格保证：普通注册账号无权更改设置，隐藏设置按钮
+        if (currentUser.role === 'admin') {
+          settingsBtn.style.display = 'block';
+        } else {
+          settingsBtn.style.display = 'none';
+        }
+      } else {
+        userBtn.textContent = "👤 登录";
+        userBtn.style.color = '#4ade80';
+        // 未登录时，如果未强制登录，保留管理员可点击设置按钮（打开时会校验密码）
+        settingsBtn.style.display = 'block';
+      }
+    }
+
+    function openAuthModal(mode = 'login') {
+      authModalMode = mode;
+      document.getElementById('auth-modal-title').textContent = mode === 'login' ? '🔐 用户登录' : '📝 注册新账号';
+      document.getElementById('btn-auth-submit').textContent = mode === 'login' ? '立即登录' : '立即注册';
+      document.getElementById('btn-switch-auth-mode').textContent = mode === 'login' ? '没有账号？点击注册新账号' : '已有账号？返回登录界面';
+      document.getElementById('auth-username').value = '';
+      document.getElementById('auth-password').value = '';
+      document.getElementById('auth-msg-box').style.display = 'none';
+
+      // 若处于强制登录状态且未登录，禁止关闭
+      const forceLogin = authConfig.requireLogin && !currentUser;
+      document.getElementById('btn-close-auth').style.display = forceLogin ? 'none' : 'block';
+      document.getElementById('btn-auth-cancel').style.display = forceLogin ? 'none' : 'block';
+
+      document.getElementById('auth-modal-mask').style.display = 'flex';
+    }
+
+    function closeAuthModal() {
+      if (authConfig.requireLogin && !currentUser) {
+        alert("系统已开启强制登录，请输入账号密码登录后使用！");
+        return;
+      }
+      document.getElementById('auth-modal-mask').style.display = 'none';
+    }
+
+    function switchAuthMode() {
+      openAuthModal(authModalMode === 'login' ? 'register' : 'login');
+    }
+
+    async function submitAuthForm() {
+      const u = (document.getElementById('auth-username').value || '').trim();
+      const p = (document.getElementById('auth-password').value || '').trim();
+      const msgBox = document.getElementById('auth-msg-box');
+
+      if (!u || !p) {
+        msgBox.textContent = "请完整输入账号与密码！";
+        msgBox.style.display = 'block';
+        return;
+      }
+
+      if (authModalMode === 'login') {
+        // 校验主账户
+        if (u === authConfig.adminUser && p === authConfig.adminPass) {
+          currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
+        } else {
+          // 校验普通成员账号
+          const found = userList.find(item => item.username === u && item.password === p);
+          if (found) {
+            currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || ['*'] };
+          } else {
+            msgBox.textContent = "账号或密码错误！";
+            msgBox.style.display = 'block';
+            return;
+          }
+        }
+        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
+        updateCurrentUserUI();
+        document.getElementById('auth-modal-mask').style.display = 'none';
+        alert(`欢迎回来，${currentUser.username}！`);
+      } else {
+        // 注册新账号（注册账号默认为普通角色，只可用不可改）
+        if (u === authConfig.adminUser || userList.some(item => item.username === u)) {
+          msgBox.textContent = "该账号名已存在，请更换其他名字！";
+          msgBox.style.display = 'block';
+          return;
+        }
+
+        const newUser = { username: u, password: p, allowedSites: ['*'] };
+        userList.push(newUser);
+        await setD1Data(KEY_USERS_LIST, userList);
+
+        currentUser = { username: u, role: 'user', allowedSites: ['*'] };
+        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
+        updateCurrentUserUI();
+        document.getElementById('auth-modal-mask').style.display = 'none';
+        alert(`注册成功！已为您登录：${u}（普通账号拥有完整观影权限）`);
+      }
+    }
+
+    function logoutUser() {
+      if (!confirm("确定退出当前登录状态吗？")) return;
+      currentUser = null;
+      localStorage.removeItem(KEY_CURRENT_USER);
+      updateCurrentUserUI();
+      if (authConfig.requireLogin) {
+        openAuthModal('login');
+      } else {
+        alert("已成功退出登录！");
+      }
+    }
+
+    // 渲染管理面板中的用户列表
+    function renderUsersManagerList() {
+      const container = document.getElementById('users-items-container');
+      document.getElementById('user-count-badge').textContent = userList.length;
+
+      if (!userList || userList.length === 0) {
+        container.innerHTML = '<div style="padding:8px 0; text-align:center; color:#666; font-size:12px;">暂无注册成员账号</div>';
+        return;
+      }
+
+      container.innerHTML = userList.map((user, idx) => {
+        return `
+          <div class="site-toggle-row">
+            <div>
+              <span style="color:#ddd; font-weight:500;">👤 ${escapeHtml(user.username)}</span>
+              <span style="font-size:10px; color:#888; margin-left:6px;">(权限: ${user.allowedSites && user.allowedSites[0] !== '*' ? user.allowedSites.length + ' 个分组源' : '全部可用源'})</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button type="button" class="btn-action btn-cancel" style="padding:2px 6px; font-size:10px;" onclick="configureUserSourceGroup(${idx})">⚙ 权限</button>
+              <button type="button" class="btn-danger-del" title="删除账号" onclick="deleteUserAccount(${idx})">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function adminAddNewUser() {
+      const u = (document.getElementById('new-user-name').value || '').trim();
+      const p = (document.getElementById('new-user-pass').value || '').trim();
+      if (!u || !p) { alert("请填写账号与密码！"); return; }
+      if (u === authConfig.adminUser || userList.some(item => item.username === u)) {
+        alert("账号已存在！");
+        return;
+      }
+      userList.push({ username: u, password: p, allowedSites: ['*'] });
+      await setD1Data(KEY_USERS_LIST, userList);
+      document.getElementById('new-user-name').value = '';
+      document.getElementById('new-user-pass').value = '';
+      renderUsersManagerList();
+      alert(`已成功创建账号：${u}`);
+    }
+
+    async function deleteUserAccount(idx) {
+      const target = userList[idx];
+      if (!confirm(`确定删除账号【${target.username}】吗？`)) return;
+      userList.splice(idx, 1);
+      await setD1Data(KEY_USERS_LIST, userList);
+      renderUsersManagerList();
+    }
+
+    // 功能 3：自定义源分组权限配置
+    async function configureUserSourceGroup(idx) {
+      const user = userList[idx];
+      const currentAllowed = user.allowedSites || ['*'];
+      const isAll = currentAllowed[0] === '*';
+      const promptText = `请为【${user.username}】配置可访问的源（输入 * 表示允许全部；或输入源站名称，多个用逗号隔开）\n当前全部可用源: ${parsedSites.map(s => s.name).join('、')}`;
+      const input = prompt(promptText, isAll ? '*' : currentAllowed.join(','));
+      if (input === null) return;
+      
+      const trimmed = input.trim();
+      if (trimmed === '*' || trimmed === '') {
+        user.allowedSites = ['*'];
+      } else {
+        user.allowedSites = trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      }
+      await setD1Data(KEY_USERS_LIST, userList);
+      renderUsersManagerList();
+      alert(`已成功更新【${user.username}】的源访问权限！`);
+    }
+
+    // 功能 4：主账户开关控制
+    async function toggleRequireLoginSwitch(checked) {
+      authConfig.requireLogin = checked;
+      await setD1Data(KEY_AUTH_CONFIG, authConfig);
+    }
+
     function renderSitesManagerList() {
       const container = document.getElementById('sites-items-container');
       document.getElementById('sites-count-badge').textContent = parsedSites.length;
@@ -1121,24 +1382,16 @@
         const isDis = disabledSites.includes(site.name);
         return `
           <div class="site-toggle-row">
-            <span class="site-toggle-name">🎬 ${escapeHtml(site.name)}</span>
-            <div class="site-actions-group">
-              <button class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
+            <span style="color:#ccc; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">🎬 ${escapeHtml(site.name)}</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
                 ${isDis ? '已禁用' : '已启用'}
               </button>
-              <button class="btn-site-del" title="删除该源" onclick="deleteSite('${escapeHtml(site.name)}')">✕</button>
+              <button type="button" class="btn-danger-del" title="删除该源" onclick="deleteSite('${escapeHtml(site.name)}')">✕</button>
             </div>
           </div>
         `;
       }).join('');
-    }
-
-    function toggleSitesListCollapse() {
-      const el = document.getElementById('sites-manager-list');
-      const arrow = document.getElementById('sites-toggle-arrow');
-      const isHide = el.style.display === 'none' || el.style.display === '';
-      el.style.display = isHide ? 'block' : 'none';
-      arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
     }
 
     async function toggleSiteStatus(siteName) {
@@ -1150,25 +1403,15 @@
       renderSitesManagerList();
     }
 
-    /* 手动添加新采集源 */
     async function addNewCustomSite() {
       const nameInput = document.getElementById('new-site-name');
       const apiInput = document.getElementById('new-site-api');
       const name = (nameInput.value || '').trim();
       const api = (apiInput.value || '').trim();
 
-      if (!name || !api) {
-        alert('请完整填写源站名称和接口地址！');
-        return;
-      }
-      if (!isSafeUrl(api)) {
-        alert('接口地址不正确，必须以 http:// 或 https:// 开头！');
-        return;
-      }
-      if (parsedSites.some(s => s.name === name)) {
-        alert('已存在同名源站，请修改名称！');
-        return;
-      }
+      if (!name || !api) { alert('请完整填写源站名称和接口地址！'); return; }
+      if (!isSafeUrl(api)) { alert('接口地址不正确，必须以 http:// 或 https:// 开头！'); return; }
+      if (parsedSites.some(s => s.name === name)) { alert('已存在同名源站，请修改名称！'); return; }
 
       parsedSites.unshift({ name, api });
       await setD1Data(KEY_SITES, parsedSites);
@@ -1178,7 +1421,6 @@
       alert(`已成功添加源站：${name}`);
     }
 
-    /* 手动删除采集源 */
     async function deleteSite(siteName) {
       if (!confirm(`确定要移除采集源【${siteName}】吗？`)) return;
       parsedSites = parsedSites.filter(s => s.name !== siteName);
@@ -1189,18 +1431,32 @@
     }
 
     async function openSourceModal() {
+      // 若当前登录者是普通用户，坚决不允许修改设置
+      if (currentUser && currentUser.role !== 'admin') {
+        alert("权限不足：普通账号仅具备观影权限，无法修改系统设置！");
+        return;
+      }
+      // 若未登录主账户且开启了需要权限，先验证管理员身份
+      if (!currentUser || currentUser.role !== 'admin') {
+        const pass = prompt("该操作需要主账户权限，请输入主账户密码：");
+        if (pass !== authConfig.adminPass) {
+          alert("密码错误，无法进入设置！");
+          return;
+        }
+        currentUser = { username: authConfig.adminUser, role: 'admin', allowedSites: ['*'] };
+        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
+        updateCurrentUserUI();
+      }
+
       document.getElementById('sub-url-input').value = await getD1Data(KEY_SUB, '');
       document.getElementById('source-m3u-input').value = await getD1Data(KEY_M3U, '');
-      
-      const savedInterval = await getD1Data(KEY_SYNC_INTERVAL, '0');
-      document.getElementById('auto-sync-interval').value = savedInterval;
+      document.getElementById('auto-sync-interval').value = await getD1Data(KEY_SYNC_INTERVAL, '0');
+      document.getElementById('auth-require-toggle').checked = !!authConfig.requireLogin;
 
       const lastTime = await getD1Data(KEY_LAST_SYNC, '');
       document.getElementById('last-sync-time-label').textContent = lastTime ? `最后更新时间：${lastTime}` : '最后更新时间：从未更新';
       
-      const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
-      try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
-
+      renderUsersManagerList();
       renderSitesManagerList();
       document.getElementById('modal-mask').style.display = 'flex';
     }
@@ -1217,9 +1473,11 @@
       await setD1Data(KEY_SYNC_INTERVAL, interval);
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       await setD1Data(KEY_SITES, parsedSites);
+      await setD1Data(KEY_AUTH_CONFIG, authConfig);
+      await setD1Data(KEY_USERS_LIST, userList);
 
       closeSourceModal();
-      alert("配置与源站设置已成功保存！");
+      alert("全部系统设置与账号权限配置已成功保存至云数据库！");
     }
 
     async function manualSyncSubscription() {
@@ -1280,7 +1538,6 @@
         await triggerSilentSync();
         return;
       }
-
       const lastTime = new Date(lastTimeStr).getTime();
       const now = Date.now();
       const diffHours = (now - lastTime) / (1000 * 60 * 60);
@@ -1423,7 +1680,7 @@
         if (currentView === 'normal' && currentMode === 'vod') {
           renderGroupedVodSources();
         }
-      }, 350);
+      }, 300);
     }
 
     const STAR_WORKS_MAP = {
@@ -1436,20 +1693,31 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
+    /* 功能 5 核心修复：解决检索提示闪退消失的问题，全流程保持状态可见 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
+      isSearchingActive = true;
+      currentSearchingWord = keyword;
+
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在智能检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 28px 16px; color: #0070f3; text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
       
       groupedVodList = [];
+      domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
-      const activeSites = parsedSites.filter(s => !disabledSites.includes(s.name));
-      if (activeSites.length === 0) {
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">所有视频源均已被禁用，请在【订阅配置】中重新启用</div>`;
+      // 根据用户账号权限过滤可用源
+      let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
+      if (currentUser && currentUser.allowedSites && currentUser.allowedSites[0] !== '*') {
+        availableSites = availableSites.filter(s => currentUser.allowedSites.includes(s.name));
+      }
+
+      if (availableSites.length === 0) {
+        isSearchingActive = false;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">当前账号没有可用的视频源，请联系主账户分配权限</div>`;
         return;
       }
 
@@ -1462,13 +1730,13 @@
       }
 
       const searchTasks = [];
-      activeSites.forEach(site => {
+      availableSites.forEach(site => {
         searchTasks.push({ site, term: keyword });
       });
 
       if (starClassics.length > 0) {
         starClassics.slice(0, 4).forEach(film => {
-          activeSites.slice(0, 16).forEach(site => {
+          availableSites.slice(0, 16).forEach(site => {
             searchTasks.push({ site, term: film });
           });
         });
@@ -1533,12 +1801,14 @@
       });
 
       if (currentSignal.aborted) return;
+      isSearchingActive = false; // 检索全部完成
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
         container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
         return;
       }
 
+      // 排序加权
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1580,7 +1850,6 @@
       renderGroupedVodSources();
     }
 
-    /* 测速全面修复：多源+单源无遗漏、实时反馈与回退探测 */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
 
@@ -1603,7 +1872,6 @@
         }
       });
 
-      // 1. 立即将 UI 上所有的待测速徽章翻转为“测速中...”视觉状态
       targetItemsToTest.forEach(({ item }) => {
         const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
@@ -1612,13 +1880,11 @@
         }
       });
 
-      // 2. 并发执行测速并进行即时节点内容刷新
       await Promise.allSettled(targetItemsToTest.map(async ({ item, site }) => {
         const episodes = getEpisodesList(item);
         const targetEp = episodes[currentActiveEp] || episodes[0];
         let testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
 
-        // 回退探测：若直链尚不可用，以采集源接口 API 作为速度探测依据
         if (!isSafeUrl(testUrl)) {
           testUrl = site?.api || '';
         }
@@ -1633,7 +1899,6 @@
         }
       }));
 
-      // 3. 内部按测速结果自排序
       if (activeGroup && activeGroup.items.length > 1) {
         activeGroup.items.sort((a, b) => {
           const pa = a.ping < 0 ? 9999 : a.ping;
@@ -1656,11 +1921,16 @@
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
+    /* 优化重点：防止在加载过程中误显“输入关键词”，保持状态平稳更新 */
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
       if (!groupedVodList?.length) {
-        container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入关键词搜索</div>`;
+        if (isSearchingActive) {
+          container.innerHTML = `<div style="padding: 28px 16px; color: #0070f3; text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(currentSearchingWord)}》中，请稍候...</div>`;
+        } else {
+          container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
+        }
         return;
       }
 
@@ -1677,8 +1947,9 @@
 
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
+      const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
       headerBar.innerHTML = `
-        <span class="sources-header-title">搜索结果 <span>(${multiGroups.length} 组聚合 / ${singleGroups.length} 个单源)</span></span>
+        <span class="sources-header-title">搜索结果 <span>(${multiGroups.length} 组聚合 / ${singleGroups.length} 个单源)${searchStatusText}</span></span>
         <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       frag.appendChild(headerBar);
@@ -1691,28 +1962,36 @@
         frag.appendChild(multiTag);
 
         multiGroups.forEach((group) => {
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           const isCurrentActiveGroup = (group.title === activeGroupTitle);
+          let groupCard = domNodeCache.get(group.title);
 
-          const groupCard = document.createElement('div');
-          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
-
-          groupCard.innerHTML = `
-            <div class="title-group-header">
-              <div class="group-header-left">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span>${escapeHtml(group.type || '影视')}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span class="group-badge-count">${group.items.length} 个版本/源</span>
+          if (!groupCard || groupCard.classList.contains('single-source-card')) {
+            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+            groupCard = document.createElement('div');
+            groupCard.className = 'title-group-box';
+            groupCard.innerHTML = `
+              <div class="title-group-header">
+                <div class="group-header-left">
+                  <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                  <div class="group-info-wrap">
+                    <div class="group-main-title">${escapeHtml(group.title)}</div>
+                    <div class="group-meta-tag">
+                      <span>${escapeHtml(group.type || '影视')}</span>
+                      ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
+                      <span class="group-badge-count">${group.items.length} 个版本/源</span>
+                    </div>
                   </div>
                 </div>
+                <div class="group-arrow">▶</div>
               </div>
-              <div class="group-arrow">▶</div>
-            </div>
-          `;
+            `;
+            domNodeCache.set(group.title, groupCard);
+          } else {
+            const badge = groupCard.querySelector('.group-badge-count');
+            if (badge) badge.textContent = `${group.items.length} 个版本/源`;
+          }
+
+          groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
 
           const headerEl = groupCard.querySelector('.title-group-header');
           headerEl.onclick = () => {
@@ -1730,6 +2009,9 @@
               startSpeedTest();
             }
           };
+
+          const oldPanel = groupCard.querySelector('.group-body-panel');
+          if (oldPanel) oldPanel.remove();
 
           if (isCurrentActiveGroup) {
             const bodyPanel = document.createElement('div');
@@ -1829,37 +2111,47 @@
         singleGroups.forEach((group) => {
           const item = group.items[0];
           const isCurrentActive = (item.id === activeSubItemId);
-          const singleCard = document.createElement('div');
-          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+          let singleCard = domNodeCache.get(group.title);
 
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-          const q = parseQualityTag(item.vod.vod_remarks);
-          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
+            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+            const q = parseQualityTag(item.vod.vod_remarks);
+            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
-          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
-          singleCard.innerHTML = `
-            <div class="single-top-row">
-              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-              <div class="group-info-wrap" style="flex:1;">
-                <div class="group-main-title">${escapeHtml(group.title)}</div>
-                <div class="group-meta-tag">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+            singleCard = document.createElement('div');
+            singleCard.className = 'single-source-card';
+            singleCard.innerHTML = `
+              <div class="single-top-row">
+                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                <div class="group-info-wrap" style="flex:1;">
+                  <div class="group-main-title">${escapeHtml(group.title)}</div>
+                  <div class="group-meta-tag">
+                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                    <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          `;
+            `;
 
-          singleCard.querySelector('.single-top-row').onclick = () => {
-            activeGroupTitle = group.title;
-            activeSubItemId = item.id;
-            renderGroupedVodSources();
-            playCurrentVodSource(item, currentActiveEp);
-          };
+            singleCard.querySelector('.single-top-row').onclick = () => {
+              activeGroupTitle = group.title;
+              activeSubItemId = item.id;
+              renderGroupedVodSources();
+              playCurrentVodSource(item, currentActiveEp);
+            };
+
+            domNodeCache.set(group.title, singleCard);
+          }
+
+          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+
+          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
+          if (oldCollapse) oldCollapse.remove();
 
           if (isCurrentActive) {
             const episodes = getEpisodesList(item);
@@ -2164,7 +2456,9 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
+    // 初始化系统：装载设置、权限与验证登录开关
     window.addEventListener('DOMContentLoaded', async () => {
+      // 1. 读取基础配置与视频源
       const cachedSites = await getD1Data(KEY_SITES, null);
       if (cachedSites) {
         try {
@@ -2175,6 +2469,29 @@
 
       const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
       try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
+
+      // 2. 读取账号与登录开关
+      const authCfgStr = await getD1Data(KEY_AUTH_CONFIG, '');
+      if (authCfgStr) {
+        try { authConfig = JSON.parse(authCfgStr); } catch (_) {}
+      }
+
+      const usersStr = await getD1Data(KEY_USERS_LIST, '');
+      if (usersStr) {
+        try { userList = JSON.parse(usersStr); } catch (_) {}
+      }
+
+      const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
+      if (localUserStr) {
+        try { currentUser = JSON.parse(localUserStr); } catch (_) {}
+      }
+
+      updateCurrentUserUI();
+
+      // 功能 4：若开启了强制登录开关且当前未登录，弹出登录弹窗拦截
+      if (authConfig.requireLogin && !currentUser) {
+        openAuthModal('login');
+      }
 
       initTv();
       switchMode('vod');
