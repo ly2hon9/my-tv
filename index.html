@@ -284,6 +284,7 @@
 
     <video id="video" playsinline webkit-playsinline></video>
 
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -358,7 +359,6 @@
     <div id="search-box">
       <div class="search-row-primary">
         <div class="search-input-wrap">
-          <!-- 优化点一：去除成龙、三上悠亚等具体人名提示，改为极简统一占位符 -->
           <input type="text" id="filter" placeholder="搜索片名、视频、电视频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
           <span class="btn-clear-kw" id="clear-kw" onclick="clearSearchInput()">✕</span>
         </div>
@@ -381,7 +381,6 @@
     </div>
   </div>
 
-  <!-- 订阅配置弹窗 -->
   <div id="modal-mask">
     <div id="source-modal">
       <h3>
@@ -512,8 +511,8 @@
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
-    let totalChannelsCount = 0; // 独立频道数量
-    let totalStreamsCount = 0;  // 实际所有直播流总数
+    let totalChannelsCount = 0;
+    let totalStreamsCount = 0;
     let currentStreamUrl = "";
     
     let groupedVodList = [];
@@ -524,6 +523,7 @@
     let isLiveMode = false;
     let hls = null;
     let currentSearchAbortController = null;
+    let renderFrameTimer = null; // 防抖渲染定时器
 
     let isDraggingProgress = false;
     let dragTargetTime = 0;
@@ -660,7 +660,7 @@
         setStatus(`🎉 本集播放完毕，自动连播第 ${nextEpIdx + 1} 集...`, true);
         setTimeout(() => {
           currentActiveEp = nextEpIdx;
-          renderGroupedVodSources();
+          scheduleRenderVodSources();
           playCurrentVodSource(currentItem, nextEpIdx);
         }, 1500);
       }
@@ -772,7 +772,7 @@
       else if (view === 'history') renderHistoryView();
       else {
         if (currentMode === 'tv') renderList(groups, false);
-        else renderGroupedVodSources();
+        else scheduleRenderVodSources();
       }
     }
 
@@ -1074,10 +1074,10 @@
       let msg = [];
       if (subUrl) {
         try {
-          let text = await fetchWithSmartProxy(subUrl, 6000);
+          let text = await fetchWithSmartProxy(subUrl, 5000);
           let sites = parseSubscriptionPayload(text);
           if (sites.length === 0 && subUrl.includes('format=2')) {
-            text = await fetchWithSmartProxy(subUrl.replace('format=2', 'format=1'), 6000);
+            text = await fetchWithSmartProxy(subUrl.replace('format=2', 'format=1'), 5000);
             sites = parseSubscriptionPayload(text);
           }
           if (sites.length > 0) {
@@ -1091,7 +1091,6 @@
       if (m3uUrl) {
         try {
           await initTv();
-          // 优化点二：按照要求展示“X个频道 (共X条线路)”格式
           msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 条线路)`);
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
@@ -1129,7 +1128,7 @@
       const subUrl = await getD1Data(KEY_SUB, '');
       if (!subUrl) return;
       try {
-        let text = await fetchWithSmartProxy(subUrl, 6000);
+        let text = await fetchWithSmartProxy(subUrl, 5000);
         let sites = parseSubscriptionPayload(text);
         if (sites.length > 0) {
           parsedSites = sites;
@@ -1182,7 +1181,7 @@
         renderList(groups, false);
       } else {
         filterInput.placeholder = "搜索片名、视频、电视频道...";
-        if (groupedVodList.length > 0) renderGroupedVodSources();
+        if (groupedVodList.length > 0) scheduleRenderVodSources();
         else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
       }
     }
@@ -1206,7 +1205,8 @@
       }
     }
 
-    async function fetchWithSmartProxy(targetUrl, timeout = 3200, signal = null) {
+    // 单源超时压缩至 2200ms，快速熔断死源/慢源
+    async function fetchWithSmartProxy(targetUrl, timeout = 2200, signal = null) {
       const fetchWithTimer = (url) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeout);
@@ -1245,34 +1245,28 @@
       } catch (_) { return 9999; }
     }
 
-    const STAR_CLASSICS_MAP = {
-      '成龙': ['警察故事', '醉拳', 'A计划', '神话', '十二生肖', '宝贝计划', '快餐车', '新警察故事', '尖峰时刻', '飞鹰计划', '红番区'],
-      '周星驰': ['功夫', '大话西游', '少林足球', '喜剧之王', '唐伯虎点秋香', '九品芝麻官', '国产凌凌漆', '逃学威龙', '食神'],
-      '李连杰': ['黄飞鸿', '精武英雄', '方世玉', '太极张三丰', '中南海保镖', '霍元甲', '英雄', '龙门飞甲'],
-      '刘德华': ['无间道', '天下无贼', '暗战', '拆弹专家', '投名状', '门徒', '天若有情'],
-      '甄子丹': ['叶问', '杀破狼', '导火线', '武侠', '追龙', '怒火·重案'],
-      '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双']
-    };
+    // 节流渲染调度器：避免 47 次网络返回造成高频 DOM 撕裂，保持 UI 丝滑
+    function scheduleRenderVodSources() {
+      if (renderFrameTimer) return;
+      renderFrameTimer = setTimeout(() => {
+        renderFrameTimer = null;
+        if (currentView === 'normal' && currentMode === 'vod') {
+          renderGroupedVodSources();
+        }
+      }, 250);
+    }
 
+    /* 极速搜索：16 并发通道 + 2.2s 快速熔断 + 防抖批量渲染，彻底消除卡顿 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在极速检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
-
-      const searchTerms = [keyword];
-      for (const [star, classics] of Object.entries(STAR_CLASSICS_MAP)) {
-        if (kw.includes(star) || star.includes(kw)) {
-          classics.slice(0, 4).forEach(film => {
-            if (!searchTerms.includes(film)) searchTerms.push(film);
-          });
-        }
-      }
 
       const processList = (dataList, site) => {
         if (!Array.isArray(dataList)) return;
@@ -1282,12 +1276,8 @@
           const lowerName = vodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
-          const isRelated = searchTerms.some(term => {
-            const t = term.toLowerCase();
-            return lowerName.includes(t) || lowerActor.includes(t);
-          }) || lowerName.includes(kw) || lowerActor.includes(kw);
-
-          if (!isRelated) return;
+          // 精准关联合格判定
+          if (!lowerName.includes(kw) && !lowerActor.includes(kw)) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
           const itemResult = {
@@ -1315,20 +1305,15 @@
         });
       };
 
-      const queryTasks = [];
-      searchTerms.forEach(term => {
-        parsedSites.forEach(site => {
-          queryTasks.push({ site, term });
-        });
-      });
-
-      await asyncPool(12, queryTasks, async ({ site, term }) => {
+      // 47 个源仅做精准原词查询，杜绝请求翻倍
+      await asyncPool(16, parsedSites, async (site) => {
         if (currentSignal.aborted) return;
-        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
+        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
         try {
-          const res = await fetchWithSmartProxy(urlWd, 3500, currentSignal);
+          const res = await fetchWithSmartProxy(urlWd, 2200, currentSignal);
           processList(JSON.parse(res).list, site);
-          if (currentView === 'normal') renderGroupedVodSources();
+          // 节流刷新上屏，保证手机滑动 60 帧丝滑
+          scheduleRenderVodSources();
         } catch (_) {}
       });
 
@@ -1339,21 +1324,17 @@
         return;
       }
 
+      // 权重精准排序：完全同名优先，动画后置
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
         const bName = b.title.toLowerCase();
-        const aActor = (a.actor || '').toLowerCase();
-        const bActor = (b.actor || '').toLowerCase();
 
         if (aName === kw) scoreA += 100;
         if (bName === kw) scoreB += 100;
 
-        if (aActor.includes(kw)) scoreA += 50;
-        if (bActor.includes(kw)) scoreB += 50;
-
-        if (searchTerms.includes(a.title)) scoreA += 40;
-        if (searchTerms.includes(b.title)) scoreB += 40;
+        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 20;
+        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 20;
 
         scoreA += a.items.length * 2;
         scoreB += b.items.length * 2;
@@ -1443,6 +1424,7 @@
       `;
       container.appendChild(headerBar);
 
+      // 1. 多源聚合卡片区
       if (multiGroups.length > 0) {
         const multiTag = document.createElement('div');
         multiTag.className = 'section-divider-tag';
@@ -1577,6 +1559,7 @@
         });
       }
 
+      // 2. 单源平铺卡片区
       if (singleGroups.length > 0) {
         const singleTag = document.createElement('div');
         singleTag.className = 'section-divider-tag';
@@ -1734,7 +1717,9 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => { setStatus("", false); });
+        }).catch(() => {
+          setStatus("", false);
+        });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1755,7 +1740,9 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => { setStatus("", false); });
+          }).catch(() => {
+            setStatus("", false);
+          });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
@@ -1814,11 +1801,11 @@
             if (!groups[temp.group]) groups[temp.group] = {};
             if (!groups[temp.group][temp.name]) {
               groups[temp.group][temp.name] = [];
-              totalChannelsCount++; // 统计独立频道数
+              totalChannelsCount++;
             }
             if (!groups[temp.group][temp.name].includes(line)) {
               groups[temp.group][temp.name].push(line);
-              totalStreamsCount++; // 统计所有直播流线路数
+              totalStreamsCount++;
             }
           }
           temp = null;
