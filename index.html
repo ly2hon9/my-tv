@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f0f0f">
-  <title>拾光影院</title>
+  <title>拾光影视</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -16,7 +16,7 @@
     /* 全屏极简登录门禁系统 */
     #auth-gate-screen {
       position: fixed; inset: 0; z-index: 9999999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
       background: linear-gradient(180deg, #edf5f8 0%, #f4f7f6 45%, #fcfdfc 100%);
       transition: background 0.3s ease;
     }
@@ -31,7 +31,7 @@
     .gate-card {
       background: #ffffff; border-radius: 20px;
       box-shadow: 0 16px 40px rgba(0,0,0,0.06);
-      width: 86%; max-width: 320px; padding: 30px 24px;
+      width: 86%; max-width: 320px; padding: 32px 24px 28px 24px;
       box-sizing: border-box; text-align: center;
       transition: background 0.3s, box-shadow 0.3s;
     }
@@ -39,11 +39,12 @@
       background: #1e2126; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
     }
 
+    /* 标题定制：统一为“拾光影视” */
     .gate-logo {
-      font-size: 26px; font-weight: 800; color: #54a56a;
-      letter-spacing: 2px; margin-bottom: 6px; font-family: -apple-system, sans-serif;
+      font-size: 23px; font-weight: 800; color: #54a56a;
+      letter-spacing: 3px; margin-bottom: 22px; font-family: -apple-system, sans-serif;
     }
-    .gate-sub-tip { font-size: 11px; color: #888; margin-bottom: 20px; }
+    .gate-sub-tip { font-size: 11px; color: #888; margin-top: -14px; margin-bottom: 18px; display: none; }
 
     .gate-input-box {
       display: flex; align-items: center; background: #f7f8fa;
@@ -119,7 +120,7 @@
 
     #status-layer { 
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 8; 
-      color: #fff; background: rgba(25, 25, 25, 0.9); backdrop-filter: blur(12px); 
+      color: #fff; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); 
       border: 1px solid rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 12px; 
       font-size: 13px; pointer-events: none; display: none; text-align: center; max-width: 85%; 
       box-shadow: 0 10px 30px rgba(0,0,0,0.6); line-height: 1.6;
@@ -334,7 +335,6 @@
     .btn-sync { background: #238636; color: #fff; }
     .btn-save { background: #0070f3; color: #fff; }
 
-    /* 视频源权限勾选网格 */
     .perm-sites-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 8px; max-height: 240px; overflow-y: auto; margin-top: 10px; padding: 6px 0;
@@ -345,7 +345,6 @@
     }
     .perm-site-chip input { width: 14px; height: 14px; accent-color: #0070f3; }
 
-    /* 分组管理卡片 */
     .group-card-item {
       display: flex; justify-content: space-between; align-items: center;
       background: #181b20; border: 1px solid #282f38; border-radius: 6px;
@@ -373,14 +372,14 @@
 </head>
 <body>
 
-  <!-- 全屏门禁系统 -->
+  <!-- 全屏门禁系统 (标题统一为“拾光影视”) -->
   <div id="auth-gate-screen">
     <div class="gate-top-bar">
       <button type="button" id="gate-theme-toggle" class="gate-theme-btn" onclick="toggleGateTheme()" title="切换明暗模式">🌙</button>
     </div>
     <div class="gate-card">
-      <div class="gate-logo">TV</div>
-      <div id="gate-sub-tip" class="gate-sub-tip">拾光影视系统</div>
+      <div class="gate-logo">拾光影视</div>
+      <div id="gate-sub-tip" class="gate-sub-tip"></div>
       
       <div class="gate-input-box">
         <span class="gate-input-icon">👤</span>
@@ -576,14 +575,13 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <!-- 自定义多视频源分组管理体系 (新增 + 按钮与多组支持) -->
+      <!-- 自定义多视频源分组管理体系 -->
       <div class="collapsible-setting-box">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
           <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
           <span id="accounts-toggle-arrow">▼ 展开</span>
         </div>
         <div id="accounts-manager-body" class="collapsible-setting-body">
-          
           <div style="background: #1c1f24; border: 1px solid #2d343f; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <div>
@@ -592,7 +590,6 @@
               </div>
               <button type="button" class="btn-small-perm" style="font-size: 12px; font-weight: bold; padding: 3px 10px;" onclick="promptAddSourceGroup()" title="添加新分组">＋ 添加分组</button>
             </div>
-            <!-- 分组卡片列表容器 -->
             <div id="source-groups-list-container"></div>
           </div>
 
@@ -679,7 +676,7 @@
       return t.startsWith('http://') || t.startsWith('https://');
     }
 
-    /* 原生 Web Crypto 安全哈希散列引擎 (禁止明文密码流转) */
+    /* 原生 Web Crypto 安全哈希散列引擎 */
     async function hashPassword(str) {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -755,11 +752,10 @@
     const KEY_LAST_SYNC = "last_subscription_sync_time";
     const KEY_SYNC_INTERVAL = "subscription_sync_interval";
 
-    /* 账号认证与自定义源分组 D1 专用键 */
     const KEY_ADMIN_INFO = "sys_admin_credentials_v2";
     const KEY_AUTH_CONFIG = "sys_auth_config_v2";
     const KEY_USERS_LIST = "sys_users_list_v2";
-    const KEY_SOURCE_GROUPS = "sys_source_groups_v3"; // 多视频源分组存储
+    const KEY_SOURCE_GROUPS = "sys_source_groups_v3";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
 
@@ -819,11 +815,11 @@
     let isSearchingActive = false;
     let currentSearchingWord = "";
 
-    /* 账号与自定义分组状态 */
+    /* 账号与自定义分组状态：默认不强制门禁，随心开关 */
     let adminAccount = null;
-    let authConfig = { requireLogin: true };
+    let authConfig = { requireLogin: false };
     let userList = [];
-    let sourceGroups = []; // [{ id, name, sites: ['*'], isDefault: true }]
+    let sourceGroups = [];
     let currentUser = null;
     let gateAuthMode = 'login';
     let currentEditingGroupId = null;
@@ -1426,7 +1422,6 @@
           return;
         }
 
-        // 新注册用户自动绑定默认分组
         const defaultGroup = sourceGroups.find(g => g.isDefault) || sourceGroups[0] || { id: 'def', name: '默认分组' };
         const newUser = { username: u, passHash: passHash, groupId: defaultGroup.id, groupName: defaultGroup.name };
         userList.push(newUser);
@@ -1451,9 +1446,17 @@
       document.getElementById('gate-username').value = '';
       document.getElementById('gate-password').value = '';
       checkGateInputsReady();
-      document.getElementById('auth-gate-screen').style.display = 'flex';
+      
+      // 只有开启了门禁时退出才显示门禁界面；门禁关闭时退出后直接保持主页
+      if (authConfig.requireLogin) {
+        document.getElementById('auth-gate-screen').style.display = 'flex';
+      } else {
+        document.getElementById('auth-gate-screen').style.display = 'none';
+        alert("已退出当前账号");
+      }
     }
 
+    /* 角色切换与个人账户交互 */
     function updateMainRoleButton() {
       const btn = document.getElementById('btn-open-settings');
       if (currentUser && currentUser.role === 'user') {
@@ -1548,7 +1551,7 @@
       }).join('');
     }
 
-    /* 添加新源分组功能 (响应加号按钮) */
+    /* 添加新源分组功能 */
     async function promptAddSourceGroup() {
       const name = prompt("请输入新视频源分组的名称（例如: VIP极速组、精选动漫组）：");
       if (!name || !name.trim()) return;
@@ -1586,7 +1589,6 @@
       sourceGroups = sourceGroups.filter(item => item.id !== groupId);
       const defaultGroup = sourceGroups.find(item => item.isDefault) || sourceGroups[0];
       
-      // 更新原属于该组的成员
       userList.forEach(u => {
         if (u.groupId === groupId) {
           u.groupId = defaultGroup.id;
@@ -1781,11 +1783,25 @@
         openUserAccountModal();
         return;
       }
-      if (!currentUser || currentUser.role !== 'admin') {
+      
+      // 未登录时，如果 D1 尚未设置过管理员，引导初始化
+      if (!adminAccount) {
+        const u = prompt("系统首次配置，请设定主管理员账号：", "admin");
+        if (!u) return;
+        const p = prompt("请设定主管理员密码：");
+        if (!p) return;
+        const passHash = await hashPassword(p);
+        adminAccount = { username: u.trim(), passHash: passHash };
+        await setD1Data(KEY_ADMIN_INFO, adminAccount);
+        currentUser = { username: u.trim(), role: 'admin', allowedSites: ['*'] };
+        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
+        updateMainRoleButton();
+        alert("主管理员设置成功！");
+      } else if (!currentUser || currentUser.role !== 'admin') {
         const pass = prompt("该面板包含核心设置，请输入主管理员密码进行解锁：");
         if (!pass) return;
         const passHash = await hashPassword(pass);
-        if (!adminAccount || passHash !== adminAccount.passHash) {
+        if (passHash !== adminAccount.passHash) {
           alert("密码错误，无法打开设置面板！");
           return;
         }
@@ -1794,6 +1810,7 @@
         updateMainRoleButton();
       }
 
+      document.getElementById('settings-username-label').textContent = currentUser.username;
       document.getElementById('sub-url-input').value = await getD1Data(KEY_SUB, '');
       document.getElementById('source-m3u-input').value = await getD1Data(KEY_M3U, '');
       document.getElementById('auto-sync-interval').value = await getD1Data(KEY_SYNC_INTERVAL, '0');
@@ -2041,7 +2058,6 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
-    /* 核心检索：严格按用户所属视频源分组过滤 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -2057,7 +2073,7 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
-      // 获取当前用户所属的源分组列表
+      // 根据用户权限过滤可用源
       let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
       if (currentUser && currentUser.role !== 'admin') {
         const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
@@ -2458,37 +2474,47 @@
         singleGroups.forEach((group) => {
           const item = group.items[0];
           const isCurrentActive = (item.id === activeSubItemId);
-          const singleCard = document.createElement('div');
-          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+          let singleCard = domNodeCache.get(group.title);
 
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-          const q = parseQualityTag(item.vod.vod_remarks);
-          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
+            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+            const q = parseQualityTag(item.vod.vod_remarks);
+            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
-          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
-          singleCard.innerHTML = `
-            <div class="single-top-row">
-              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-              <div class="group-info-wrap" style="flex:1;">
-                <div class="group-main-title">${escapeHtml(group.title)}</div>
-                <div class="group-meta-tag">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+            singleCard = document.createElement('div');
+            singleCard.className = 'single-source-card';
+            singleCard.innerHTML = `
+              <div class="single-top-row">
+                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+                <div class="group-info-wrap" style="flex:1;">
+                  <div class="group-main-title">${escapeHtml(group.title)}</div>
+                  <div class="group-meta-tag">
+                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                    <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          `;
+            `;
 
-          singleCard.querySelector('.single-top-row').onclick = () => {
-            activeGroupTitle = group.title;
-            activeSubItemId = item.id;
-            renderGroupedVodSources();
-            playCurrentVodSource(item, currentActiveEp);
-          };
+            singleCard.querySelector('.single-top-row').onclick = () => {
+              activeGroupTitle = group.title;
+              activeSubItemId = item.id;
+              renderGroupedVodSources();
+              playCurrentVodSource(item, currentActiveEp);
+            };
+
+            domNodeCache.set(group.title, singleCard);
+          }
+
+          singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+
+          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
+          if (oldCollapse) oldCollapse.remove();
 
           if (isCurrentActive) {
             const episodes = getEpisodesList(item);
@@ -2793,7 +2819,7 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    /* 系统安全启动：加载 D1 配置、账号与自定义多源分组 */
+    /* 系统安全启动：门禁严格遵循“开启才弹出，关闭则直达”原则 */
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
       document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
@@ -2810,7 +2836,7 @@
       const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
       try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
 
-      // 2. 从 D1 加载账号与自定义分组
+      // 2. 从 D1 加载账号与分组配置
       const authCfgStr = await getD1Data(KEY_AUTH_CONFIG, '');
       if (authCfgStr) {
         try { authConfig = JSON.parse(authCfgStr); } catch (_) {}
@@ -2834,44 +2860,36 @@
         } catch (_) {}
       }
       if (!sourceGroups || sourceGroups.length === 0) {
-        // 初始默认分组
         sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
       }
 
-      const gateScreen = document.getElementById('auth-gate-screen');
+      // 自动恢复记住的密码凭据
+      const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
+      if (savedCredsStr) {
+        try {
+          const { u, passHash } = JSON.parse(savedCredsStr);
+          if (adminAccount && u === adminAccount.username && passHash === adminAccount.passHash) {
+            currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
+          } else {
+            const found = userList.find(item => item.username === u && item.passHash === passHash);
+            if (found) currentUser = { username: found.username, role: 'user', groupId: found.groupId || 'def', groupName: found.groupName || '默认分组' };
+          }
+        } catch (_) {}
+      } else {
+        const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
+        if (localUserStr) {
+          try { currentUser = JSON.parse(localUserStr); } catch (_) {}
+        }
+      }
 
-      if (!adminAccount) {
-        gateAuthMode = 'init_admin';
-        document.getElementById('gate-sub-tip').textContent = "首次使用：请初始化主管理员";
-        document.getElementById('gate-submit-btn').textContent = "创建主管理员并进入";
-        document.getElementById('gate-switch-link').style.display = 'none';
+      updateMainRoleButton();
+
+      // 核心门禁判定：仅当开启门禁开关且当前未登录时，才展示门禁；门禁关闭时彻底隐藏
+      const gateScreen = document.getElementById('auth-gate-screen');
+      if (authConfig.requireLogin && !currentUser) {
         gateScreen.style.display = 'flex';
       } else {
-        const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
-        if (savedCredsStr) {
-          try {
-            const { u, passHash } = JSON.parse(savedCredsStr);
-            if (u === adminAccount.username && passHash === adminAccount.passHash) {
-              currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
-            } else {
-              const found = userList.find(item => item.username === u && item.passHash === passHash);
-              if (found) currentUser = { username: found.username, role: 'user', groupId: found.groupId || 'def', groupName: found.groupName || '默认分组' };
-            }
-          } catch (_) {}
-        } else {
-          const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
-          if (localUserStr) {
-            try { currentUser = JSON.parse(localUserStr); } catch (_) {}
-          }
-        }
-
-        updateMainRoleButton();
-
-        if (authConfig.requireLogin && !currentUser) {
-          gateScreen.style.display = 'flex';
-        } else {
-          gateScreen.style.display = 'none';
-        }
+        gateScreen.style.display = 'none';
       }
 
       initTv();
