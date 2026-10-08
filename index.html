@@ -39,6 +39,7 @@
       background: #1e2126; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
     }
 
+    /* 标题统一定制为“拾光影视” */
     .gate-logo {
       font-size: 23px; font-weight: 800; color: #54a56a;
       letter-spacing: 3px; margin-bottom: 22px; font-family: -apple-system, sans-serif;
@@ -79,6 +80,7 @@
     .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
     .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
 
+    /* 输入完毕点亮为深绿色 */
     .gate-submit-btn {
       width: 100%; height: 42px; background: #b0d4bb;
       color: #fff; font-size: 14px; font-weight: 600; border: none;
@@ -93,7 +95,7 @@
 
     .gate-error-tip { font-size: 12px; color: #ef4444; margin-top: 10px; display: none; text-align: center; }
 
-    /* 播放器与主应用 */
+    /* 播放器与主界面布局 */
     #player-wrap { 
       width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; 
       flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default;
@@ -334,6 +336,7 @@
     .btn-sync { background: #238636; color: #fff; }
     .btn-save { background: #0070f3; color: #fff; }
 
+    /* 视频源权限勾选网格 */
     .perm-sites-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 8px; max-height: 240px; overflow-y: auto; margin-top: 10px; padding: 6px 0;
@@ -742,7 +745,6 @@
       } catch (_) {}
     }
 
-    /* 物理销毁 D1 与本地特定键数据 (双重防复燃) */
     async function purgeD1Key(key) {
       localStorage.removeItem(key);
       try {
@@ -773,7 +775,6 @@
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
 
-    /* 获取当前用户专享的收藏与历史存储键 (用户数据沙盒隔离) */
     function getCurrentFavKey() {
       return currentUser ? `favs_u_${currentUser.username}` : KEY_FAVS;
     }
@@ -1361,7 +1362,6 @@
       input.focus();
     }
 
-    /* 门禁交互与深绿按钮提示 */
     function toggleGateTheme() {
       document.getElementById('auth-gate-screen').classList.toggle('dark-theme');
     }
@@ -1444,7 +1444,6 @@
           return;
         }
 
-        // 新注册用户：重置所有该用户名下过往潜在孤立残留数据，确保全新纯净
         const favKey = `favs_u_${u}`;
         const histKey = `history_u_${u}`;
         localStorage.removeItem(favKey);
@@ -1485,7 +1484,6 @@
       }
     }
 
-    /* 角色切换与个人账户交互 */
     function updateMainRoleButton() {
       const btn = document.getElementById('btn-open-settings');
       if (currentUser && currentUser.role === 'user') {
@@ -1527,7 +1525,6 @@
       arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
     }
 
-    /* 渲染多源分组管理列表 */
     function renderSourceGroupsList() {
       const container = document.getElementById('source-groups-list-container');
       if (!container) return;
@@ -1551,7 +1548,6 @@
       }).join('');
     }
 
-    /* 渲染用户列表与分配状态 */
     function renderUsersManagerList() {
       const container = document.getElementById('users-items-container');
       document.getElementById('user-count-badge').textContent = userList.length;
@@ -1728,7 +1724,6 @@
       showGestureTip("✓ 添加成功");
     }
 
-    /* 核心重点：彻底删除账号，并穿透物理抹除其云端全部收藏与历史，再次注册亦不恢复！ */
     async function deleteUserAccount(idx) {
       const target = userList[idx];
       if (!confirm(`确定彻底删除账号【${target.username}】吗？\n警告：删除后该用户的云端所有收藏与历史记录将被彻底销毁，即使日后再次注册同名账号也绝不会恢复！`)) return;
@@ -1736,7 +1731,6 @@
       const uName = target.username;
       userList.splice(idx, 1);
 
-      // 1. 物理清收用户专享的云端收藏与播放进度
       const favKey = `favs_u_${uName}`;
       const histKey = `history_u_${uName}`;
       
@@ -1816,6 +1810,7 @@
       renderSitesManagerList();
     }
 
+    /* 核心保护：打开设置面板时，本地与 D1 双重回填，确保订阅地址不丢失 */
     async function openSourceModal() {
       if (currentUser && currentUser.role !== 'admin') {
         openUserAccountModal();
@@ -1848,10 +1843,20 @@
       }
 
       document.getElementById('settings-username-label').textContent = currentUser.username;
+      
+      // 1. 优先从本地秒填
       document.getElementById('sub-url-input').value = localStorage.getItem(KEY_SUB) || '';
       document.getElementById('source-m3u-input').value = localStorage.getItem(KEY_M3U) || '';
       document.getElementById('auto-sync-interval').value = localStorage.getItem(KEY_SYNC_INTERVAL) || '0';
       document.getElementById('auth-require-toggle').checked = !!authConfig.requireLogin;
+
+      // 2. 后台异步从 D1 拉取最新地址进行兜底回填，防止本地空值
+      getD1Data(KEY_SUB, '').then(val => {
+        if (val) document.getElementById('sub-url-input').value = val;
+      });
+      getD1Data(KEY_M3U, '').then(val => {
+        if (val) document.getElementById('source-m3u-input').value = val;
+      });
 
       const lastTime = localStorage.getItem(KEY_LAST_SYNC) || '';
       document.getElementById('last-sync-time-label').textContent = lastTime ? `最后更新时间：${lastTime}` : '最后更新时间：从未更新';
@@ -1872,8 +1877,8 @@
       showGestureTip("✓ 设置已保存");
 
       const tasks = [];
-      if (m3uUrl) tasks.push(setD1Data(KEY_M3U, m3uUrl));
       if (subUrl) tasks.push(setD1Data(KEY_SUB, subUrl));
+      if (m3uUrl) tasks.push(setD1Data(KEY_M3U, m3uUrl));
       tasks.push(setD1Data(KEY_SYNC_INTERVAL, interval));
       tasks.push(setD1Data(KEY_DISABLED_SITES, disabledSites));
       tasks.push(setD1Data(KEY_SITES, parsedSites));
@@ -2114,6 +2119,7 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
+      // 获取当前用户所属的源分组列表
       let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
       if (currentUser && currentUser.role !== 'admin') {
         const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
@@ -2514,47 +2520,37 @@
         singleGroups.forEach((group) => {
           const item = group.items[0];
           const isCurrentActive = (item.id === activeSubItemId);
-          let singleCard = domNodeCache.get(group.title);
-
-          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
-            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-            const q = parseQualityTag(item.vod.vod_remarks);
-            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-            singleCard = document.createElement('div');
-            singleCard.className = 'single-source-card';
-            singleCard.innerHTML = `
-              <div class="single-top-row">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap" style="flex:1;">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-
-            singleCard.querySelector('.single-top-row').onclick = () => {
-              activeGroupTitle = group.title;
-              activeSubItemId = item.id;
-              renderGroupedVodSources();
-              playCurrentVodSource(item, currentActiveEp);
-            };
-
-            domNodeCache.set(group.title, singleCard);
-          }
-
+          const singleCard = document.createElement('div');
           singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
 
-          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
-          if (oldCollapse) oldCollapse.remove();
+          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+          const q = parseQualityTag(item.vod.vod_remarks);
+          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+          singleCard.innerHTML = `
+            <div class="single-top-row">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap" style="flex:1;">
+                <div class="group-main-title">${escapeHtml(group.title)}</div>
+                <div class="group-meta-tag">
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                </div>
+              </div>
+            </div>
+          `;
+
+          singleCard.querySelector('.single-top-row').onclick = () => {
+            activeGroupTitle = group.title;
+            activeSubItemId = item.id;
+            renderGroupedVodSources();
+            playCurrentVodSource(item, currentActiveEp);
+          };
 
           if (isCurrentActive) {
             const episodes = getEpisodesList(item);
@@ -2859,12 +2855,11 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    /* 系统安全启动：加载 D1 配置、账号与自定义多源分组 */
+    /* 系统安全启动：加载 D1 配置、账号与自定义多源分组 (全量预加载回填) */
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
       document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
 
-      // 同步瞬间恢复本地缓存状态 (0毫秒响应，不卡顿)
       try {
         const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
         if (localAuth) authConfig = JSON.parse(localAuth);
@@ -2884,7 +2879,6 @@
         sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
       }
 
-      // 恢复记住密码登录凭据
       const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
       if (savedCredsStr) {
         try {
@@ -2905,7 +2899,6 @@
 
       updateMainRoleButton();
 
-      // 核心门禁判定：仅开启门禁开关且当前未登录时才显示门禁；未开启则绝不出现
       const gateScreen = document.getElementById('auth-gate-screen');
       if (authConfig.requireLogin && !currentUser) {
         gateScreen.style.display = 'flex';
@@ -2913,14 +2906,16 @@
         gateScreen.style.display = 'none';
       }
 
-      // 后台并发静默校验 D1 最新云端状态
+      // 后台并发预加载全量云端状态并自动回补本地缓存（包含 KEY_SUB 与 KEY_M3U）
       Promise.allSettled([
         getD1Data(KEY_SITES, null),
         getD1Data(KEY_DISABLED_SITES, '[]'),
         getD1Data(KEY_AUTH_CONFIG, ''),
         getD1Data(KEY_ADMIN_INFO, ''),
         getD1Data(KEY_USERS_LIST, ''),
-        getD1Data(KEY_SOURCE_GROUPS, '')
+        getD1Data(KEY_SOURCE_GROUPS, ''),
+        getD1Data(KEY_SUB, ''),
+        getD1Data(KEY_M3U, '')
       ]).then(results => {
         if (results[0].status === 'fulfilled' && results[0].value) {
           try { const p = JSON.parse(results[0].value); if (Array.isArray(p)) parsedSites = p; } catch (_) {}
@@ -2946,6 +2941,12 @@
         }
         if (results[5].status === 'fulfilled' && results[5].value) {
           try { const p = JSON.parse(results[5].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
+        }
+        if (results[6].status === 'fulfilled' && results[6].value) {
+          localStorage.setItem(KEY_SUB, results[6].value);
+        }
+        if (results[7].status === 'fulfilled' && results[7].value) {
+          localStorage.setItem(KEY_M3U, results[7].value);
         }
       });
 
