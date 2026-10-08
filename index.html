@@ -268,7 +268,7 @@
   <div id="player-wrap">
     <div id="top-bar">
       <div class="top-left-title">
-        <div id="current-title">请选择视频或频道</div>
+        <div id="current-title">请在下方选择视频起播</div>
         <button id="btn-fav-toggle" onclick="toggleCurrentFavorite()" title="收藏当前项目">★</button>
       </div>
       <div id="current-route-badge"></div>
@@ -281,8 +281,9 @@
 
     <div id="gesture-tip"></div>
 
-    <video id="video" autoplay playsinline webkit-playsinline></video>
+    <video id="video" playsinline webkit-playsinline></video>
 
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -490,7 +491,9 @@
 
       const result = new Uint8Array(leadingOnes + bytes.length);
       for (let i = 0; i < leadingOnes; i++) result[i] = 0;
-      for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
+      for (let i = 0; i < bytes.length; i++) {
+        result[leadingOnes + i] = bytes[bytes.length - 1 - i];
+      }
       return new TextDecoder('utf-8').decode(result);
     }
 
@@ -953,6 +956,7 @@
     });
 
     function togglePlay() {
+      if (!currentStreamUrl) return;
       if (video.paused) video.play().then(() => { updatePlayBtn(true); showControls(); }).catch(() => {});
       else { video.pause(); updatePlayBtn(false); showControls(); }
     }
@@ -1177,7 +1181,16 @@
       } catch (_) { return 9999; }
     }
 
-    /* 核心修复：硬核关联校验，片名或主演中若无搜索词，直接剔除 */
+    const STAR_CLASSICS_MAP = {
+      '成龙': ['警察故事', '醉拳', 'A计划', '神话', '十二生肖', '宝贝计划', '快餐车', '新警察故事', '尖峰时刻', '飞鹰计划', '红番区'],
+      '周星驰': ['功夫', '大话西游', '少林足球', '喜剧之王', '唐伯虎点秋香', '九品芝麻官', '国产凌凌漆', '逃学威龙', '食神'],
+      '李连杰': ['黄飞鸿', '精武英雄', '方世玉', '太极张三丰', '中南海保镖', '霍元甲', '英雄', '龙门飞甲'],
+      '刘德华': ['无间道', '天下无贼', '暗战', '拆弹专家', '投名状', '门徒', '天若有情'],
+      '甄子丹': ['叶问', '杀破狼', '导火线', '武侠', '追龙', '怒火·重案'],
+      '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双']
+    };
+
+    /* 优化重点：搜完不自动起播！列表全部静默展示，由用户自选 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1187,8 +1200,16 @@
       container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源智能检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
-      let autoPlayLock = false;
       const kw = keyword.toLowerCase().trim();
+
+      const searchTerms = [keyword];
+      for (const [star, classics] of Object.entries(STAR_CLASSICS_MAP)) {
+        if (kw.includes(star) || star.includes(kw)) {
+          classics.slice(0, 4).forEach(film => {
+            if (!searchTerms.includes(film)) searchTerms.push(film);
+          });
+        }
+      }
 
       const processList = (dataList, site) => {
         if (!Array.isArray(dataList)) return;
@@ -1198,10 +1219,11 @@
           const lowerName = vodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
-          // 核心拦截规则：如果片名和主演里连搜索关键词的影子都没有，坚决丢弃，绝不展示！
-          if (!lowerName.includes(kw) && !lowerActor.includes(kw)) {
-            return;
-          }
+          const isRelated = searchTerms.some(term => {
+            const t = term.toLowerCase();
+            return lowerName.includes(t) || lowerActor.includes(t);
+          });
+          if (!isRelated) return;
 
           const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${vodName}`;
           const itemResult = {
@@ -1211,9 +1233,7 @@
             ping: -1
           };
 
-          // 精准同名归类：只聚合片名完全一样的，防止把不同剧目混在一起
           let group = groupedVodList.find(g => g.title === vodName);
-
           if (!group) {
             group = {
               title: vodName,
@@ -1231,24 +1251,20 @@
         });
       };
 
-      await asyncPool(10, parsedSites, async (site) => {
-        if (currentSignal.aborted) return;
-        // 使用最稳定标准的 wd 参数
-        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(keyword)}&out=json&pg=1`;
+      const queryTasks = [];
+      searchTerms.forEach(term => {
+        parsedSites.slice(0, 8).forEach(site => {
+          queryTasks.push({ site, term });
+        });
+      });
 
+      await asyncPool(10, queryTasks, async ({ site, term }) => {
+        if (currentSignal.aborted) return;
+        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
         try {
           const res = await fetchWithSmartProxy(urlWd, 3500, currentSignal);
           processList(JSON.parse(res).list, site);
-
           if (currentView === 'normal') renderGroupedVodSources();
-
-          if (!autoPlayLock && groupedVodList.length > 0) {
-            autoPlayLock = true;
-            activeGroupTitle = groupedVodList[0].title;
-            activeSubItemId = groupedVodList[0].items[0].id;
-            currentActiveEp = 0;
-            playCurrentVodSource(groupedVodList[0].items[0], 0);
-          }
         } catch (_) {}
       });
 
@@ -1259,10 +1275,7 @@
         return;
       }
 
-      // 智能人名偏好排序：
-      // 1. 片名完全相等的排最前
-      // 2. 主演确实是成龙且是真人电影的排前面
-      // 3. 动画片/少儿片往后排
+      // 智能人名偏好排序
       groupedVodList.sort((a, b) => {
         let scoreA = 0, scoreB = 0;
         const aName = a.title.toLowerCase();
@@ -1273,12 +1286,14 @@
         if (aName === kw) scoreA += 100;
         if (bName === kw) scoreB += 100;
 
-        if (aActor.includes(kw)) scoreA += 40;
-        if (bActor.includes(kw)) scoreB += 40;
+        if (aActor.includes(kw)) scoreA += 50;
+        if (bActor.includes(kw)) scoreB += 50;
 
-        // 降权动画片
-        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 30;
-        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 30;
+        if (searchTerms.includes(a.title)) scoreA += 40;
+        if (searchTerms.includes(b.title)) scoreB += 40;
+
+        if ((a.type || '').includes('动漫') || (a.type || '').includes('少儿')) scoreA -= 40;
+        if ((b.type || '').includes('动漫') || (b.type || '').includes('少儿')) scoreB -= 40;
 
         scoreA += a.items.length * 2;
         scoreB += b.items.length * 2;
@@ -1287,7 +1302,7 @@
       });
 
       renderGroupedVodSources();
-      startSpeedTest();
+      // 不再自动起播，不擅自切流
     }
 
     async function startSpeedTest() {
@@ -1364,7 +1379,7 @@
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       headerBar.innerHTML = `
-        <span class="sources-header-title">聚合结果 <span>(${multiGroups.length} 组聚合 / ${singleGroups.length} 个单源)</span></span>
+        <span class="sources-header-title">搜索结果 <span>(${multiGroups.length} 组聚合 / ${singleGroups.length} 个单源)</span></span>
         <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       container.appendChild(headerBar);
@@ -1662,7 +1677,7 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => setStatus("请轻触画面或播放按钮起播"));
+        }).catch(() => { setStatus("", false); });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1683,7 +1698,7 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => setStatus("请轻触画面开始播放"));
+          }).catch(() => { setStatus("", false); });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
@@ -1704,7 +1719,7 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => { showFailTip(); updatePlayBtn(false); });
+        }).catch(() => { setStatus("", false); });
       }
     }
 
