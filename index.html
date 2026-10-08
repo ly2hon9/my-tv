@@ -284,7 +284,6 @@
 
     <video id="video" playsinline webkit-playsinline></video>
 
-    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -359,7 +358,8 @@
     <div id="search-box">
       <div class="search-row-primary">
         <div class="search-input-wrap">
-          <input type="text" id="filter" placeholder="搜索片名、演员 (如: 成龙、三上悠亚)、电视频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
+          <!-- 优化点一：去除成龙、三上悠亚等具体人名提示，改为极简统一占位符 -->
+          <input type="text" id="filter" placeholder="搜索片名、视频、电视频道..." onkeydown="handleEnterSearch(event)" oninput="toggleClearBtn(this.value)">
           <span class="btn-clear-kw" id="clear-kw" onclick="clearSearchInput()">✕</span>
         </div>
         <button class="btn-search" onclick="triggerSearch()">搜索</button>
@@ -512,7 +512,8 @@
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
-    let totalChannelsCount = 0; // 记录电视频道总数
+    let totalChannelsCount = 0; // 独立频道数量
+    let totalStreamsCount = 0;  // 实际所有直播流总数
     let currentStreamUrl = "";
     
     let groupedVodList = [];
@@ -1090,8 +1091,8 @@
       if (m3uUrl) {
         try {
           await initTv();
-          // 精确统计并显示电视直播源的频道数量
-          msg.push(`电视直播源已更新: ${totalChannelsCount} 个`);
+          // 优化点二：按照要求展示“X个频道 (共X条线路)”格式
+          msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 条线路)`);
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
@@ -1180,9 +1181,9 @@
         filterInput.placeholder = "搜索电视频道...";
         renderList(groups, false);
       } else {
-        filterInput.placeholder = "搜索片名、演员 (如: 成龙、三上悠亚)、电视频道...";
+        filterInput.placeholder = "搜索片名、视频、电视频道...";
         if (groupedVodList.length > 0) renderGroupedVodSources();
-        else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入片名或演员名，自动拉取各源站并排序换源 🔍</div>`;
+        else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
       }
     }
 
@@ -1253,14 +1254,13 @@
       '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双']
     };
 
-    /* 优化重点：取消 slice(0, 8) 截断，全量 47 个源站并行扫描，确保三上悠亚等特定资源全部搜得到 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
       const currentSignal = currentSearchAbortController.signal;
 
       const container = document.getElementById('channel-list');
-      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源全量检索《${escapeHtml(keyword)}》...</div>`;
+      container.innerHTML = `<div style="padding: 24px; color: #888; text-align: center;">⚡ 正在全源检索《${escapeHtml(keyword)}》...</div>`;
       
       groupedVodList = [];
       const kw = keyword.toLowerCase().trim();
@@ -1282,7 +1282,6 @@
           const lowerName = vodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
-          // 宽松判定：片名或演员含关键词，或在关联词组中
           const isRelated = searchTerms.some(term => {
             const t = term.toLowerCase();
             return lowerName.includes(t) || lowerActor.includes(t);
@@ -1316,7 +1315,6 @@
         });
       };
 
-      // 构建全量源站查询任务（绝不截断丢弃任何一个源）
       const queryTasks = [];
       searchTerms.forEach(term => {
         parsedSites.forEach(site => {
@@ -1324,7 +1322,6 @@
         });
       });
 
-      // 拓宽至 12 并发通道，快速跑完
       await asyncPool(12, queryTasks, async ({ site, term }) => {
         if (currentSignal.aborted) return;
         const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
@@ -1425,7 +1422,7 @@
       container.innerHTML = '';
 
       if (!groupedVodList?.length) {
-        container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">请在上方搜索片名或演员</div>`;
+        container.innerHTML = `<div style="padding: 30px 16px; color: #777; text-align: center; font-size: 13px;">在上方输入关键词搜索</div>`;
         return;
       }
 
@@ -1737,9 +1734,7 @@
         video.load();
         video.play().then(() => {
           setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => {
-          setStatus("", false);
-        });
+        }).catch(() => { setStatus("", false); });
         video.onerror = () => showFailTip();
         return;
       }
@@ -1760,9 +1755,7 @@
             updatePlayBtn(true); 
             restorePlaybackProgress(); 
             showControls(); 
-          }).catch(() => {
-            setStatus("", false);
-          });
+          }).catch(() => { setStatus("", false); });
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
@@ -1804,6 +1797,7 @@
     function parseM3U(content) {
       groups = {};
       totalChannelsCount = 0;
+      totalStreamsCount = 0;
       const lines = content.split('\n');
       let temp = null;
       for (let line of lines) {
@@ -1820,9 +1814,12 @@
             if (!groups[temp.group]) groups[temp.group] = {};
             if (!groups[temp.group][temp.name]) {
               groups[temp.group][temp.name] = [];
-              totalChannelsCount++; // 精准统计频道个数
+              totalChannelsCount++; // 统计独立频道数
             }
-            if (!groups[temp.group][temp.name].includes(line)) groups[temp.group][temp.name].push(line);
+            if (!groups[temp.group][temp.name].includes(line)) {
+              groups[temp.group][temp.name].push(line);
+              totalStreamsCount++; // 统计所有直播流线路数
+            }
           }
           temp = null;
         }
