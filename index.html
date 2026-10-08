@@ -79,7 +79,6 @@
     .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
     .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
 
-    /* 功能 3：未输入完毕为浅绿色，输入完毕动态变成深绿色提示可以登录 */
     .gate-submit-btn {
       width: 100%; height: 42px; background: #b0d4bb;
       color: #fff; font-size: 14px; font-weight: 600; border: none;
@@ -295,8 +294,8 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: #0070f3; background: #0d2847; }
 
-    /* 通用弹窗 */
-    #modal-mask, #user-perm-modal-mask, #user-account-modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    /* 通用弹窗与容器 */
+    #modal-mask, #user-perm-modal-mask, #user-account-modal-mask, #user-group-assign-modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
     .custom-modal-content { background: #1c1c1c; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
     .custom-modal-content h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .input-label { font-size: 12px; color: #aaa; margin-top: 10px; margin-bottom: 4px; display: block; }
@@ -304,7 +303,6 @@
     .sub-stats { font-size: 12px; color: #0070f3; margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
 
-    /* 管理员设置用户头栏 */
     .settings-user-header-box {
       display: flex; justify-content: space-between; align-items: center;
       background: #15181c; border: 1px solid #282f38; border-radius: 8px;
@@ -346,6 +344,13 @@
       padding: 6px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; user-select: none;
     }
     .perm-site-chip input { width: 14px; height: 14px; accent-color: #0070f3; }
+
+    /* 分组管理卡片 */
+    .group-card-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #181b20; border: 1px solid #282f38; border-radius: 6px;
+      padding: 8px 10px; margin-bottom: 6px; font-size: 12px;
+    }
 
     @media (max-width: 600px) {
       .volume-slider { display: none; }
@@ -500,7 +505,6 @@
         <button class="btn-search" onclick="triggerSearch()">搜索</button>
       </div>
 
-      <!-- 功能 1：动态切换【⚙ 设置】与【👤 个人账户】 -->
       <div class="search-row-secondary">
         <button class="btn-tool-mid" id="btn-show-fav" onclick="switchSidebarView('fav')">⭐ 我的收藏</button>
         <button class="btn-tool-mid" id="btn-show-history" onclick="switchSidebarView('history')">🕒 播放历史</button>
@@ -517,7 +521,7 @@
     </div>
   </div>
 
-  <!-- 功能 1：普通注册用户专属【个人账户】退出弹窗 -->
+  <!-- 普通注册用户【个人账户】退出弹窗 -->
   <div id="user-account-modal-mask">
     <div class="custom-modal-content" style="max-width: 320px; text-align: center;">
       <h3>
@@ -572,28 +576,30 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <!-- 功能 2：账号管理与默认新用户源分组设置 -->
+      <!-- 自定义多视频源分组管理体系 (新增 + 按钮与多组支持) -->
       <div class="collapsible-setting-box">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
           <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
           <span id="accounts-toggle-arrow">▼ 展开</span>
         </div>
         <div id="accounts-manager-body" class="collapsible-setting-body">
-          <!-- 默认源分组设置栏 -->
+          
           <div style="background: #1c1f24; border: 1px solid #2d343f; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <div>
-                <div style="font-size: 12px; font-weight: 600; color: #ddd;">📦 新注册用户默认源分组</div>
-                <div style="font-size: 10px; color: #888; margin-top: 2px;">新账号注册后默认只能使用此分组的源 (当前: <span id="default-sites-count-label" style="color: #60a5fa;">全部可用源</span>)</div>
+                <div style="font-size: 12px; font-weight: 600; color: #ddd;">📦 视频源分组权限</div>
+                <div style="font-size: 10px; color: #888; margin-top: 2px;">给不同用户分配不同视频源，新用户默认继承标有 [默认] 的分组</div>
               </div>
-              <button type="button" class="btn-small-perm" onclick="openDefaultPermModal()">⚙ 配置默认源</button>
+              <button type="button" class="btn-small-perm" style="font-size: 12px; font-weight: bold; padding: 3px 10px;" onclick="promptAddSourceGroup()" title="添加新分组">＋ 添加分组</button>
             </div>
+            <!-- 分组卡片列表容器 -->
+            <div id="source-groups-list-container"></div>
           </div>
 
           <div style="display:flex; gap:6px; margin-bottom:8px;">
             <input type="text" id="new-user-name" placeholder="账号名" style="flex:1; padding:6px !important; font-size:11px !important;">
             <input type="password" id="new-user-pass" placeholder="密码" style="flex:1; padding:6px !important; font-size:11px !important;">
-            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="adminAddNewUser()">+ 添加</button>
+            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="adminAddNewUser()">+ 添加用户</button>
           </div>
           <div id="users-items-container"></div>
         </div>
@@ -623,14 +629,14 @@
     </div>
   </div>
 
-  <!-- 视频源权限勾选弹窗 (通用：支持单用户权限 / 新用户默认分组权限) -->
+  <!-- 分组视频源勾选弹窗 -->
   <div id="user-perm-modal-mask">
     <div class="custom-modal-content" style="max-width: 440px;">
       <h3>
-        <span id="perm-user-title">🔑 分配视频源权限</span>
+        <span id="perm-user-title">🔑 分配视频源</span>
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeUserPermModal()">✕</span>
       </h3>
-      <div style="font-size:11px; color:#aaa; margin-top:4px;">勾选允许使用的视频源（未勾选的源无法检索或观看）：</div>
+      <div style="font-size:11px; color:#aaa; margin-top:4px;">勾选属于该分组的采集源：</div>
       
       <div style="display:flex; gap:8px; margin-top:8px;">
         <button type="button" class="btn-action btn-cancel" style="padding:3px 8px; font-size:11px;" onclick="checkAllPermSites(true)">全选</button>
@@ -641,7 +647,22 @@
 
       <div class="modal-actions" style="margin-top:14px;">
         <button class="btn-action btn-cancel" onclick="closeUserPermModal()">取消</button>
-        <button class="btn-action btn-save" onclick="saveUserPermChanges()">保存权限</button>
+        <button class="btn-action btn-save" onclick="saveGroupPermChanges()">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 用户分组一键切换弹窗 -->
+  <div id="user-group-assign-modal-mask">
+    <div class="custom-modal-content" style="max-width: 360px;">
+      <h3>
+        <span id="assign-group-modal-title">👤 分配视频源分组</span>
+        <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeUserGroupAssignModal()">✕</span>
+      </h3>
+      <div style="font-size:12px; color:#aaa; margin: 8px 0;">点击选择该用户所属的视频源分组：</div>
+      <div id="assign-groups-list" style="display:flex; flex-direction:column; gap:8px; margin: 12px 0;"></div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="btn-action btn-cancel" onclick="closeUserGroupAssignModal()">取消</button>
       </div>
     </div>
   </div>
@@ -734,11 +755,11 @@
     const KEY_LAST_SYNC = "last_subscription_sync_time";
     const KEY_SYNC_INTERVAL = "subscription_sync_interval";
 
-    /* 账号认证与默认分组 D1 专用键 */
+    /* 账号认证与自定义源分组 D1 专用键 */
     const KEY_ADMIN_INFO = "sys_admin_credentials_v2";
     const KEY_AUTH_CONFIG = "sys_auth_config_v2";
     const KEY_USERS_LIST = "sys_users_list_v2";
-    const KEY_DEFAULT_SITES = "sys_default_user_sites_v2"; // 新注册用户默认源分组
+    const KEY_SOURCE_GROUPS = "sys_source_groups_v3"; // 多视频源分组存储
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
 
@@ -798,14 +819,15 @@
     let isSearchingActive = false;
     let currentSearchingWord = "";
 
-    /* 账号状态 */
+    /* 账号与自定义分组状态 */
     let adminAccount = null;
     let authConfig = { requireLogin: true };
     let userList = [];
-    let defaultUserSites = ['*']; // 新用户默认源分组
+    let sourceGroups = []; // [{ id, name, sites: ['*'], isDefault: true }]
     let currentUser = null;
     let gateAuthMode = 'login';
-    let currentEditingUserIdx = -1; // -99 代表正在配置默认分组
+    let currentEditingGroupId = null;
+    let userAssigningIdx = -1;
 
     const domNodeCache = new Map();
 
@@ -1321,9 +1343,7 @@
       input.focus();
     }
 
-    /* ============================================================
-       门禁、输入变深色、精简提示 (功能 3 & 4)
-    ============================================================ */
+    /* 门禁交互与深绿按钮提示 */
     function toggleGateTheme() {
       document.getElementById('auth-gate-screen').classList.toggle('dark-theme');
     }
@@ -1339,16 +1359,12 @@
       err.style.display = 'block';
     }
 
-    /* 功能 3：当账号和密码都输入完毕，登录按钮变为深绿色提示 */
     function checkGateInputsReady() {
       const u = (document.getElementById('gate-username').value || '').trim();
       const p = (document.getElementById('gate-password').value || '').trim();
       const btn = document.getElementById('gate-submit-btn');
-      if (u && p) {
-        btn.classList.add('btn-ready');
-      } else {
-        btn.classList.remove('btn-ready');
-      }
+      if (u && p) btn.classList.add('btn-ready');
+      else btn.classList.remove('btn-ready');
     }
 
     function switchGateAuthMode() {
@@ -1391,9 +1407,8 @@
         } else {
           const found = userList.find(item => item.username === u && item.passHash === passHash);
           if (found) {
-            currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || defaultUserSites || ['*'] };
+            currentUser = { username: found.username, role: 'user', groupId: found.groupId || 'def', groupName: found.groupName || '默认分组' };
           } else {
-            /* 功能 4：提示精简 */
             showGateError("账号或密码错误");
             return;
           }
@@ -1406,19 +1421,18 @@
         updateMainRoleButton();
         document.getElementById('auth-gate-screen').style.display = 'none';
       } else {
-        /* 功能 4：注册提示精简 */
         if ((adminAccount && u === adminAccount.username) || userList.some(item => item.username === u)) {
           showGateError("账号已存在");
           return;
         }
 
-        // 功能 2：新注册用户默认继承配置好的视频源分组
-        const assignedSites = (defaultUserSites && defaultUserSites.length > 0) ? defaultUserSites : ['*'];
-        const newUser = { username: u, passHash: passHash, allowedSites: assignedSites };
+        // 新注册用户自动绑定默认分组
+        const defaultGroup = sourceGroups.find(g => g.isDefault) || sourceGroups[0] || { id: 'def', name: '默认分组' };
+        const newUser = { username: u, passHash: passHash, groupId: defaultGroup.id, groupName: defaultGroup.name };
         userList.push(newUser);
         await setD1Data(KEY_USERS_LIST, userList);
 
-        currentUser = { username: u, role: 'user', allowedSites: assignedSites };
+        currentUser = { username: u, role: 'user', groupId: defaultGroup.id, groupName: defaultGroup.name };
         if (remember) localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, passHash }));
         localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
         updateMainRoleButton();
@@ -1440,7 +1454,6 @@
       document.getElementById('auth-gate-screen').style.display = 'flex';
     }
 
-    /* 功能 1：主界面按钮角色切换与个人账户交互 */
     function updateMainRoleButton() {
       const btn = document.getElementById('btn-open-settings');
       if (currentUser && currentUser.role === 'user') {
@@ -1482,20 +1495,36 @@
       arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
     }
 
-    /* 渲染用户列表与视频源权限状态 */
+    /* 渲染多源分组管理列表 */
+    function renderSourceGroupsList() {
+      const container = document.getElementById('source-groups-list-container');
+      if (!container) return;
+
+      container.innerHTML = sourceGroups.map(group => {
+        const countText = (!group.sites || group.sites[0] === '*') ? '全部可用源' : `${group.sites.length} 个勾选源`;
+        return `
+          <div class="group-card-item">
+            <div>
+              <span style="font-weight: 600; color: #fff;">${escapeHtml(group.name)}</span>
+              ${group.isDefault ? `<span style="background:#238636;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px;">默认</span>` : ''}
+              <span style="color:#60a5fa; font-size:11px; margin-left:6px;">(${countText})</span>
+            </div>
+            <div>
+              <button type="button" class="btn-small-perm" onclick="openGroupSitesConfigModal('${group.id}')">⚙ 选源</button>
+              ${!group.isDefault ? `<button type="button" class="btn-small-perm" style="background:#283e2e;color:#4ade80;border-color:#2ea043;margin-left:4px;" onclick="setDefaultSourceGroup('${group.id}')">设为默认</button>` : ''}
+              ${(!group.isDefault && sourceGroups.length > 1) ? `<button type="button" class="btn-small-del" title="删除分组" onclick="deleteSourceGroup('${group.id}')">🗑</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* 渲染用户列表与分配状态 */
     function renderUsersManagerList() {
       const container = document.getElementById('users-items-container');
       document.getElementById('user-count-badge').textContent = userList.length;
 
-      // 更新默认分组状态徽章
-      const defLabel = document.getElementById('default-sites-count-label');
-      if (defLabel) {
-        if (!defaultUserSites || defaultUserSites[0] === '*') {
-          defLabel.textContent = "全部可用源";
-        } else {
-          defLabel.textContent = `${defaultUserSites.length} 个勾选源`;
-        }
-      }
+      renderSourceGroupsList();
 
       if (!userList || userList.length === 0) {
         container.innerHTML = '<div style="padding:8px 0; text-align:center; color:#666; font-size:12px;">暂无注册成员账号</div>';
@@ -1503,20 +1532,156 @@
       }
 
       container.innerHTML = userList.map((user, idx) => {
-        const allowedCount = (user.allowedSites && user.allowedSites[0] !== '*') ? user.allowedSites.length : '全部';
+        const group = sourceGroups.find(g => g.id === user.groupId) || { name: user.groupName || '默认分组' };
         return `
           <div class="site-toggle-row">
             <div>
               <span style="color:#ddd; font-weight:500;">👤 ${escapeHtml(user.username)}</span>
-              <span style="font-size:10px; color:#888; margin-left:6px;">(可用源: ${allowedCount})</span>
+              <span style="font-size:10px; color:#54a56a; margin-left:6px;">[分组: ${escapeHtml(group.name)}]</span>
             </div>
             <div>
-              <button type="button" class="btn-small-perm" onclick="openUserPermModal(${idx})">🔑 视频源权限</button>
+              <button type="button" class="btn-small-perm" onclick="openUserGroupAssignModal(${idx})">🔑 分配分组</button>
               <button type="button" class="btn-small-del" title="删除账号" onclick="deleteUserAccount(${idx})">🗑 删除</button>
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    /* 添加新源分组功能 (响应加号按钮) */
+    async function promptAddSourceGroup() {
+      const name = prompt("请输入新视频源分组的名称（例如: VIP极速组、精选动漫组）：");
+      if (!name || !name.trim()) return;
+      const cleanName = name.trim();
+      if (sourceGroups.some(g => g.name === cleanName)) {
+        alert("已存在同名分组！");
+        return;
+      }
+      const newGroup = {
+        id: 'g_' + Date.now(),
+        name: cleanName,
+        sites: ['*'],
+        isDefault: false
+      };
+      sourceGroups.push(newGroup);
+      await setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
+      renderUsersManagerList();
+      alert(`已成功创建分组【${cleanName}】，请点击【⚙ 选源】为其分配视频源！`);
+    }
+
+    /* 设为新注册用户默认组 */
+    async function setDefaultSourceGroup(groupId) {
+      sourceGroups.forEach(g => {
+        g.isDefault = (g.id === groupId);
+      });
+      await setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
+      renderUsersManagerList();
+      alert("已切换新用户默认视频源分组");
+    }
+
+    /* 删除源分组 */
+    async function deleteSourceGroup(groupId) {
+      const g = sourceGroups.find(item => item.id === groupId);
+      if (!confirm(`确定删除分组【${g.name}】吗？属于该组的成员将自动重置到默认组。`)) return;
+      sourceGroups = sourceGroups.filter(item => item.id !== groupId);
+      const defaultGroup = sourceGroups.find(item => item.isDefault) || sourceGroups[0];
+      
+      // 更新原属于该组的成员
+      userList.forEach(u => {
+        if (u.groupId === groupId) {
+          u.groupId = defaultGroup.id;
+          u.groupName = defaultGroup.name;
+        }
+      });
+      await setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
+      await setD1Data(KEY_USERS_LIST, userList);
+      renderUsersManagerList();
+    }
+
+    /* 分组视频源勾选弹窗 */
+    function openGroupSitesConfigModal(groupId) {
+      currentEditingGroupId = groupId;
+      const group = sourceGroups.find(g => g.id === groupId);
+      document.getElementById('perm-user-title').textContent = `🔑 配置【${group.name}】的视频源`;
+
+      const grid = document.getElementById('perm-sites-grid');
+      const isAll = !group.sites || group.sites[0] === '*';
+      const allowed = group.sites || [];
+
+      grid.innerHTML = parsedSites.map(site => {
+        const checked = isAll || allowed.includes(site.name);
+        return `
+          <label class="perm-site-chip">
+            <input type="checkbox" class="site-perm-checkbox" data-sitename="${escapeHtml(site.name)}" ${checked ? 'checked' : ''}>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(site.name)}</span>
+          </label>
+        `;
+      }).join('');
+
+      document.getElementById('user-perm-modal-mask').style.display = 'flex';
+    }
+
+    function closeUserPermModal() {
+      document.getElementById('user-perm-modal-mask').style.display = 'none';
+      currentEditingGroupId = null;
+    }
+
+    function checkAllPermSites(checked) {
+      document.querySelectorAll('.site-perm-checkbox').forEach(cb => cb.checked = checked);
+    }
+
+    async function saveGroupPermChanges() {
+      if (!currentEditingGroupId) return;
+      const group = sourceGroups.find(g => g.id === currentEditingGroupId);
+      const checkboxes = document.querySelectorAll('.site-perm-checkbox');
+      const selected = [];
+      checkboxes.forEach(cb => {
+        if (cb.checked) selected.push(cb.getAttribute('data-sitename'));
+      });
+      group.sites = (selected.length === checkboxes.length) ? ['*'] : selected;
+
+      await setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
+      renderUsersManagerList();
+      closeUserPermModal();
+      alert(`已更新【${group.name}】的视频源列表`);
+    }
+
+    /* 一键分配成员分组弹窗 */
+    function openUserGroupAssignModal(idx) {
+      userAssigningIdx = idx;
+      const user = userList[idx];
+      document.getElementById('assign-group-modal-title').textContent = `👤 为【${user.username}】分配源分组`;
+
+      const listContainer = document.getElementById('assign-groups-list');
+      listContainer.innerHTML = sourceGroups.map(g => {
+        const isCurrent = (user.groupId === g.id || (!user.groupId && g.isDefault));
+        return `
+          <button type="button" class="btn-action" style="text-align:left; background:${isCurrent ? '#0e2b47' : '#222'}; border:1px solid ${isCurrent ? '#0070f3' : '#333'}; color:#eee; padding:10px;" onclick="selectGroupForUser('${g.id}')">
+            <div style="font-weight:600;">${escapeHtml(g.name)} ${g.isDefault ? '<span style="color:#4ade80;font-size:11px;">[默认]</span>' : ''}</div>
+            <div style="font-size:11px; color:#888; margin-top:2px;">${(!g.sites || g.sites[0] === '*') ? '包含所有可用源' : '包含 ' + g.sites.length + ' 个专属源'}</div>
+          </button>
+        `;
+      }).join('');
+
+      document.getElementById('user-group-assign-modal-mask').style.display = 'flex';
+    }
+
+    function closeUserGroupAssignModal() {
+      document.getElementById('user-group-assign-modal-mask').style.display = 'none';
+      userAssigningIdx = -1;
+    }
+
+    async function selectGroupForUser(groupId) {
+      if (userAssigningIdx < 0) return;
+      const user = userList[userAssigningIdx];
+      const g = sourceGroups.find(item => item.id === groupId);
+      user.groupId = g.id;
+      user.groupName = g.name;
+
+      await setD1Data(KEY_USERS_LIST, userList);
+      renderUsersManagerList();
+      closeUserGroupAssignModal();
+      alert(`已将【${user.username}】分配到【${g.name}】`);
     }
 
     async function adminAddNewUser() {
@@ -1528,8 +1693,8 @@
         return;
       }
       const passHash = await hashPassword(p);
-      const assignedSites = (defaultUserSites && defaultUserSites.length > 0) ? defaultUserSites : ['*'];
-      userList.push({ username: u, passHash: passHash, allowedSites: assignedSites });
+      const defaultGroup = sourceGroups.find(g => g.isDefault) || sourceGroups[0];
+      userList.push({ username: u, passHash: passHash, groupId: defaultGroup.id, groupName: defaultGroup.name });
       await setD1Data(KEY_USERS_LIST, userList);
       document.getElementById('new-user-name').value = '';
       document.getElementById('new-user-pass').value = '';
@@ -1543,72 +1708,6 @@
       userList.splice(idx, 1);
       await setD1Data(KEY_USERS_LIST, userList);
       renderUsersManagerList();
-    }
-
-    /* 功能 2：视频源权限勾选弹窗 (支持为特定用户 或 为新注册用户默认模板配置) */
-    function openUserPermModal(idx) {
-      currentEditingUserIdx = idx;
-      const user = userList[idx];
-      document.getElementById('perm-user-title').textContent = `🔑 为【${user.username}】分配视频源`;
-      buildPermGrid(user.allowedSites);
-      document.getElementById('user-perm-modal-mask').style.display = 'flex';
-    }
-
-    function openDefaultPermModal() {
-      currentEditingUserIdx = -99; // 特殊标识：配置新用户默认源模板
-      document.getElementById('perm-user-title').textContent = `📦 配置新注册用户默认源分组`;
-      buildPermGrid(defaultUserSites);
-      document.getElementById('user-perm-modal-mask').style.display = 'flex';
-    }
-
-    function buildPermGrid(allowedArray) {
-      const grid = document.getElementById('perm-sites-grid');
-      const isAll = !allowedArray || allowedArray[0] === '*';
-      const allowed = allowedArray || [];
-
-      grid.innerHTML = parsedSites.map(site => {
-        const checked = isAll || allowed.includes(site.name);
-        return `
-          <label class="perm-site-chip">
-            <input type="checkbox" class="site-perm-checkbox" data-sitename="${escapeHtml(site.name)}" ${checked ? 'checked' : ''}>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(site.name)}</span>
-          </label>
-        `;
-      }).join('');
-    }
-
-    function closeUserPermModal() {
-      document.getElementById('user-perm-modal-mask').style.display = 'none';
-      currentEditingUserIdx = -1;
-    }
-
-    function checkAllPermSites(checked) {
-      document.querySelectorAll('.site-perm-checkbox').forEach(cb => cb.checked = checked);
-    }
-
-    async function saveUserPermChanges() {
-      const checkboxes = document.querySelectorAll('.site-perm-checkbox');
-      const selected = [];
-      checkboxes.forEach(cb => {
-        if (cb.checked) selected.push(cb.getAttribute('data-sitename'));
-      });
-      const finalSites = (selected.length === checkboxes.length) ? ['*'] : selected;
-
-      if (currentEditingUserIdx === -99) {
-        // 保存新注册用户默认源分组
-        defaultUserSites = finalSites;
-        await setD1Data(KEY_DEFAULT_SITES, defaultUserSites);
-        alert("已更新新用户默认视频源分组");
-      } else if (currentEditingUserIdx >= 0) {
-        // 保存特定用户权限
-        const user = userList[currentEditingUserIdx];
-        user.allowedSites = finalSites;
-        await setD1Data(KEY_USERS_LIST, userList);
-        alert(`已保存【${user.username}】的权限`);
-      }
-
-      renderUsersManagerList();
-      closeUserPermModal();
     }
 
     async function toggleRequireLoginSwitch(checked) {
@@ -1722,7 +1821,7 @@
       await setD1Data(KEY_SITES, parsedSites);
       await setD1Data(KEY_AUTH_CONFIG, authConfig);
       await setD1Data(KEY_USERS_LIST, userList);
-      await setD1Data(KEY_DEFAULT_SITES, defaultUserSites);
+      await setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
       if (adminAccount) await setD1Data(KEY_ADMIN_INFO, adminAccount);
 
       closeSourceModal();
@@ -1942,6 +2041,7 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
+    /* 核心检索：严格按用户所属视频源分组过滤 */
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -1957,15 +2057,18 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
-      // 根据用户权限过滤可用源
+      // 获取当前用户所属的源分组列表
       let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
-      if (currentUser && currentUser.role !== 'admin' && currentUser.allowedSites && currentUser.allowedSites[0] !== '*') {
-        availableSites = availableSites.filter(s => currentUser.allowedSites.includes(s.name));
+      if (currentUser && currentUser.role !== 'admin') {
+        const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
+        if (userGroup && userGroup.sites && userGroup.sites[0] !== '*') {
+          availableSites = availableSites.filter(s => userGroup.sites.includes(s.name));
+        }
       }
 
       if (availableSites.length === 0) {
         isSearchingActive = false;
-        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">当前账号未分配可用的视频源，请联系主管理员</div>`;
+        container.innerHTML = `<div style="padding: 30px; color: #777; text-align: center; font-size: 13px;">当前分组未开放可用的视频源，请联系主管理员</div>`;
         return;
       }
 
@@ -2132,9 +2235,7 @@
         const targetEp = episodes[currentActiveEp] || episodes[0];
         let testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
 
-        if (!isSafeUrl(testUrl)) {
-          testUrl = site?.api || '';
-        }
+        if (!isSafeUrl(testUrl)) testUrl = site?.api || '';
 
         item.ping = await probeStreamLatency(testUrl);
 
@@ -2357,47 +2458,37 @@
         singleGroups.forEach((group) => {
           const item = group.items[0];
           const isCurrentActive = (item.id === activeSubItemId);
-          let singleCard = domNodeCache.get(group.title);
-
-          if (!singleCard || !singleCard.classList.contains('single-source-card')) {
-            const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-            const q = parseQualityTag(item.vod.vod_remarks);
-            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-            singleCard = document.createElement('div');
-            singleCard.className = 'single-source-card';
-            singleCard.innerHTML = `
-              <div class="single-top-row">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap" style="flex:1;">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                    <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-
-            singleCard.querySelector('.single-top-row').onclick = () => {
-              activeGroupTitle = group.title;
-              activeSubItemId = item.id;
-              renderGroupedVodSources();
-              playCurrentVodSource(item, currentActiveEp);
-            };
-
-            domNodeCache.set(group.title, singleCard);
-          }
-
+          const singleCard = document.createElement('div');
           singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
 
-          const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
-          if (oldCollapse) oldCollapse.remove();
+          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+          const q = parseQualityTag(item.vod.vod_remarks);
+          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+          singleCard.innerHTML = `
+            <div class="single-top-row">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap" style="flex:1;">
+                <div class="group-main-title">${escapeHtml(group.title)}</div>
+                <div class="group-meta-tag">
+                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                </div>
+              </div>
+            </div>
+          `;
+
+          singleCard.querySelector('.single-top-row').onclick = () => {
+            activeGroupTitle = group.title;
+            activeSubItemId = item.id;
+            renderGroupedVodSources();
+            playCurrentVodSource(item, currentActiveEp);
+          };
 
           if (isCurrentActive) {
             const episodes = getEpisodesList(item);
@@ -2702,9 +2793,8 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    /* 系统安全启动：D1 载入凭据与初始化检测 */
+    /* 系统安全启动：加载 D1 配置、账号与自定义多源分组 */
     window.addEventListener('DOMContentLoaded', async () => {
-      // 监听门禁输入事件以触发深绿色按钮状态
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
       document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
 
@@ -2720,7 +2810,7 @@
       const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
       try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
 
-      // 2. 从 D1 加载账号配置、成员与默认权限
+      // 2. 从 D1 加载账号与自定义分组
       const authCfgStr = await getD1Data(KEY_AUTH_CONFIG, '');
       if (authCfgStr) {
         try { authConfig = JSON.parse(authCfgStr); } catch (_) {}
@@ -2736,14 +2826,20 @@
         try { userList = JSON.parse(usersStr); } catch (_) {}
       }
 
-      const defSitesStr = await getD1Data(KEY_DEFAULT_SITES, '');
-      if (defSitesStr) {
-        try { defaultUserSites = JSON.parse(defSitesStr); } catch (_) { defaultUserSites = ['*']; }
+      const groupsStr = await getD1Data(KEY_SOURCE_GROUPS, '');
+      if (groupsStr) {
+        try {
+          const parsed = JSON.parse(groupsStr);
+          if (Array.isArray(parsed) && parsed.length > 0) sourceGroups = parsed;
+        } catch (_) {}
+      }
+      if (!sourceGroups || sourceGroups.length === 0) {
+        // 初始默认分组
+        sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
       }
 
       const gateScreen = document.getElementById('auth-gate-screen');
 
-      // 首次使用判定：D1 中无主管理员记录
       if (!adminAccount) {
         gateAuthMode = 'init_admin';
         document.getElementById('gate-sub-tip').textContent = "首次使用：请初始化主管理员";
@@ -2751,7 +2847,6 @@
         document.getElementById('gate-switch-link').style.display = 'none';
         gateScreen.style.display = 'flex';
       } else {
-        // 自动恢复记住的密码凭据
         const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
         if (savedCredsStr) {
           try {
@@ -2760,7 +2855,7 @@
               currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
             } else {
               const found = userList.find(item => item.username === u && item.passHash === passHash);
-              if (found) currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || defaultUserSites || ['*'] };
+              if (found) currentUser = { username: found.username, role: 'user', groupId: found.groupId || 'def', groupName: found.groupName || '默认分组' };
             }
           } catch (_) {}
         } else {
