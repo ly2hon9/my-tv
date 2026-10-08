@@ -13,9 +13,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; background-color: #0f0f0f; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; }
 
-    /* ============================================================
-       全屏极简登录门禁系统 (仿图设计)
-    ============================================================ */
+    /* 全屏极简登录门禁系统 (仿设计) */
     #auth-gate-screen {
       position: fixed; inset: 0; z-index: 9999999;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -26,12 +24,8 @@
       background: linear-gradient(180deg, #0e1114 0%, #15181c 50%, #1a1e22 100%);
     }
 
-    .gate-top-bar {
-      position: absolute; top: 18px; right: 20px;
-    }
-    .gate-theme-btn {
-      background: none; border: none; font-size: 19px; cursor: pointer; color: #555; line-height: 1; padding: 4px;
-    }
+    .gate-top-bar { position: absolute; top: 18px; right: 20px; }
+    .gate-theme-btn { background: none; border: none; font-size: 19px; cursor: pointer; color: #555; line-height: 1; padding: 4px; }
     #auth-gate-screen.dark-theme .gate-theme-btn { color: #facc15; }
 
     .gate-card {
@@ -47,7 +41,10 @@
 
     .gate-logo {
       font-size: 26px; font-weight: 800; color: #54a56a;
-      letter-spacing: 2px; margin-bottom: 24px; font-family: -apple-system, sans-serif;
+      letter-spacing: 2px; margin-bottom: 6px; font-family: -apple-system, sans-serif;
+    }
+    .gate-sub-tip {
+      font-size: 11px; color: #888; margin-bottom: 20px;
     }
 
     .gate-input-box {
@@ -66,16 +63,12 @@
       background: #111316; border-color: #54a56a;
     }
 
-    .gate-input-icon {
-      font-size: 14px; color: #999; flex-shrink: 0; margin-right: 8px; user-select: none;
-    }
+    .gate-input-icon { font-size: 14px; color: #999; flex-shrink: 0; margin-right: 8px; user-select: none; }
     .gate-input-box input {
       border: none; background: transparent; outline: none;
       font-size: 13px; color: #333; flex: 1; width: 100%;
     }
-    #auth-gate-screen.dark-theme .gate-input-box input {
-      color: #eee;
-    }
+    #auth-gate-screen.dark-theme .gate-input-box input { color: #eee; }
     .gate-input-box input::placeholder { color: #aaa; }
 
     .gate-eye-btn {
@@ -86,15 +79,9 @@
       display: flex; justify-content: space-between; align-items: center;
       font-size: 12px; color: #888; margin-top: 4px; margin-bottom: 22px; user-select: none;
     }
-    .gate-remember-wrap {
-      display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888;
-    }
-    .gate-remember-wrap input {
-      accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer;
-    }
-    .gate-switch-link {
-      color: #54a56a; cursor: pointer; font-weight: 500;
-    }
+    .gate-remember-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888; }
+    .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
+    .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
 
     .gate-submit-btn {
       width: 100%; height: 42px; background: #7ab88b;
@@ -104,13 +91,9 @@
     .gate-submit-btn:hover { background: #68ab7a; }
     .gate-submit-btn:active { transform: scale(0.98); }
 
-    .gate-error-tip {
-      font-size: 12px; color: #ef4444; margin-top: 10px; display: none; text-align: center;
-    }
+    .gate-error-tip { font-size: 12px; color: #ef4444; margin-top: 10px; display: none; text-align: center; }
 
-    /* ============================================================
-       播放器与页面主体
-    ============================================================ */
+    /* 播放器与主应用 */
     #player-wrap { 
       width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; 
       flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default;
@@ -173,9 +156,7 @@
     #progress-container.dragging #progress-thumb,
     #progress-container:hover #progress-thumb { transform: translateY(-50%) scale(1); }
 
-    .controls-inner { 
-      height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; gap: 6px;
-    }
+    .controls-inner { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; gap: 6px; }
     .ctrl-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .ctrl-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; opacity: 0.85; transition: opacity 0.2s; font-size: 12px; padding: 2px; }
     .ctrl-btn:hover { opacity: 1; }
@@ -203,9 +184,7 @@
     .ext-btn svg { width: 14px; height: 14px; }
 
     #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #161616; border-top: 1px solid #282828; }
-    #search-box { 
-      padding: 10px 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; 
-    }
+    #search-box { padding: 10px 12px; background: #1f1f1f; border-bottom: 1px solid #2b2b2b; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
 
     .search-row-primary { display: flex; align-items: center; gap: 8px; width: 100%; }
     .search-row-secondary { display: flex; align-items: center; gap: 6px; width: 100%; }
@@ -229,7 +208,7 @@
     }
 
     .btn-user-entry {
-      background: #2b2b2b; border: 1px solid #444; color: #4ade80; border-radius: 6px;
+      background: #2b2b2b; border: 1px solid #444; color: #54a56a; border-radius: 6px;
       padding: 7px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
     }
 
@@ -248,7 +227,6 @@
       background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
       padding: 3px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
     }
-    .btn-sort-speed:active { background: #1e702e; }
 
     .title-group-box { border-bottom: 1px solid #252525; background: #161616; }
     .title-group-header {
@@ -258,9 +236,7 @@
     .title-group-header:hover { background: #1f1f1f; }
     .title-group-box.active-group .title-group-header { background: #152438; border-left: 3px solid #0070f3; }
     .group-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .group-poster {
-      width: 44px; height: 60px; border-radius: 4px; object-fit: cover; background: #222; flex-shrink: 0;
-    }
+    .group-poster { width: 44px; height: 60px; border-radius: 4px; object-fit: cover; background: #222; flex-shrink: 0; }
     .group-info-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .group-main-title { font-size: 14px; font-weight: bold; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .group-meta-tag { font-size: 11px; color: #888; display: flex; align-items: center; gap: 6px; }
@@ -271,19 +247,13 @@
     .group-body-panel { display: none; background: #111; padding: 6px 10px 12px 10px; border-top: 1px solid #222; }
     .title-group-box.expanded .group-body-panel { display: block; }
 
-    .single-source-card {
-      border-bottom: 1px solid #252525; background: #161616; padding: 10px 12px; transition: background 0.15s;
-    }
+    .single-source-card { border-bottom: 1px solid #252525; background: #161616; padding: 10px 12px; transition: background 0.15s; }
     .single-source-card.active-group { background: #152438; border-left: 3px solid #0070f3; }
     .single-top-row { display: flex; gap: 10px; align-items: center; cursor: pointer; }
 
-    .section-divider-tag {
-      padding: 6px 14px; font-size: 11px; font-weight: 600; color: #888; background: #1a1a1a; border-bottom: 1px solid #242424;
-    }
+    .section-divider-tag { padding: 6px 14px; font-size: 11px; font-weight: 600; color: #888; background: #1a1a1a; border-bottom: 1px solid #242424; }
 
-    .episodes-collapse-box { 
-      background: #181818; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px;
-    }
+    .episodes-collapse-box { background: #181818; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px; }
     .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #ddd; }
     .episodes-actions { display: flex; align-items: center; gap: 8px; }
     .btn-ep-order { background: #262626; border: 1px solid #383838; color: #0070f3; padding: 2px 6px; border-radius: 4px; font-size: 10px; cursor: pointer; }
@@ -386,15 +356,14 @@
 </head>
 <body>
 
-  <!-- ============================================================
-       全屏极简登录门禁 (高保真仿图设计，阻断未授权操作)
-  ============================================================ -->
+  <!-- 全屏极简门禁系统 (仿图设计) -->
   <div id="auth-gate-screen">
     <div class="gate-top-bar">
-      <button type="button" id="gate-theme-toggle" class="gate-theme-btn" onclick="toggleGateTheme()" title="切换明暗主题">🌙</button>
+      <button type="button" id="gate-theme-toggle" class="gate-theme-btn" onclick="toggleGateTheme()" title="切换明暗模式">🌙</button>
     </div>
     <div class="gate-card">
       <div class="gate-logo">TV</div>
+      <div id="gate-sub-tip" class="gate-sub-tip">拾光影视系统</div>
       
       <div class="gate-input-box">
         <span class="gate-input-icon">👤</span>
@@ -439,6 +408,7 @@
 
     <video id="video" playsinline webkit-playsinline></video>
 
+    <!-- 底部控制栏 -->
     <div id="custom-controls">
       <div id="progress-container">
         <div id="progress-track">
@@ -544,12 +514,12 @@
         <span style="font-size:14px;color:#888;cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
 
-      <!-- 主账户强制登录开关 -->
+      <!-- 强制登录门禁开关 -->
       <div class="auth-switch-row">
-        <span>🔒 强制账号登录验证访问</span>
+        <span>🔒 强制账号登录门禁</span>
         <input type="checkbox" id="auth-require-toggle" class="toggle-checkbox" onchange="toggleRequireLoginSwitch(this.checked)">
       </div>
-      <div style="font-size: 11px; color: #777; margin-top: 4px; margin-bottom: 8px;">开启后访客必须输入密码通过门禁；关闭后任何人可免密打开直接观影。</div>
+      <div style="font-size: 11px; color: #777; margin-top: 4px; margin-bottom: 8px;">开启后访客必须输入密码通过门禁；关闭后任何人可免密直接打开观影。</div>
 
       <label class="input-label">影视订阅地址：</label>
       <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
@@ -618,6 +588,12 @@
       if (!url || typeof url !== 'string') return false;
       const t = url.trim().toLowerCase();
       return t.startsWith('http://') || t.startsWith('https://');
+    }
+
+    /* 原生 Web Crypto 安全哈希散列引擎 (禁止明文密码流转) */
+    async function hashPassword(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     function parseQualityTag(remarks) {
@@ -690,8 +666,10 @@
     const KEY_LAST_SYNC = "last_subscription_sync_time";
     const KEY_SYNC_INTERVAL = "subscription_sync_interval";
 
-    const KEY_AUTH_CONFIG = "sys_auth_config_v1";
-    const KEY_USERS_LIST = "sys_users_list_v1";
+    /* 账号认证 D1 专用键 (不包含任何硬编码凭据) */
+    const KEY_ADMIN_INFO = "sys_admin_credentials_v2"; // 存储主管理员 { username, passHash }
+    const KEY_AUTH_CONFIG = "sys_auth_config_v2";       // 存储 { requireLogin: boolean }
+    const KEY_USERS_LIST = "sys_users_list_v2";        // 存储普通注册用户列表 [{ username, passHash, allowedSites }]
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
 
@@ -751,11 +729,12 @@
     let isSearchingActive = false;
     let currentSearchingWord = "";
 
-    // 默认启用强制登录保护，未登录无法跳过
-    let authConfig = { requireLogin: true, adminUser: "admin", adminPass: "admin888" };
+    /* 账号状态 (零初始硬编码密码) */
+    let adminAccount = null; // 从 D1 读取 { username, passHash }
+    let authConfig = { requireLogin: true };
     let userList = [];
     let currentUser = null;
-    let gateAuthMode = 'login'; // 'login' | 'register'
+    let gateAuthMode = 'login'; // 'login' | 'register' | 'init_admin'
 
     const domNodeCache = new Map();
 
@@ -1272,11 +1251,10 @@
     }
 
     /* ============================================================
-       全屏极简门禁与账号权限核心逻辑 (高保真仿图 15)
+       账号认证体系：D1 纯净存储 + SHA-256 密文比对 (零前端硬编码)
     ============================================================ */
     function toggleGateTheme() {
-      const screen = document.getElementById('auth-gate-screen');
-      screen.classList.toggle('dark-theme');
+      document.getElementById('auth-gate-screen').classList.toggle('dark-theme');
     }
 
     function toggleGatePasswordVisibility() {
@@ -1284,18 +1262,19 @@
       pwd.type = pwd.type === 'password' ? 'text' : 'password';
     }
 
+    function showGateError(msg) {
+      const err = document.getElementById('gate-error-msg');
+      err.textContent = msg;
+      err.style.display = 'block';
+    }
+
     function switchGateAuthMode() {
+      if (gateAuthMode === 'init_admin') return;
       const isLogin = gateAuthMode === 'login';
       gateAuthMode = isLogin ? 'register' : 'login';
       document.getElementById('gate-submit-btn').textContent = isLogin ? '注 册' : '登 录';
       document.getElementById('gate-switch-link').textContent = isLogin ? '返回账号登录' : '注册新账号';
       document.getElementById('gate-error-msg').style.display = 'none';
-    }
-
-    function showGateError(msg) {
-      const err = document.getElementById('gate-error-msg');
-      err.textContent = msg;
-      err.style.display = 'block';
     }
 
     function openGateLoginModal() {
@@ -1322,13 +1301,29 @@
         return;
       }
 
+      const passHash = await hashPassword(p);
+
+      // 分支 1：首次使用，D1 尚未存在主管理员，初始化创建
+      if (gateAuthMode === 'init_admin') {
+        adminAccount = { username: u, passHash: passHash };
+        await setD1Data(KEY_ADMIN_INFO, adminAccount);
+        currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
+        if (remember) localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, passHash }));
+        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
+        updateCurrentUserUI();
+        document.getElementById('auth-gate-screen').style.display = 'none';
+        alert(`主管理员账号【${u}】已成功初始化并存入 D1 云数据库！`);
+        return;
+      }
+
+      // 分支 2：用户登录
       if (gateAuthMode === 'login') {
-        // 验证主管理员
-        if (u === authConfig.adminUser && p === authConfig.adminPass) {
+        // 校验 D1 中的主管理员
+        if (adminAccount && u === adminAccount.username && passHash === adminAccount.passHash) {
           currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
         } else {
-          // 验证普通成员账号
-          const found = userList.find(item => item.username === u && item.password === p);
+          // 校验 D1 中的普通注册账号
+          const found = userList.find(item => item.username === u && item.passHash === passHash);
           if (found) {
             currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || ['*'] };
           } else {
@@ -1337,9 +1332,8 @@
           }
         }
 
-        // 处理记住密码状态
         if (remember) {
-          localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, p }));
+          localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, passHash }));
         } else {
           localStorage.removeItem(KEY_SAVED_CREDS);
         }
@@ -1349,24 +1343,24 @@
         document.getElementById('auth-gate-screen').style.display = 'none';
         alert(`欢迎回来，${currentUser.username}！`);
       } else {
-        // 注册普通账号
-        if (u === authConfig.adminUser || userList.some(item => item.username === u)) {
+        // 分支 3：注册新账号 (全量存入 D1)
+        if ((adminAccount && u === adminAccount.username) || userList.some(item => item.username === u)) {
           showGateError("该用户名已被注册，请更换！");
           return;
         }
 
-        const newUser = { username: u, password: p, allowedSites: ['*'] };
+        const newUser = { username: u, passHash: passHash, allowedSites: ['*'] };
         userList.push(newUser);
         await setD1Data(KEY_USERS_LIST, userList);
 
         currentUser = { username: u, role: 'user', allowedSites: ['*'] };
         if (remember) {
-          localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, p }));
+          localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, passHash }));
         }
         localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
         updateCurrentUserUI();
         document.getElementById('auth-gate-screen').style.display = 'none';
-        alert(`注册成功！已为您登录：${u}`);
+        alert(`注册成功并已保存至云数据库！已为您登录：${u}（普通账号拥有完整观影权限）`);
       }
     }
 
@@ -1386,9 +1380,9 @@
 
       if (currentUser) {
         userBtn.textContent = `👤 ${currentUser.username}`;
-        userBtn.style.color = currentUser.role === 'admin' ? '#facc15' : '#4ade80';
+        userBtn.style.color = currentUser.role === 'admin' ? '#facc15' : '#54a56a';
 
-        // 普通注册账号绝对不可更改任何设置（隐藏设置按钮）
+        // 普通注册用户只可用，不可修改任何设置（界面直接隐藏设置入口）
         if (currentUser.role === 'admin') {
           settingsBtn.style.display = 'block';
         } else {
@@ -1396,7 +1390,7 @@
         }
       } else {
         userBtn.textContent = "👤 登录";
-        userBtn.style.color = '#4ade80';
+        userBtn.style.color = '#54a56a';
         settingsBtn.style.display = 'block';
       }
     }
@@ -1438,11 +1432,12 @@
       const u = (document.getElementById('new-user-name').value || '').trim();
       const p = (document.getElementById('new-user-pass').value || '').trim();
       if (!u || !p) { alert("请填写账号与密码！"); return; }
-      if (u === authConfig.adminUser || userList.some(item => item.username === u)) {
+      if ((adminAccount && u === adminAccount.username) || userList.some(item => item.username === u)) {
         alert("账号已存在！");
         return;
       }
-      userList.push({ username: u, password: p, allowedSites: ['*'] });
+      const passHash = await hashPassword(p);
+      userList.push({ username: u, passHash: passHash, allowedSites: ['*'] });
       await setD1Data(KEY_USERS_LIST, userList);
       document.getElementById('new-user-name').value = '';
       document.getElementById('new-user-pass').value = '';
@@ -1541,16 +1536,18 @@
 
     async function openSourceModal() {
       if (currentUser && currentUser.role !== 'admin') {
-        alert("普通注册账号不可修改系统设置！");
+        alert("普通注册账号仅拥有观影权限，无法修改系统设置！");
         return;
       }
       if (!currentUser || currentUser.role !== 'admin') {
-        const pass = prompt("该操作需要主账户权限，请输入密码：");
-        if (pass !== authConfig.adminPass) {
-          alert("密码错误，无法打开设置！");
+        const pass = prompt("该操作需要主账户权限，请输入主账户访问密码：");
+        if (!pass) return;
+        const passHash = await hashPassword(pass);
+        if (!adminAccount || passHash !== adminAccount.passHash) {
+          alert("密码错误，无法进入设置！");
           return;
         }
-        currentUser = { username: authConfig.adminUser, role: 'admin', allowedSites: ['*'] };
+        currentUser = { username: adminAccount.username, role: 'admin', allowedSites: ['*'] };
         localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
         updateCurrentUserUI();
       }
@@ -1582,9 +1579,10 @@
       await setD1Data(KEY_SITES, parsedSites);
       await setD1Data(KEY_AUTH_CONFIG, authConfig);
       await setD1Data(KEY_USERS_LIST, userList);
+      if (adminAccount) await setD1Data(KEY_ADMIN_INFO, adminAccount);
 
       closeSourceModal();
-      alert("全部设置已成功保存！");
+      alert("全部配置与账号权限已保存至云数据库！");
     }
 
     async function manualSyncSubscription() {
@@ -1612,7 +1610,7 @@
           }
           if (sites.length > 0) {
             parsedSites = sites;
-            await setD1Data(KEY_SITES, JSON.stringify(parsedSites));
+            await setD1Data(KEY_SITES, parsedSites);
             msg.push(`影视源已更新: ${sites.length} 个`);
             renderSitesManagerList();
           } else msg.push(`影视源解析为空`);
@@ -1662,7 +1660,7 @@
         let sites = parseSubscriptionPayload(text);
         if (sites.length > 0) {
           parsedSites = sites;
-          await setD1Data(KEY_SITES, JSON.stringify(parsedSites));
+          await setD1Data(KEY_SITES, parsedSites);
           await setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
         }
       } catch (_) {}
@@ -1815,6 +1813,7 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
+      // 根据账号权限过滤源站
       let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
       if (currentUser && currentUser.allowedSites && currentUser.allowedSites[0] !== '*') {
         availableSites = availableSites.filter(s => currentUser.allowedSites.includes(s.name));
@@ -2559,8 +2558,9 @@
     video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    // 初始化系统：装载设置、权限与门禁验证
+    /* 系统安全启动：D1 载入凭据与初始化检测 */
     window.addEventListener('DOMContentLoaded', async () => {
+      // 1. 读取基础配置
       const cachedSites = await getD1Data(KEY_SITES, null);
       if (cachedSites) {
         try {
@@ -2572,9 +2572,15 @@
       const disData = await getD1Data(KEY_DISABLED_SITES, '[]');
       try { disabledSites = JSON.parse(disData) || []; } catch (_) { disabledSites = []; }
 
+      // 2. 从 D1 加载账号配置与成员
       const authCfgStr = await getD1Data(KEY_AUTH_CONFIG, '');
       if (authCfgStr) {
         try { authConfig = JSON.parse(authCfgStr); } catch (_) {}
+      }
+
+      const adminStr = await getD1Data(KEY_ADMIN_INFO, '');
+      if (adminStr) {
+        try { adminAccount = JSON.parse(adminStr); } catch (_) {}
       }
 
       const usersStr = await getD1Data(KEY_USERS_LIST, '');
@@ -2582,35 +2588,44 @@
         try { userList = JSON.parse(usersStr); } catch (_) {}
       }
 
-      // 尝试自动恢复“记住密码”凭证
-      const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
-      if (savedCredsStr) {
-        try {
-          const { u, p } = JSON.parse(savedCredsStr);
-          if (u === authConfig.adminUser && p === authConfig.adminPass) {
-            currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
-          } else {
-            const found = userList.find(item => item.username === u && item.password === p);
-            if (found) {
-              currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || ['*'] };
-            }
-          }
-        } catch (_) {}
-      } else {
-        const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
-        if (localUserStr) {
-          try { currentUser = JSON.parse(localUserStr); } catch (_) {}
-        }
-      }
-
-      updateCurrentUserUI();
-
-      // 门禁判定：若启用了强制登录且当前未授权，全屏锁死
+      // 3. 门禁与认证逻辑 (全流程无硬编码)
       const gateScreen = document.getElementById('auth-gate-screen');
-      if (authConfig.requireLogin && !currentUser) {
+
+      // 检查 D1 是否尚未配置主管理员
+      if (!adminAccount) {
+        gateAuthMode = 'init_admin';
+        document.getElementById('gate-sub-tip').textContent = "首次使用：请初始化主管理员";
+        document.getElementById('gate-submit-btn').textContent = "创建主管理员并进入";
+        document.getElementById('gate-switch-link').style.display = 'none';
         gateScreen.style.display = 'flex';
       } else {
-        gateScreen.style.display = 'none';
+        // 尝试通过记住的密文哈希自动登录
+        const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
+        if (savedCredsStr) {
+          try {
+            const { u, passHash } = JSON.parse(savedCredsStr);
+            if (u === adminAccount.username && passHash === adminAccount.passHash) {
+              currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
+            } else {
+              const found = userList.find(item => item.username === u && item.passHash === passHash);
+              if (found) currentUser = { username: found.username, role: 'user', allowedSites: found.allowedSites || ['*'] };
+            }
+          } catch (_) {}
+        } else {
+          const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
+          if (localUserStr) {
+            try { currentUser = JSON.parse(localUserStr); } catch (_) {}
+          }
+        }
+
+        updateCurrentUserUI();
+
+        // 门禁判定：未登录且开启了强制登录，阻断显示
+        if (authConfig.requireLogin && !currentUser) {
+          gateScreen.style.display = 'flex';
+        } else {
+          gateScreen.style.display = 'none';
+        }
       }
 
       initTv();
