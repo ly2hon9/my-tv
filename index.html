@@ -887,7 +887,7 @@
     /* === 高性能搜索双层缓存管理器 (LRU + SessionStorage) === */
     const VodSearchCache = {
       maxMemEntries: 20,
-      ttl: 15 * 60 * 1000, // 15分钟
+      ttl: 15 * 60 * 1000,
       memMap: new Map(),
 
       makeKey(kw, groupId) {
@@ -987,7 +987,7 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
-    /* === 排序状态：score (综合智能排序) / time (最新更新时间排序) === */
+    /* === 排序状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早倒序) === */
     let currentVodSortType = 'score';
 
     /* === 虚拟分块增量渲染状态 === */
@@ -2361,7 +2361,7 @@
       return best;
     }
 
-    /* === 提取群组最新更新时间戳（用于时间排序） === */
+    /* === 提取群组最新更新时间戳（毫秒数） === */
     function getGroupLatestTime(group) {
       if (group._latestTimestamp !== undefined) return group._latestTimestamp;
       let maxTime = 0;
@@ -2369,10 +2369,10 @@
       (group.items || []).forEach(it => {
         const rawTime = it.vod?.vod_time || it.vod?.vod_pubdate || '';
         if (rawTime) {
-          const t = new Date(rawTime.replace(/-/g, '/')).getTime();
+          const t = new Date(String(rawTime).replace(/-/g, '/')).getTime();
           if (!isNaN(t) && t > maxTime) {
             maxTime = t;
-            maxTimeStr = rawTime.split(' ')[0] || rawTime;
+            maxTimeStr = String(rawTime).split(' ')[0] || rawTime;
           }
         }
       });
@@ -2381,7 +2381,7 @@
       return maxTime;
     }
 
-    /* === 综合排序与时间排序执行器 === */
+    /* === 综合排序、最新降序、最旧倒序执行器 === */
     function sortGroupedVodList() {
       if (!groupedVodList || groupedVodList.length === 0) return;
 
@@ -2405,12 +2405,21 @@
         });
       });
 
-      if (currentVodSortType === 'time') {
+      if (currentVodSortType === 'time_desc' || currentVodSortType === 'time_asc') {
         groupedVodList.sort((a, b) => {
           const nsfwA = isGroupNSFW(a) ? 1 : 0;
           const nsfwB = isGroupNSFW(b) ? 1 : 0;
           if (nsfwA !== nsfwB) return nsfwA - nsfwB;
-          return getGroupLatestTime(b) - getGroupLatestTime(a);
+
+          const timeA = getGroupLatestTime(a);
+          const timeB = getGroupLatestTime(b);
+
+          // 核心容错：无有效发布日期的影视项始终沉底
+          if (!timeA && !timeB) return 0;
+          if (!timeA) return 1;
+          if (!timeB) return -1;
+
+          return currentVodSortType === 'time_desc' ? (timeB - timeA) : (timeA - timeB);
         });
       } else {
         groupedVodList.sort((a, b) => {
@@ -2446,11 +2455,20 @@
       }
     }
 
+    /* === 三态无缝流转：综合排序 -> 最新降序 -> 最早倒序 -> 综合排序 === */
     function toggleTimeSort() {
-      currentVodSortType = (currentVodSortType === 'time') ? 'score' : 'time';
+      if (currentVodSortType === 'score') {
+        currentVodSortType = 'time_desc';
+        showGestureTip("已切换为：最新时间 (降序 ↓)");
+      } else if (currentVodSortType === 'time_desc') {
+        currentVodSortType = 'time_asc';
+        showGestureTip("已切换为：早期时间 (倒序 ↑)");
+      } else {
+        currentVodSortType = 'score';
+        showGestureTip("已切换为：智能综合排序");
+      }
       sortGroupedVodList();
       renderGroupedVodSources();
-      showGestureTip(currentVodSortType === 'time' ? "已切换为：最新时间排序" : "已切换为：智能综合排序");
     }
 
     async function fastStreamSearchVod(keyword) {
@@ -2914,7 +2932,6 @@
       }
     }
 
-    /* === 渐进追加卡片片段（用于大列表虚拟滚动） === */
     function appendVodCardsChunk(targetList, startIdx, count) {
       const container = document.getElementById('channel-list');
       const frag = document.createDocumentFragment();
@@ -2978,14 +2995,25 @@
         else currentCategoryFilter = 'multi';
       }
 
+      /* 当前排序按钮文本与高亮状态 */
+      let sortLabel = '⭐ 综合排序';
+      let isSortActive = false;
+      if (currentVodSortType === 'time_desc') {
+        sortLabel = '🕒 最新 ↓';
+        isSortActive = true;
+      } else if (currentVodSortType === 'time_asc') {
+        sortLabel = '🕒 最早 ↑';
+        isSortActive = true;
+      }
+
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
       headerBar.innerHTML = `
         <span class="sources-header-title">搜索结果 (${countTotal} 部)${searchStatusText}</span>
         <div class="header-actions-group">
-          <button class="btn-sort-action ${currentVodSortType === 'time' ? 'active-sort' : ''}" onclick="toggleTimeSort()" title="切换按时间/智能综合排序">
-            ${currentVodSortType === 'time' ? '🕒 最新时间' : '⭐ 综合排序'}
+          <button class="btn-sort-action ${isSortActive ? 'active-sort' : ''}" onclick="toggleTimeSort()" title="点击切换：综合排序 / 最新降序 / 最早倒序">
+            ${sortLabel}
           </button>
           <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
         </div>
@@ -3023,7 +3051,6 @@
         frag.appendChild(filterBar);
       }
 
-      /* 构建当前激活标签下的扁平任务列表 */
       activeDisplayCardList = [];
       if (currentCategoryFilter === 'multi') {
         normalMulti.forEach(g => activeDisplayCardList.push({ group: g, isSingle: false }));
@@ -3053,7 +3080,6 @@
       container.replaceChildren(frag);
     }
 
-    /* === 绑定无阻碍原生平滑滚动加载 === */
     const channelListEl = document.getElementById('channel-list');
     channelListEl.addEventListener('scroll', () => {
       if (currentView !== 'normal' || currentMode !== 'vod') return;
@@ -3405,7 +3431,7 @@
           try { userList = JSON.parse(results[4].value); } catch (_) {}
         }
         if (results[5].status === 'fulfilled' && results[5].value) {
-          try { const p = JSON.parse(results[5].value); if (Array.isArray(p)) sourceGroups = p; } catch (_) {}
+          try { const p = JSON.parse(results[5].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
         }
         if (results[6].status === 'fulfilled' && results[6].value) {
           currentThemeSetting = results[6].value;
