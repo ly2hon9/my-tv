@@ -120,7 +120,7 @@
     }
     .gate-remember-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888; }
     .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
-    .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
+    .gate-switch-link { color: #54a56a; cursor: font-weight: 500; }
 
     .gate-submit-btn {
       width: 100%; height: 42px; background: #b0d4bb;
@@ -265,16 +265,6 @@
     .btn-sort-speed { 
       background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
       padding: 3px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
-    }
-
-    .btn-sort-time {
-      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main);
-      border-radius: 4px; padding: 3px 9px; font-size: 11px; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 3px; font-weight: 500; transition: all 0.15s; outline: none;
-    }
-    .btn-sort-time:active { transform: scale(0.96); }
-    .btn-sort-time.active {
-      background: var(--accent); border-color: var(--accent); color: #fff;
     }
 
     /* 顶部快捷分类药丸切换栏 */
@@ -448,6 +438,7 @@
 </head>
 <body>
 
+  <!-- 全屏门禁系统 -->
   <div id="auth-gate-screen">
     <div class="gate-top-bar">
       <button type="button" id="gate-theme-toggle" class="gate-theme-btn" onclick="toggleGlobalThemeClick()" title="切换明暗主题"></button>
@@ -775,12 +766,6 @@
         .replace(/[（(].*?[)）]/g, '');
     }
 
-    function extractYear(str) {
-      if (!str) return 0;
-      const m = str.match(/(?:19|20)\d{2}/);
-      return m ? parseInt(m[0], 10) : 0;
-    }
-
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
       let str = String(rawName).trim();
@@ -947,7 +932,6 @@
     let currentSearchingWord = "";
 
     let currentCategoryFilter = 'auto';
-    let currentSortType = 'default'; // 'default' | 'time_desc' | 'time_asc'
 
     let adminAccount = null;
     let authConfig = { requireLogin: false };
@@ -2191,8 +2175,6 @@
     function triggerSearch() {
       const kw = document.getElementById('filter').value.trim();
       currentView = 'normal';
-      currentCategoryFilter = 'auto';
-      currentSortType = 'default';
       document.getElementById('btn-show-fav').classList.remove('active');
       document.getElementById('btn-show-history').classList.remove('active');
 
@@ -2202,37 +2184,6 @@
       } else {
         handleSearchTv();
       }
-    }
-
-    function toggleSortByTime() {
-      if (currentSortType === 'default') {
-        currentSortType = 'time_desc';
-        showGestureTip("📅 已按时间：最新优先");
-      } else if (currentSortType === 'time_desc') {
-        currentSortType = 'time_asc';
-        showGestureTip("📅 已按时间：最早优先");
-      } else {
-        currentSortType = 'default';
-        showGestureTip("✨ 已恢复综合推荐排序");
-      }
-      renderGroupedVodSources();
-    }
-
-    function compareGroupByTime(a, b, desc = true) {
-      const ya = a.year || extractYear(a.title) || 0;
-      const yb = b.year || extractYear(b.title) || 0;
-      if (ya !== yb && ya > 0 && yb > 0) {
-        return desc ? yb - ya : ya - yb;
-      }
-      if (ya > 0 && yb === 0) return desc ? -1 : 1;
-      if (ya === 0 && yb > 0) return desc ? 1 : -1;
-
-      const ta = a.vodTime ? Date.parse(a.vodTime) || 0 : 0;
-      const tb = b.vodTime ? Date.parse(b.vodTime) || 0 : 0;
-      if (ta !== tb) {
-        return desc ? tb - ta : ta - tb;
-      }
-      return (b.score || 0) - (a.score || 0);
     }
 
     async function fetchWithSmartProxy(targetUrl, timeout = 2500, signal = null) {
@@ -2341,6 +2292,256 @@
       return best;
     }
 
+    async function fastStreamSearchVod(keyword) {
+      if (currentSearchAbortController) currentSearchAbortController.abort();
+      currentSearchAbortController = new AbortController();
+      const currentSignal = currentSearchAbortController.signal;
+
+      isSearchingActive = true;
+      currentSearchingWord = keyword;
+      currentCategoryFilter = 'auto';
+
+      const container = document.getElementById('channel-list');
+      container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
+      
+      groupedVodList = [];
+      domNodeCache.clear();
+      const kw = keyword.toLowerCase().trim();
+
+      let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
+      if (currentUser && currentUser.role !== 'admin') {
+        const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
+        if (userGroup && userGroup.sites && userGroup.sites[0] !== '*') {
+          availableSites = availableSites.filter(s => userGroup.sites.includes(s.name));
+        }
+      }
+
+      if (availableSites.length === 0) {
+        isSearchingActive = false;
+        container.innerHTML = `<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">当前分组未开放可用的视频源，请联系主管理员</div>`;
+        return;
+      }
+
+      let starClassics = [];
+      for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
+        if (kw === star.toLowerCase() || kw.includes(star.toLowerCase())) {
+          starClassics = works;
+          break;
+        }
+      }
+
+      const searchTasks = [];
+      availableSites.forEach(site => {
+        searchTasks.push({ site, term: keyword });
+      });
+
+      if (starClassics.length > 0) {
+        starClassics.slice(0, 4).forEach(film => {
+          availableSites.slice(0, 16).forEach(site => {
+            searchTasks.push({ site, term: film });
+          });
+        });
+      }
+
+      const processList = (dataList, site) => {
+        if (!Array.isArray(dataList)) return;
+        dataList.forEach((item, itemIdx) => {
+          const rawVodName = (item.vod_name || '').trim();
+          const vodType = (item.type_name || '').trim();
+          const vodActor = (item.vod_actor || '').trim();
+          if (!rawVodName) return;
+
+          const lowerName = rawVodName.toLowerCase();
+          const lowerActor = vodActor.toLowerCase();
+
+          const parsed = parseTitleAndVersion(rawVodName);
+          const canonicalTitle = parsed.canonical;
+          const versionTag = parsed.version;
+
+          // 核心修复：代表作匹配必须是精确片名相等，杜绝“神话”二字匹配到其他无关短剧
+          const isExactClassic = starClassics.some(c => {
+            const cleanC = c.toLowerCase();
+            const cleanCanonical = canonicalTitle.toLowerCase();
+            return cleanCanonical === cleanC || cleanCanonical === (cleanC + '电影') || cleanCanonical === ('电影' + cleanC);
+          });
+
+          const isRelevant = lowerName.includes(kw) || 
+                             lowerActor.includes(kw) || 
+                             isExactClassic;
+          
+          if (!isRelevant) return;
+
+          const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
+          const itemResult = {
+            id: uniqueId,
+            siteName: site.name,
+            versionTag: versionTag,
+            vod: item,
+            ping: -1
+          };
+
+          const cleanKey = normalizeCleanKey(canonicalTitle);
+          let group = groupedVodList.find(g => {
+            return g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey;
+          });
+
+          if (!group) {
+            group = {
+              title: canonicalTitle,
+              poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
+              type: vodType,
+              actor: vodActor,
+              items: []
+            };
+            groupedVodList.push(group);
+          } else {
+            if (!group.poster && isSafeUrl(item.vod_pic)) group.poster = item.vod_pic;
+            if (!group.actor && vodActor) group.actor = vodActor;
+          }
+
+          if (!group.items.some(i => i.id === uniqueId)) {
+            group.items.push(itemResult);
+          }
+        });
+      };
+
+      await asyncPool(16, searchTasks, async ({ site, term }) => {
+        if (currentSignal.aborted) return;
+        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
+        try {
+          const res = await fetchWithSmartProxy(urlWd, 2500, currentSignal);
+          processList(JSON.parse(res).list, site);
+          scheduleRenderVodSources();
+        } catch (_) {}
+      });
+
+      if (currentSignal.aborted) return;
+      isSearchingActive = false;
+
+      if (groupedVodList.length === 0 && currentView === 'normal') {
+        container.innerHTML = `<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
+        return;
+      }
+
+      groupedVodList.forEach(group => {
+        group.items.sort((a, b) => {
+          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+
+          const pa = a.ping < 0 ? 9999 : a.ping;
+          const pb = b.ping < 0 ? 9999 : b.ping;
+          return pa - pb;
+        });
+      });
+
+      groupedVodList.sort((a, b) => {
+        const nsfwA = isGroupNSFW(a) ? 1 : 0;
+        const nsfwB = isGroupNSFW(b) ? 1 : 0;
+        if (nsfwA !== nsfwB) return nsfwA - nsfwB;
+
+        let scoreA = 0, scoreB = 0;
+        const aName = a.title.toLowerCase();
+        const bName = b.title.toLowerCase();
+        const aActor = (a.actor || '').toLowerCase();
+        const bActor = (b.actor || '').toLowerCase();
+        const aType = (a.type || '').toLowerCase();
+        const bType = (b.type || '').toLowerCase();
+
+        if (starClassics.some(c => aName === c.toLowerCase())) scoreA += 180;
+        if (starClassics.some(c => bName === c.toLowerCase())) scoreB += 180;
+
+        if (aActor.includes(kw)) scoreA += 120;
+        if (bActor.includes(kw)) scoreB += 120;
+
+        if (aType.includes('电影') || aType.includes('动作')) scoreA += 40;
+        if (bType.includes('电影') || bType.includes('动作')) scoreB += 40;
+
+        if (aName === kw) scoreA += 80;
+        if (bName === kw) scoreB += 80;
+
+        scoreA += a.items.length * 2;
+        scoreB += b.items.length * 2;
+
+        return scoreB - scoreA;
+      });
+
+      renderGroupedVodSources();
+    }
+
+    async function startSpeedTest() {
+      if (!groupedVodList?.length) return;
+
+      const sortBtn = document.querySelector('.btn-sort-speed');
+      if (sortBtn) {
+        sortBtn.textContent = "⚡ 测速中...";
+        sortBtn.disabled = true;
+      }
+
+      const targetItemsToTest = [];
+
+      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+      if (activeGroup && activeGroup.items.length > 1) {
+        activeGroup.items.forEach(item => targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) }));
+      }
+
+      groupedVodList.forEach(group => {
+        if (group.items.length === 1) {
+          targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+        }
+      });
+
+      targetItemsToTest.forEach(({ item }) => {
+        const el = document.getElementById(`ping-badge-${item.id}`);
+        if (el) {
+          el.textContent = "测速中...";
+          el.className = "metric-ping-wait";
+        }
+      });
+
+      await Promise.allSettled(targetItemsToTest.map(async ({ item, site }) => {
+        const episodes = getEpisodesList(item);
+        const targetEp = episodes[currentActiveEp] || episodes[0];
+        let testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
+
+        if (!isSafeUrl(testUrl)) testUrl = site?.api || '';
+
+        item.ping = await probeStreamLatency(testUrl);
+
+        const el = document.getElementById(`ping-badge-${item.id}`);
+        if (el) {
+          const isErr = item.ping >= 9999 || item.ping < 0;
+          el.textContent = isErr ? "超时" : `${item.ping}ms`;
+          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        }
+      }));
+
+      if (activeGroup && activeGroup.items.length > 1) {
+        activeGroup.items.sort((a, b) => {
+          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+
+          const pa = a.ping < 0 ? 9999 : a.ping;
+          const pb = b.ping < 0 ? 9999 : b.ping;
+          return pa - pb;
+        });
+      }
+
+      renderGroupedVodSources();
+
+      if (sortBtn) {
+        sortBtn.textContent = "⚡ 测速";
+        sortBtn.disabled = false;
+      }
+    }
+
+    function toggleEpisodesOrder() {
+      isEpisodeReversed = !isEpisodeReversed;
+      renderGroupedVodSources();
+      showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
+    }
+
     function setCategoryFilter(filterKey) {
       currentCategoryFilter = filterKey;
       renderGroupedVodSources();
@@ -2370,7 +2571,6 @@
                 <div class="group-meta-tag">
                   <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  ${group.year ? `<span style="color:var(--accent);font-weight:500;">${group.year}</span>` : ''}
                   ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
                   <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
                 </div>
@@ -2454,7 +2654,6 @@
                   <div class="group-main-title">${escapeHtml(group.title)}</div>
                   <div class="group-meta-tag">
                     <span>${escapeHtml(group.type || '影视')}</span>
-                    ${group.year ? `<span style="color:var(--accent);font-weight:500;">${group.year}</span>` : ''}
                     ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
                     <span class="group-badge-count">${group.items.length} 个版本/源</span>
                   </div>
@@ -2598,26 +2797,13 @@
       const normalMulti = normalGroups.filter(g => g.items.length > 1);
       const normalSingle = normalGroups.filter(g => g.items.length === 1);
 
-      // 根据当前排序模式应用排序
-      if (currentSortType === 'time_desc') {
-        normalMulti.sort((a, b) => compareGroupByTime(a, b, true));
-        normalSingle.sort((a, b) => compareGroupByTime(a, b, true));
-        nsfwGroups.sort((a, b) => compareGroupByTime(a, b, true));
-      } else if (currentSortType === 'time_asc') {
-        normalMulti.sort((a, b) => compareGroupByTime(a, b, false));
-        normalSingle.sort((a, b) => compareGroupByTime(a, b, false));
-        nsfwGroups.sort((a, b) => compareGroupByTime(a, b, false));
-      } else {
-        normalMulti.sort((a, b) => (b.score || 0) - (a.score || 0));
-        normalSingle.sort((a, b) => {
-          const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
-          const pb = b.items[0].ping < 0 ? 9999 : b.items[0].ping;
-          if (pa !== pb) return pa - pb;
-          return (b.score || 0) - (a.score || 0);
-        });
-        nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
-      }
+      normalSingle.sort((a, b) => {
+        const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
+        const pb = b.items[0].ping < 0 ? 9999 : b.ping;
+        return pa - pb;
+      });
 
+      nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
       const nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
       const nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
 
@@ -2639,19 +2825,9 @@
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
-      
-      let sortBtnLabel = '📅 按时间';
-      if (currentSortType === 'time_desc') sortBtnLabel = '📅 最新优先 🔽';
-      else if (currentSortType === 'time_asc') sortBtnLabel = '📅 最早优先 🔼';
-
       headerBar.innerHTML = `
         <span class="sources-header-title">搜索结果 (${countTotal} 部)${searchStatusText}</span>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <button type="button" class="btn-sort-time ${currentSortType !== 'default' ? 'active' : ''}" onclick="toggleSortByTime()">
-            ${sortBtnLabel}
-          </button>
-          <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
-        </div>
+        <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
       `;
       frag.appendChild(headerBar);
 
@@ -2706,14 +2882,131 @@
       container.replaceChildren(frag);
     }
 
-    function initTv() {
-      getD1Data(KEY_M3U, '').then(targetUrl => {
-        if (!targetUrl) return;
-        fetchWithSmartProxy(targetUrl, 4000).then(text => {
-          parseM3U(text);
-          if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
-        }).catch(() => {});
-      });
+    function getEpisodesList(item) {
+      if (!item?.vod) return [];
+      const playUrlStr = item.vod.vod_play_url || '';
+      const playGroups = playUrlStr.split('$$$');
+      const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
+      const rawEps = m3u8Group.split('#').filter(Boolean);
+
+      return rawEps.map((ep, idx) => {
+        const parts = ep.split('$');
+        const urlCandidate = (parts[1] || parts[0]).trim();
+        return { 
+          originalIdx: idx,
+          name: parts[0] || `第${idx+1}集`, 
+          url: isSafeUrl(urlCandidate) ? urlCandidate : '' 
+        };
+      }).filter(ep => ep.url !== '');
+    }
+
+    function playCurrentVodSource(item, epIdx = 0) {
+      if (!item?.vod) return;
+      isLiveMode = false;
+
+      const episodes = getEpisodesList(item);
+      const targetEp = episodes[epIdx] || episodes[0];
+      if (!targetEp?.url) return;
+
+      let rawUrl = targetEp.url;
+      if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
+        rawUrl = rawUrl.replace('http://', 'https://');
+      }
+
+      currentVodUniqueKey = `${item.vod.vod_name}_${targetEp.name}`;
+      currentTitle.textContent = `${item.vod.vod_name} - ${targetEp.name}`;
+      routeBadge.style.display = 'inline-block';
+      routeBadge.textContent = item.siteName;
+      currentStreamUrl = rawUrl;
+
+      currentPlayingMeta = {
+        title: item.vod.vod_name,
+        epName: targetEp.name,
+        siteName: item.siteName,
+        thumb: item.vod.vod_pic || ''
+      };
+      updateFavIconState();
+      manualPlayOnly(rawUrl);
+    }
+
+    function destroyHlsInstance() {
+      if (hls) {
+        hls.stopLoad();
+        hls.detachMedia();
+        hls.destroy();
+        hls = null;
+      }
+    }
+
+    function manualPlayOnly(url) {
+      setStatus("正在建立连接...");
+      destroyHlsInstance();
+
+      const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
+
+      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.load();
+        video.play().then(() => {
+          setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
+        }).catch(() => { setStatus("", false); });
+        video.onerror = () => showFailTip();
+        return;
+      }
+
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 60,
+          xhrSetup: (xhr) => { xhr.withCredentials = false; }
+        });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setStatus("", false); 
+          video.play().then(() => { 
+            updatePlayBtn(true); 
+            restorePlaybackProgress(); 
+            showControls(); 
+          }).catch(() => { setStatus("", false); });
+        });
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
+              case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
+              default:
+                destroyHlsInstance();
+                showFailTip();
+                updatePlayBtn(false);
+                break;
+            }
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.load();
+        video.play().then(() => {
+          setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
+        }).catch(() => { setStatus("", false); });
+      }
+    }
+
+    function showFailTip() {
+      setStatus("当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>请在右侧列表中手动选择其他源，或点击下方播放器图标一键秒播</span>", true);
+    }
+
+    async function initTv() {
+      const targetUrl = await getD1Data(KEY_M3U, '');
+      if (!targetUrl) return;
+      try {
+        const text = await fetchWithSmartProxy(targetUrl, 4000);
+        parseM3U(text);
+        if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+      } catch (_) {}
     }
 
     function parseM3U(content) {
