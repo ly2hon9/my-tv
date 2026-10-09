@@ -161,10 +161,10 @@
 
     #status-layer { 
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 8; 
-      color: #fff; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(12px); 
-      border: 1px solid rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 12px; 
-      font-size: 13px; pointer-events: none; display: none; text-align: center; max-width: 85%; 
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6); line-height: 1.6;
+      color: #fff; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(12px); 
+      border: 1px solid rgba(255,255,255,0.18); padding: 14px 22px; border-radius: 12px; 
+      font-size: 13px; pointer-events: auto; display: none; text-align: center; max-width: 85%; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7); line-height: 1.6;
     }
 
     #gesture-tip {
@@ -786,19 +786,16 @@
       const sName = (siteName || '').toLowerCase();
       const fullStr = `${name} ${type} ${remarks} ${sub} ${sName}`;
 
-      // 1. 无码（步兵 / Uncensored）判定：支持主流片厂、流出及无修正特征
       const uncensoredRegex = /(无码|步兵|uncensored|无遮|无马|破解去码|流出无码|去码|无修正|未修正|一本道|加勒比|caribbean|1pondo|10musume|pacopacomama|heyzo|tokyo[-_ ]?hot|东京热|天然素人|c0930|h0930|h4610|mywife|muramura|gachinco|s-cute|\bfc2\b)/i;
       if (uncensoredRegex.test(fullStr)) {
         return '🔞 无码';
       }
 
-      // 2. 有码（骑兵 / Censored）判定：显式有码或日韩有码分类
       const censoredRegex = /(有码|骑兵|censored|薄码|带码|有马|日韩有码|日本有码|亚洲有码)/i;
       if (censoredRegex.test(fullStr)) {
         return '🔞 有码';
       }
 
-      // 3. 当处于成人源或成人分类下时，根据典型日本有码番号特征进行兜底识别
       const isAdultContext = isNSFWSource(siteName) ||
         /(自拍|伦理|成人|福利|三级|情色|色情|偷拍|无码|有码|av|女优|同人|cosplay|写真)/i.test(type) ||
         /(av|女优|jav)/i.test(name);
@@ -1057,6 +1054,7 @@
     let currentVodUniqueKey = "";
     let currentPlayingMeta = null;
     let controlsHideTimer = null;
+    let playWatchdogTimer = null; // 6秒超时监控探针
 
     const RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
     let currentRateIdx = 0;
@@ -3286,7 +3284,6 @@
       routeBadge.textContent = item.siteName;
       currentStreamUrl = rawUrl;
 
-      // 提取专属标签同步至播放元数据
       const isSpecial = isNSFWSource(item.siteName) || isGroupNSFW({ items: [item], type: item.vod?.type_name, title: item.vod?.vod_name });
       const cTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
 
@@ -3302,6 +3299,10 @@
     }
 
     function destroyHlsInstance() {
+      if (playWatchdogTimer) {
+        clearTimeout(playWatchdogTimer);
+        playWatchdogTimer = null;
+      }
       if (hls) {
         hls.stopLoad();
         hls.detachMedia();
@@ -3310,9 +3311,52 @@
       }
     }
 
-    function manualPlayOnly(url) {
-      setStatus("正在建立连接...");
+    /* === 核心看门狗防卡死与即时提示机制 === */
+    function clearPlayWatchdog() {
+      if (playWatchdogTimer) {
+        clearTimeout(playWatchdogTimer);
+        playWatchdogTimer = null;
+      }
+    }
+
+    function showFailTip(msg) {
+      clearPlayWatchdog();
       destroyHlsInstance();
+      updatePlayBtn(false);
+      try { video.pause(); } catch(_) {}
+      const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
+      setStatus(tipText, true);
+    }
+
+    function manualPlayOnly(url) {
+      clearPlayWatchdog();
+      destroyHlsInstance();
+      setStatus("正在建立连接，请稍候...");
+
+      let hasStarted = false;
+      const markPlaySuccess = () => {
+        if (hasStarted) return;
+        hasStarted = true;
+        clearPlayWatchdog();
+        setStatus("", false);
+        updatePlayBtn(true);
+        restorePlaybackProgress();
+        showControls();
+      };
+
+      // 启动 6 秒主动看门狗探针：若超过 6 秒仍无画面数据流或被静默拦截，立即主动弹窗提醒受限
+      playWatchdogTimer = setTimeout(() => {
+        if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
+          showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
+        }
+      }, 6000);
+
+      // 解除并重绑原生监听，避免历史残留事件干扰
+      video.onplaying = markPlaySuccess;
+      video.onloadeddata = markPlaySuccess;
+      video.onerror = () => {
+        showFailTip("当前线路受限 (格式或协议被拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请在下方选择其他源，或点击外部播放器图标秒播</span>");
+      };
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
@@ -3320,9 +3364,13 @@
         video.src = url;
         video.load();
         video.play().then(() => {
-          setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => { setStatus("", false); });
-        video.onerror = () => showFailTip();
+          // 在部分浏览器下 play() 成功但流仍在加载，由 onplaying 接管 markPlaySuccess
+        }).catch(err => {
+          // 若为非用户交互导致的中断则提示
+          if (err && err.name === 'NotSupportedError') {
+            showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+          }
+        });
         return;
       }
 
@@ -3331,29 +3379,30 @@
           enableWorker: true,
           lowLatencyMode: true,
           backBufferLength: 60,
+          manifestLoadingTimeOut: 5000,
+          manifestLoadingMaxRetry: 1,
+          fragLoadingTimeOut: 5000,
+          fragLoadingMaxRetry: 1,
           xhrSetup: (xhr) => { xhr.withCredentials = false; }
         });
         hls.loadSource(url);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setStatus("", false); 
-          video.play().then(() => { 
-            updatePlayBtn(true); 
-            restorePlaybackProgress(); 
-            showControls(); 
-          }).catch(() => { setStatus("", false); });
+          video.play().catch(() => {});
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) {
             switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
-              case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                showFailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
               default:
-                destroyHlsInstance();
                 showFailTip();
-                updatePlayBtn(false);
                 break;
             }
           }
@@ -3361,14 +3410,8 @@
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
         video.load();
-        video.play().then(() => {
-          setStatus("", false); updatePlayBtn(true); restorePlaybackProgress(); showControls();
-        }).catch(() => { setStatus("", false); });
+        video.play().catch(() => {});
       }
-    }
-
-    function showFailTip() {
-      setStatus("当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>请在右侧列表中手动选择其他源，或点击下方播放器图标一键秒播</span>", true);
     }
 
     async function initTv() {
@@ -3502,7 +3545,12 @@
       renderList(filtered, true);
     }
 
-    video.addEventListener('playing', () => { setStatus("", false); updatePlayBtn(true); showControls(); });
+    video.addEventListener('playing', () => { 
+      clearPlayWatchdog();
+      setStatus("", false); 
+      updatePlayBtn(true); 
+      showControls(); 
+    });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
     window.addEventListener('DOMContentLoaded', async () => {
