@@ -343,7 +343,7 @@
     .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
 
     /* 有码/无码 专区高质感微标签 */
-    .card-censor { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; }
+    .card-censor { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
     .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
     .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
     body.theme-light .card-censor.c-wuma { background: #fdf4ff; color: #a21caf; border-color: #f0abfc; }
@@ -358,7 +358,7 @@
     .history-card { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer; }
     .history-card:hover { background: var(--bg-card-hover); }
     .history-info { flex: 1; min-width: 0; }
-    .history-title { font-size: 14px; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-title { font-size: 14px; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .history-meta { font-size: 12px; color: var(--text-sub); margin-top: 4px; display: flex; gap: 10px; align-items: center; }
     .btn-del-item { background: none; border: none; color: var(--text-mute); font-size: 14px; cursor: pointer; padding: 4px; }
     .btn-del-item:hover { color: #ef4444; }
@@ -776,27 +776,38 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
-    /* === 特殊片源识别：自动分析「有码」与「无码」，无法识别则返回空字符串 === */
+    /* === 智能识别：精准识别「🔞 无码」与「🔞 有码」，无法识别则返回空字符串 === */
     function detectCensorshipTag(vod, siteName) {
       if (!vod) return '';
-      const str = [
-        vod.vod_name || '',
-        vod.vod_remarks || '',
-        vod.vod_sub || '',
-        vod.type_name || '',
-        siteName || ''
-      ].join(' ').toLowerCase();
+      const name = (vod.vod_name || '').toLowerCase();
+      const type = (vod.type_name || '').toLowerCase();
+      const remarks = (vod.vod_remarks || '').toLowerCase();
+      const sub = (vod.vod_sub || '').toLowerCase();
+      const sName = (siteName || '').toLowerCase();
+      const fullStr = `${name} ${type} ${remarks} ${sub} ${sName}`;
 
-      // 无码判定关键字
-      const uncensoredRegex = /(无码|步兵|uncensored|无遮|无马|破解去码|流出无码|去掉马赛克|去码|fc2|一本道|加勒比|caribbean|1pondo|10musume|pacopacomama|heyzo|tokyo[-_ ]?hot|东京热)/i;
-      if (uncensoredRegex.test(str)) {
-        return '无码';
+      // 1. 无码（步兵 / Uncensored）判定：支持主流片厂、流出及无修正特征
+      const uncensoredRegex = /(无码|步兵|uncensored|无遮|无马|破解去码|流出无码|去码|无修正|未修正|一本道|加勒比|caribbean|1pondo|10musume|pacopacomama|heyzo|tokyo[-_ ]?hot|东京热|天然素人|c0930|h0930|h4610|mywife|muramura|gachinco|s-cute|\bfc2\b)/i;
+      if (uncensoredRegex.test(fullStr)) {
+        return '🔞 无码';
       }
 
-      // 有码判定关键字
-      const censoredRegex = /(有码|骑兵|censored|带码|薄码|有马)/i;
-      if (censoredRegex.test(str)) {
-        return '有码';
+      // 2. 有码（骑兵 / Censored）判定：显式有码或日韩有码分类
+      const censoredRegex = /(有码|骑兵|censored|薄码|带码|有马|日韩有码|日本有码|亚洲有码)/i;
+      if (censoredRegex.test(fullStr)) {
+        return '🔞 有码';
+      }
+
+      // 3. 当处于成人源或成人分类下时，根据典型日本有码番号特征进行兜底识别
+      const isAdultContext = isNSFWSource(siteName) ||
+        /(自拍|伦理|成人|福利|三级|情色|色情|偷拍|无码|有码|av|女优|同人|cosplay|写真)/i.test(type) ||
+        /(av|女优|jav)/i.test(name);
+
+      if (isAdultContext) {
+        const javCensoredCodeRegex = /\b(ssni|ipx|midv|jul|stars|mide|miaa|snis|abp|ipz|adn|ebod|pppd|sdde|tek|jufe|fsdss|dldss|cae|pred|cesd|wanz|das|hbad|mifd|sod|moodyz|ideapocket|prestige|attackers|kmhr|bibi|soe|star|ssis|meyd|dand|hunt|rebd|gun)[-_ ]?\d{2,5}\b/i;
+        if (javCensoredCodeRegex.test(name) || javCensoredCodeRegex.test(remarks) || javCensoredCodeRegex.test(sub)) {
+          return '🔞 有码';
+        }
       }
 
       return '';
@@ -1110,12 +1121,12 @@
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('pointerdown', showControls);
 
-    /* === YouTube 级多击累计快进/后退手势引擎 === */
+    /* === 连续点击累计快进/后退手势引擎 === */
     let seekChainTimer = null;
     let seekAccumSec = 0;
-    let seekActiveDir = null; // 'left' | 'right' | null
+    let seekActiveDir = null;
     let lastTapTime = 0;
-    let lastTapSide = null; // 'left' | 'right' | 'center'
+    let lastTapSide = null;
 
     wrap.addEventListener('touchend', (e) => {
       if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
@@ -1141,7 +1152,6 @@
         return;
       }
 
-      // 如果当前正处于连续点按快进/快退的有效时间窗口（750ms内继续点同一侧）
       if (seekActiveDir && seekActiveDir === side && dt < 750) {
         seekAccumSec += 10;
         if (side === 'left') {
@@ -1152,7 +1162,6 @@
           showGestureTip(`⏩ 快进 ${seekAccumSec} 秒`);
         }
 
-        // 立即同步更新进度条与时间文本反馈
         if (video.duration && isFinite(video.duration)) {
           streamTimeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
           progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
@@ -1169,7 +1178,6 @@
         return;
       }
 
-      // 处于非连击态下的起步双击检测（320ms内同一侧点两下）
       if (dt < 320 && lastTapSide === side) {
         if (side === 'left') {
           seekActiveDir = 'left';
@@ -1201,7 +1209,6 @@
           progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
         }
       } else {
-        // 如果点到了不同侧，重置先前的连击累积链
         if (seekActiveDir && seekActiveDir !== side) {
           seekActiveDir = null;
           seekAccumSec = 0;
@@ -1311,6 +1318,7 @@
           type: isLiveMode ? 'tv' : 'vod',
           siteName: currentPlayingMeta.siteName || '',
           thumb: currentPlayingMeta.thumb || '',
+          censorTag: currentPlayingMeta.censorTag || '',
           savedAt: new Date().toLocaleDateString()
         });
         setStatus("⭐ 已加入收藏", true);
@@ -1339,6 +1347,7 @@
         duration: Math.floor(video.duration),
         siteName: currentPlayingMeta.siteName || '',
         thumb: currentPlayingMeta.thumb || '',
+        censorTag: currentPlayingMeta.censorTag || '',
         updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -1392,11 +1401,18 @@
       frag.appendChild(headerBar);
 
       favs.forEach((item, idx) => {
+        const tag = item.censorTag || (isNSFWSource(item.siteName) ? detectCensorshipTag({ vod_name: item.title }, item.siteName) : '');
+        const censorHtml = tag ? `<span class="card-censor ${tag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(tag)}</span>` : '';
+
         const card = document.createElement('div');
         card.className = 'history-card';
         card.innerHTML = `
           <div class="history-info">
-            <div class="history-title">${escapeHtml(item.title)} <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName || '正片')})</span></div>
+            <div class="history-title">
+              <span>${escapeHtml(item.title)}</span>
+              <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName || '正片')})</span>
+              ${censorHtml}
+            </div>
             <div class="history-meta">
               <span>${item.type === 'tv' ? '📺 电视' : '🎬 影视'}</span>
               <span>${escapeHtml(item.siteName)}</span>
@@ -1459,11 +1475,18 @@
       frag.appendChild(headerBar);
 
       history.forEach((item, idx) => {
+        const tag = item.censorTag || (isNSFWSource(item.siteName) ? detectCensorshipTag({ vod_name: item.title }, item.siteName) : '');
+        const censorHtml = tag ? `<span class="card-censor ${tag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(tag)}</span>` : '';
+
         const card = document.createElement('div');
         card.className = 'history-card';
         card.innerHTML = `
           <div class="history-info">
-            <div class="history-title">${escapeHtml(item.title)} <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName)})</span></div>
+            <div class="history-title">
+              <span>${escapeHtml(item.title)}</span>
+              <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName)})</span>
+              ${censorHtml}
+            </div>
             <div class="history-meta">
               <span>看到：${formatTime(item.time)} / ${formatTime(item.duration)}</span>
               <span>${escapeHtml(item.siteName)}</span>
@@ -1480,7 +1503,12 @@
           currentTitle.textContent = `${item.title} - ${item.epName}`;
           routeBadge.style.display = 'inline-block';
           routeBadge.textContent = item.siteName;
-          currentPlayingMeta = { title: item.title, epName: item.epName, siteName: item.siteName };
+          currentPlayingMeta = {
+            title: item.title,
+            epName: item.epName,
+            siteName: item.siteName,
+            censorTag: tag
+          };
           updateFavIconState();
           manualPlayOnly(item.url);
         };
@@ -1648,7 +1676,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2813,7 +2841,6 @@
       const pubDate = group._displayDate || (group.items[0]?.vod?.vod_time ? String(group.items[0].vod.vod_time).split(' ')[0] : '');
       const pubDateHtml = pubDate ? `<span class="group-pub-time">${escapeHtml(pubDate)}</span>` : '';
 
-      // 判断该群组是否属于其他专区，属于时提取「有码/无码」标签
       const isSpecial = isGroupNSFW(group);
 
       if (isSingle) {
@@ -2822,7 +2849,7 @@
         let singleCard = domNodeCache.get(group.title);
 
         const censorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
-        const censorHtml = censorTag ? `<span class="card-censor ${censorTag === '无码' ? 'c-wuma' : 'c-youma'}">${censorTag}</span>` : '';
+        const censorHtml = censorTag ? `<span class="card-censor ${censorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${censorTag}</span>` : '';
 
         if (!singleCard || !singleCard.classList.contains('single-source-card')) {
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
@@ -2922,7 +2949,7 @@
             if (tag) { groupCensorTag = tag; break; }
           }
         }
-        const groupCensorHtml = groupCensorTag ? `<span class="card-censor ${groupCensorTag === '无码' ? 'c-wuma' : 'c-youma'}">${groupCensorTag}</span>` : '';
+        const groupCensorHtml = groupCensorTag ? `<span class="card-censor ${groupCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${groupCensorTag}</span>` : '';
 
         if (!groupCard || groupCard.classList.contains('single-source-card')) {
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
@@ -3033,7 +3060,7 @@
             const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
             const subCensorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
-            const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag === '无码' ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
+            const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
 
             let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
             let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
@@ -3259,11 +3286,16 @@
       routeBadge.textContent = item.siteName;
       currentStreamUrl = rawUrl;
 
+      // 提取专属标签同步至播放元数据
+      const isSpecial = isNSFWSource(item.siteName) || isGroupNSFW({ items: [item], type: item.vod?.type_name, title: item.vod?.vod_name });
+      const cTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
+
       currentPlayingMeta = {
         title: item.vod.vod_name,
         epName: targetEp.name,
         siteName: item.siteName,
-        thumb: item.vod.vod_pic || ''
+        thumb: item.vod.vod_pic || '',
+        censorTag: cTag
       };
       updateFavIconState();
       manualPlayOnly(rawUrl);
