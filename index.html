@@ -355,7 +355,11 @@
     .metric-ping-err { color: #f87171; }
     .metric-ping-wait { color: var(--text-sub); }
 
-    .history-card { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer; }
+    .history-card { 
+      display: flex; gap: 10px; align-items: center; padding: 10px 14px; 
+      border-bottom: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer;
+      box-sizing: border-box; transform-origin: top center;
+    }
     .history-card:hover { background: var(--bg-card-hover); }
     .history-info { flex: 1; min-width: 0; }
     .history-title { font-size: 14px; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1054,7 +1058,7 @@
     let currentVodUniqueKey = "";
     let currentPlayingMeta = null;
     let controlsHideTimer = null;
-    let playWatchdogTimer = null; // 6秒超时监控探针
+    let playWatchdogTimer = null;
 
     const RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
     let currentRateIdx = 0;
@@ -1381,7 +1385,6 @@
 
     async function renderFavoritesView() {
       const container = document.getElementById('channel-list');
-      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-sub);">正在读取收藏...</div>';
       const favs = await getFavoritesList();
 
       if (favs.length === 0) {
@@ -1401,6 +1404,7 @@
       favs.forEach((item, idx) => {
         const tag = item.censorTag || (isNSFWSource(item.siteName) ? detectCensorshipTag({ vod_name: item.title }, item.siteName) : '');
         const censorHtml = tag ? `<span class="card-censor ${tag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(tag)}</span>` : '';
+        const matchKey = item.url || `${item.title}_${item.epName}`;
 
         const card = document.createElement('div');
         card.className = 'history-card';
@@ -1417,7 +1421,7 @@
               <span>${escapeHtml(item.savedAt)}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeFavoriteItem(${idx})">✕</button>
+          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeFavoriteItem('${escapeHtml(matchKey)}', this.closest('.history-card'))">✕</button>
         `;
 
         card.onclick = () => {
@@ -1442,17 +1446,34 @@
       container.replaceChildren(frag);
     }
 
-    async function removeFavoriteItem(idx) {
+    /* === 收藏项局部无感平滑移除（彻底消除闪烁） === */
+    async function removeFavoriteItem(matchKey, cardEl) {
+      if (cardEl) {
+        cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        cardEl.style.opacity = '0';
+        cardEl.style.maxHeight = '0';
+        cardEl.style.paddingTop = '0';
+        cardEl.style.paddingBottom = '0';
+        cardEl.style.overflow = 'hidden';
+        setTimeout(() => {
+          cardEl.remove();
+          const container = document.getElementById('channel-list');
+          const cards = container.querySelectorAll('.history-card');
+          const titleEl = container.querySelector('.sources-header-title');
+          if (titleEl) titleEl.textContent = `⭐ 我的收藏 (${cards.length})`;
+          if (cards.length === 0) {
+            container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放时轻触顶部的 ★ 即可收藏</span></div>`;
+          }
+        }, 200);
+      }
       let favs = await getFavoritesList();
-      favs.splice(idx, 1);
+      favs = favs.filter(f => (f.url || `${f.title}_${f.epName}`) !== matchKey);
       await setD1Data(getCurrentFavKey(), favs);
       updateFavIconState();
-      renderFavoritesView();
     }
 
     async function renderHistoryView() {
       const container = document.getElementById('channel-list');
-      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-sub);">正在读取历史...</div>';
       const history = await getHistoryList();
 
       if (history.length === 0) {
@@ -1475,6 +1496,7 @@
       history.forEach((item, idx) => {
         const tag = item.censorTag || (isNSFWSource(item.siteName) ? detectCensorshipTag({ vod_name: item.title }, item.siteName) : '');
         const censorHtml = tag ? `<span class="card-censor ${tag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(tag)}</span>` : '';
+        const uniqueKey = item.key || item.url || `${item.title}_${item.epName}`;
 
         const card = document.createElement('div');
         card.className = 'history-card';
@@ -1491,7 +1513,7 @@
               <span>${escapeHtml(item.updatedAt || '')}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeHistoryItem(${idx})">✕</button>
+          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeHistoryItem('${escapeHtml(uniqueKey)}', this.closest('.history-card'))">✕</button>
         `;
 
         card.onclick = () => {
@@ -1516,11 +1538,29 @@
       container.replaceChildren(frag);
     }
 
-    async function removeHistoryItem(idx) {
+    /* === 播放历史单条无感平滑移除（彻底消除闪烁） === */
+    async function removeHistoryItem(key, cardEl) {
+      if (cardEl) {
+        cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        cardEl.style.opacity = '0';
+        cardEl.style.maxHeight = '0';
+        cardEl.style.paddingTop = '0';
+        cardEl.style.paddingBottom = '0';
+        cardEl.style.overflow = 'hidden';
+        setTimeout(() => {
+          cardEl.remove();
+          const container = document.getElementById('channel-list');
+          const cards = container.querySelectorAll('.history-card');
+          const titleEl = container.querySelector('.sources-header-title');
+          if (titleEl) titleEl.textContent = `🕒 播放历史 (${cards.length})`;
+          if (cards.length === 0) {
+            container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
+          }
+        }, 200);
+      }
       let history = await getHistoryList();
-      history.splice(idx, 1);
+      history = history.filter(h => (h.key || h.url || `${h.title}_${h.epName}`) !== key);
       await setD1Data(getCurrentHistoryKey(), history);
-      renderHistoryView();
     }
 
     async function clearAllHistory() {
@@ -3311,7 +3351,6 @@
       }
     }
 
-    /* === 核心看门狗防卡死与即时提示机制 === */
     function clearPlayWatchdog() {
       if (playWatchdogTimer) {
         clearTimeout(playWatchdogTimer);
@@ -3344,14 +3383,12 @@
         showControls();
       };
 
-      // 启动 6 秒主动看门狗探针：若超过 6 秒仍无画面数据流或被静默拦截，立即主动弹窗提醒受限
       playWatchdogTimer = setTimeout(() => {
         if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
       }, 6000);
 
-      // 解除并重绑原生监听，避免历史残留事件干扰
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
       video.onerror = () => {
@@ -3363,10 +3400,7 @@
       if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
         video.load();
-        video.play().then(() => {
-          // 在部分浏览器下 play() 成功但流仍在加载，由 onplaying 接管 markPlaySuccess
-        }).catch(err => {
-          // 若为非用户交互导致的中断则提示
+        video.play().then(() => {}).catch(err => {
           if (err && err.name === 'NotSupportedError') {
             showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
           }
