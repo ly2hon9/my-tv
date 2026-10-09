@@ -120,7 +120,7 @@
     }
     .gate-remember-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888; }
     .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
-    .gate-switch-link { color: #54a56a; cursor: font-weight: 500; }
+    .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
 
     .gate-submit-btn {
       width: 100%; height: 42px; background: #b0d4bb;
@@ -262,12 +262,16 @@
       background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); 
     }
     .sources-header-title { font-size: 13px; font-weight: bold; color: var(--text-main); }
-    .btn-sort-speed { 
-      background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
-      padding: 3px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
-    }
+    .header-actions-group { display: flex; align-items: center; gap: 6px; }
 
-    /* 顶部快捷分类药丸切换栏 */
+    .btn-sort-speed, .btn-sort-action { 
+      background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
+      padding: 3px 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
+      white-space: nowrap; transition: background 0.15s;
+    }
+    .btn-sort-action { background: var(--bg-card); border-color: var(--border-light); color: var(--text-main); }
+    .btn-sort-action.active-sort { background: var(--accent); border-color: var(--accent); color: #fff; }
+
     .section-filter-bar {
       display: flex; align-items: center; gap: 6px; padding: 8px 12px;
       background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
@@ -300,6 +304,7 @@
     .group-main-title { font-size: 14px; font-weight: bold; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .group-meta-tag { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; }
     .group-badge-count { background: var(--bg-tag); color: var(--accent); padding: 1px 6px; border-radius: 10px; font-weight: 500; }
+    .group-pub-time { font-size: 10px; color: var(--text-mute); font-family: monospace; }
     .group-arrow { font-size: 12px; color: var(--text-sub); transition: transform 0.2s ease; }
     .title-group-box.expanded .group-arrow { transform: rotate(90deg); color: var(--accent); }
 
@@ -390,7 +395,7 @@
     .btn-site-toggle.disabled { background: var(--border-light); color: var(--text-sub); }
     
     .btn-small-perm { background: var(--bg-card); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 500; }
-    .btn-small-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; margin-left: 4px; }
+    .btn-small-del, .btn-danger-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; margin-left: 4px; }
 
     .auth-switch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; margin-top: 10px; font-size: 13px; color: var(--text-main); }
     .toggle-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
@@ -415,6 +420,10 @@
       display: flex; justify-content: space-between; align-items: center;
       background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px;
       padding: 8px 10px; margin-bottom: 6px; font-size: 12px;
+    }
+
+    .scroll-loading-indicator {
+      padding: 12px; text-align: center; font-size: 12px; color: var(--text-sub);
     }
 
     @media (max-width: 600px) {
@@ -875,6 +884,52 @@
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
     }
 
+    /* === 高性能搜索双层缓存管理器 (LRU + SessionStorage) === */
+    const VodSearchCache = {
+      maxMemEntries: 20,
+      ttl: 15 * 60 * 1000, // 15分钟
+      memMap: new Map(),
+
+      makeKey(kw, groupId) {
+        return `vod_cache_${normalizeCleanKey(kw)}_${groupId || 'all'}`;
+      },
+
+      get(kw, groupId) {
+        if (!kw) return null;
+        const key = this.makeKey(kw, groupId);
+        const memHit = this.memMap.get(key);
+        if (memHit && (Date.now() - memHit.time < this.ttl)) {
+          return memHit.data;
+        }
+        try {
+          const raw = sessionStorage.getItem(key);
+          if (raw) {
+            const entry = JSON.parse(raw);
+            if (Date.now() - entry.time < this.ttl) {
+              this.memMap.set(key, entry);
+              return entry.data;
+            }
+            sessionStorage.removeItem(key);
+          }
+        } catch (_) {}
+        return null;
+      },
+
+      set(kw, groupId, data) {
+        if (!kw || !data || data.length === 0) return;
+        const key = this.makeKey(kw, groupId);
+        const entry = { time: Date.now(), data };
+        this.memMap.set(key, entry);
+        if (this.memMap.size > this.maxMemEntries) {
+          const oldestKey = this.memMap.keys().next().value;
+          this.memMap.delete(oldestKey);
+        }
+        try {
+          sessionStorage.setItem(key, JSON.stringify(entry));
+        } catch (_) {}
+      }
+    };
+
     const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     const B58_MAP = {};
     for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
@@ -930,8 +985,15 @@
 
     let isSearchingActive = false;
     let currentSearchingWord = "";
-
     let currentCategoryFilter = 'auto';
+
+    /* === 排序状态：score (综合智能排序) / time (最新更新时间排序) === */
+    let currentVodSortType = 'score';
+
+    /* === 虚拟分块增量渲染状态 === */
+    let activeDisplayCardList = [];
+    let currentlyRenderedCount = 0;
+    const CHUNK_PAGE_SIZE = 25;
 
     let adminAccount = null;
     let authConfig = { requireLogin: false };
@@ -2231,14 +2293,21 @@
       }
     }
 
+    /* === 性能优化：基于 rAF 的合并调度渲染 === */
+    let lastRenderTimestamp = 0;
     function scheduleRenderVodSources() {
       if (renderFrameTimer) return;
+      const now = performance.now();
+      const waitTime = Math.max(0, 220 - (now - lastRenderTimestamp));
       renderFrameTimer = setTimeout(() => {
-        renderFrameTimer = null;
-        if (currentView === 'normal' && currentMode === 'vod') {
-          renderGroupedVodSources();
-        }
-      }, 300);
+        requestAnimationFrame(() => {
+          renderFrameTimer = null;
+          lastRenderTimestamp = performance.now();
+          if (currentView === 'normal' && currentMode === 'vod') {
+            renderGroupedVodSources();
+          }
+        });
+      }, waitTime);
     }
 
     const STAR_WORKS_MAP = {
@@ -2292,6 +2361,98 @@
       return best;
     }
 
+    /* === 提取群组最新更新时间戳（用于时间排序） === */
+    function getGroupLatestTime(group) {
+      if (group._latestTimestamp !== undefined) return group._latestTimestamp;
+      let maxTime = 0;
+      let maxTimeStr = '';
+      (group.items || []).forEach(it => {
+        const rawTime = it.vod?.vod_time || it.vod?.vod_pubdate || '';
+        if (rawTime) {
+          const t = new Date(rawTime.replace(/-/g, '/')).getTime();
+          if (!isNaN(t) && t > maxTime) {
+            maxTime = t;
+            maxTimeStr = rawTime.split(' ')[0] || rawTime;
+          }
+        }
+      });
+      group._latestTimestamp = maxTime;
+      group._displayDate = maxTimeStr;
+      return maxTime;
+    }
+
+    /* === 综合排序与时间排序执行器 === */
+    function sortGroupedVodList() {
+      if (!groupedVodList || groupedVodList.length === 0) return;
+
+      const kw = currentSearchingWord.toLowerCase().trim();
+      let starClassics = [];
+      for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
+        if (kw === star.toLowerCase() || kw.includes(star.toLowerCase())) {
+          starClassics = works;
+          break;
+        }
+      }
+
+      groupedVodList.forEach(group => {
+        group.items.sort((a, b) => {
+          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+          const pa = a.ping < 0 ? 9999 : a.ping;
+          const pb = b.ping < 0 ? 9999 : b.ping;
+          return pa - pb;
+        });
+      });
+
+      if (currentVodSortType === 'time') {
+        groupedVodList.sort((a, b) => {
+          const nsfwA = isGroupNSFW(a) ? 1 : 0;
+          const nsfwB = isGroupNSFW(b) ? 1 : 0;
+          if (nsfwA !== nsfwB) return nsfwA - nsfwB;
+          return getGroupLatestTime(b) - getGroupLatestTime(a);
+        });
+      } else {
+        groupedVodList.sort((a, b) => {
+          const nsfwA = isGroupNSFW(a) ? 1 : 0;
+          const nsfwB = isGroupNSFW(b) ? 1 : 0;
+          if (nsfwA !== nsfwB) return nsfwA - nsfwB;
+
+          let scoreA = 0, scoreB = 0;
+          const aName = a.title.toLowerCase();
+          const bName = b.title.toLowerCase();
+          const aActor = (a.actor || '').toLowerCase();
+          const bActor = (b.actor || '').toLowerCase();
+          const aType = (a.type || '').toLowerCase();
+          const bType = (b.type || '').toLowerCase();
+
+          if (starClassics.some(c => aName === c.toLowerCase())) scoreA += 180;
+          if (starClassics.some(c => bName === c.toLowerCase())) scoreB += 180;
+
+          if (aActor.includes(kw)) scoreA += 120;
+          if (bActor.includes(kw)) scoreB += 120;
+
+          if (aType.includes('电影') || aType.includes('动作')) scoreA += 40;
+          if (bType.includes('电影') || bType.includes('动作')) scoreB += 40;
+
+          if (aName === kw) scoreA += 80;
+          if (bName === kw) scoreB += 80;
+
+          scoreA += a.items.length * 2;
+          scoreB += b.items.length * 2;
+
+          return scoreB - scoreA;
+        });
+      }
+    }
+
+    function toggleTimeSort() {
+      currentVodSortType = (currentVodSortType === 'time') ? 'score' : 'time';
+      sortGroupedVodList();
+      renderGroupedVodSources();
+      showGestureTip(currentVodSortType === 'time' ? "已切换为：最新时间排序" : "已切换为：智能综合排序");
+    }
+
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -2302,6 +2463,19 @@
       currentCategoryFilter = 'auto';
 
       const container = document.getElementById('channel-list');
+      
+      const userGroupId = currentUser?.groupId || 'def';
+      const cachedResults = VodSearchCache.get(keyword, userGroupId);
+      if (cachedResults && cachedResults.length > 0) {
+        groupedVodList = cachedResults;
+        domNodeCache.clear();
+        isSearchingActive = false;
+        sortGroupedVodList();
+        renderGroupedVodSources();
+        showGestureTip("⚡ 已从极速缓存秒开");
+        return;
+      }
+
       container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
       
       groupedVodList = [];
@@ -2358,7 +2532,6 @@
           const canonicalTitle = parsed.canonical;
           const versionTag = parsed.version;
 
-          // 核心修复：代表作匹配必须是精确片名相等，杜绝“神话”二字匹配到其他无关短剧
           const isExactClassic = starClassics.some(c => {
             const cleanC = c.toLowerCase();
             const cleanCanonical = canonicalTitle.toLowerCase();
@@ -2423,49 +2596,8 @@
         return;
       }
 
-      groupedVodList.forEach(group => {
-        group.items.sort((a, b) => {
-          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
-          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
-          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
-
-          const pa = a.ping < 0 ? 9999 : a.ping;
-          const pb = b.ping < 0 ? 9999 : b.ping;
-          return pa - pb;
-        });
-      });
-
-      groupedVodList.sort((a, b) => {
-        const nsfwA = isGroupNSFW(a) ? 1 : 0;
-        const nsfwB = isGroupNSFW(b) ? 1 : 0;
-        if (nsfwA !== nsfwB) return nsfwA - nsfwB;
-
-        let scoreA = 0, scoreB = 0;
-        const aName = a.title.toLowerCase();
-        const bName = b.title.toLowerCase();
-        const aActor = (a.actor || '').toLowerCase();
-        const bActor = (b.actor || '').toLowerCase();
-        const aType = (a.type || '').toLowerCase();
-        const bType = (b.type || '').toLowerCase();
-
-        if (starClassics.some(c => aName === c.toLowerCase())) scoreA += 180;
-        if (starClassics.some(c => bName === c.toLowerCase())) scoreB += 180;
-
-        if (aActor.includes(kw)) scoreA += 120;
-        if (bActor.includes(kw)) scoreB += 120;
-
-        if (aType.includes('电影') || aType.includes('动作')) scoreA += 40;
-        if (bType.includes('电影') || bType.includes('动作')) scoreB += 40;
-
-        if (aName === kw) scoreA += 80;
-        if (bName === kw) scoreB += 80;
-
-        scoreA += a.items.length * 2;
-        scoreB += b.items.length * 2;
-
-        return scoreB - scoreA;
-      });
-
+      sortGroupedVodList();
+      VodSearchCache.set(keyword, userGroupId, groupedVodList);
       renderGroupedVodSources();
     }
 
@@ -2548,6 +2680,9 @@
     }
 
     function renderCardNode(group, isSingle) {
+      const pubDate = group._displayDate || (group.items[0]?.vod?.vod_time ? String(group.items[0].vod.vod_time).split(' ')[0] : '');
+      const pubDateHtml = pubDate ? `<span class="group-pub-time">${escapeHtml(pubDate)}</span>` : '';
+
       if (isSingle) {
         const item = group.items[0];
         const isCurrentActive = (item.id === activeSubItemId);
@@ -2571,7 +2706,8 @@
                 <div class="group-meta-tag">
                   <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${escapeHtml(group.actor)}</span>` : ''}
+                  ${pubDateHtml}
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
                   <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
                 </div>
               </div>
@@ -2654,7 +2790,8 @@
                   <div class="group-main-title">${escapeHtml(group.title)}</div>
                   <div class="group-meta-tag">
                     <span>${escapeHtml(group.type || '影视')}</span>
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${escapeHtml(group.actor)}</span>` : ''}
+                    ${pubDateHtml}
+                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(group.actor)}</span>` : ''}
                     <span class="group-badge-count">${group.items.length} 个版本/源</span>
                   </div>
                 </div>
@@ -2777,6 +2914,32 @@
       }
     }
 
+    /* === 渐进追加卡片片段（用于大列表虚拟滚动） === */
+    function appendVodCardsChunk(targetList, startIdx, count) {
+      const container = document.getElementById('channel-list');
+      const frag = document.createDocumentFragment();
+      const endIdx = Math.min(targetList.length, startIdx + count);
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const item = targetList[i];
+        frag.appendChild(renderCardNode(item.group, item.isSingle));
+      }
+
+      currentlyRenderedCount = endIdx;
+
+      const loader = document.getElementById('infinite-scroll-loader');
+      if (loader) {
+        container.insertBefore(frag, loader);
+        if (currentlyRenderedCount >= targetList.length) {
+          loader.style.display = 'none';
+        } else {
+          loader.style.display = 'block';
+        }
+      } else {
+        container.appendChild(frag);
+      }
+    }
+
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
 
@@ -2797,13 +2960,6 @@
       const normalMulti = normalGroups.filter(g => g.items.length > 1);
       const normalSingle = normalGroups.filter(g => g.items.length === 1);
 
-      normalSingle.sort((a, b) => {
-        const pa = a.items[0].ping < 0 ? 9999 : a.items[0].ping;
-        const pb = b.items[0].ping < 0 ? 9999 : b.ping;
-        return pa - pb;
-      });
-
-      nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
       const nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
       const nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
 
@@ -2827,7 +2983,12 @@
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
       headerBar.innerHTML = `
         <span class="sources-header-title">搜索结果 (${countTotal} 部)${searchStatusText}</span>
-        <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
+        <div class="header-actions-group">
+          <button class="btn-sort-action ${currentVodSortType === 'time' ? 'active-sort' : ''}" onclick="toggleTimeSort()" title="切换按时间/智能综合排序">
+            ${currentVodSortType === 'time' ? '🕒 最新时间' : '⭐ 综合排序'}
+          </button>
+          <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
+        </div>
       `;
       frag.appendChild(headerBar);
 
@@ -2862,25 +3023,46 @@
         frag.appendChild(filterBar);
       }
 
+      /* 构建当前激活标签下的扁平任务列表 */
+      activeDisplayCardList = [];
       if (currentCategoryFilter === 'multi') {
-        normalMulti.forEach(group => {
-          frag.appendChild(renderCardNode(group, false));
-        });
+        normalMulti.forEach(g => activeDisplayCardList.push({ group: g, isSingle: false }));
       } else if (currentCategoryFilter === 'single') {
-        normalSingle.forEach(group => {
-          frag.appendChild(renderCardNode(group, true));
-        });
+        normalSingle.forEach(g => activeDisplayCardList.push({ group: g, isSingle: true }));
       } else if (currentCategoryFilter === 'nsfw') {
-        nsfwMulti.forEach(group => {
-          frag.appendChild(renderCardNode(group, false));
-        });
-        nsfwSingle.forEach(group => {
-          frag.appendChild(renderCardNode(group, true));
-        });
+        nsfwMulti.forEach(g => activeDisplayCardList.push({ group: g, isSingle: false }));
+        nsfwSingle.forEach(g => activeDisplayCardList.push({ group: g, isSingle: true }));
       }
+
+      currentlyRenderedCount = 0;
+      const initialChunkSize = Math.min(activeDisplayCardList.length, CHUNK_PAGE_SIZE);
+
+      for (let i = 0; i < initialChunkSize; i++) {
+        const item = activeDisplayCardList[i];
+        frag.appendChild(renderCardNode(item.group, item.isSingle));
+      }
+      currentlyRenderedCount = initialChunkSize;
+
+      const loaderEl = document.createElement('div');
+      loaderEl.id = 'infinite-scroll-loader';
+      loaderEl.className = 'scroll-loading-indicator';
+      loaderEl.textContent = '滚动加载更多...';
+      loaderEl.style.display = (currentlyRenderedCount < activeDisplayCardList.length) ? 'block' : 'none';
+      frag.appendChild(loaderEl);
 
       container.replaceChildren(frag);
     }
+
+    /* === 绑定无阻碍原生平滑滚动加载 === */
+    const channelListEl = document.getElementById('channel-list');
+    channelListEl.addEventListener('scroll', () => {
+      if (currentView !== 'normal' || currentMode !== 'vod') return;
+      if (currentlyRenderedCount >= activeDisplayCardList.length) return;
+
+      if (channelListEl.scrollTop + channelListEl.clientHeight >= channelListEl.scrollHeight - 160) {
+        appendVodCardsChunk(activeDisplayCardList, currentlyRenderedCount, CHUNK_PAGE_SIZE);
+      }
+    }, { passive: true });
 
     function getEpisodesList(item) {
       if (!item?.vod) return [];
@@ -3223,7 +3405,7 @@
           try { userList = JSON.parse(results[4].value); } catch (_) {}
         }
         if (results[5].status === 'fulfilled' && results[5].value) {
-          try { const p = JSON.parse(results[5].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
+          try { const p = JSON.parse(results[5].value); if (Array.isArray(p)) sourceGroups = p; } catch (_) {}
         }
         if (results[6].status === 'fulfilled' && results[6].value) {
           currentThemeSetting = results[6].value;
