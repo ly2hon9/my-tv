@@ -169,8 +169,9 @@
 
     #gesture-tip {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8); color: #fff; padding: 8px 16px; border-radius: 20px;
-      font-size: 13px; z-index: 9; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 20px; border-radius: 24px;
+      font-size: 14px; font-weight: 600; z-index: 9; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     }
 
     #custom-controls {
@@ -302,7 +303,7 @@
     .group-poster { width: 44px; height: 60px; border-radius: 4px; object-fit: cover; background: var(--border-color); flex-shrink: 0; }
     .group-info-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .group-main-title { font-size: 14px; font-weight: bold; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .group-meta-tag { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; }
+    .group-meta-tag { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .group-badge-count { background: var(--bg-tag); color: var(--accent); padding: 1px 6px; border-radius: 10px; font-weight: 500; }
     .group-pub-time { font-size: 10px; color: var(--text-mute); font-family: monospace; }
     .group-arrow { font-size: 12px; color: var(--text-sub); transition: transform 0.2s ease; }
@@ -331,7 +332,7 @@
     .source-sub-card:hover { background: var(--bg-card-hover); }
     .source-sub-card.active-sub { border-color: var(--accent); background: var(--accent-soft); }
     
-    .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
     .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
     
@@ -340,6 +341,13 @@
     .card-quality.q-1080 { background: #283e2e; color: #4ade80; }
     .card-quality.q-720 { background: #26354a; color: #60a5fa; }
     .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
+
+    /* 有码/无码 专区高质感微标签 */
+    .card-censor { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; }
+    .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
+    .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
+    body.theme-light .card-censor.c-wuma { background: #fdf4ff; color: #a21caf; border-color: #f0abfc; }
+    body.theme-light .card-censor.c-youma { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 
     .card-status-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: monospace; }
     .metric-ping-ok { color: #4ade80; }
@@ -768,6 +776,32 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
+    /* === 特殊片源识别：自动分析「有码」与「无码」，无法识别则返回空字符串 === */
+    function detectCensorshipTag(vod, siteName) {
+      if (!vod) return '';
+      const str = [
+        vod.vod_name || '',
+        vod.vod_remarks || '',
+        vod.vod_sub || '',
+        vod.type_name || '',
+        siteName || ''
+      ].join(' ').toLowerCase();
+
+      // 无码判定关键字
+      const uncensoredRegex = /(无码|步兵|uncensored|无遮|无马|破解去码|流出无码|去掉马赛克|去码|fc2|一本道|加勒比|caribbean|1pondo|10musume|pacopacomama|heyzo|tokyo[-_ ]?hot|东京热)/i;
+      if (uncensoredRegex.test(str)) {
+        return '无码';
+      }
+
+      // 有码判定关键字
+      const censoredRegex = /(有码|骑兵|censored|带码|薄码|有马)/i;
+      if (censoredRegex.test(str)) {
+        return '有码';
+      }
+
+      return '';
+    }
+
     function normalizeCleanKey(str) {
       if (!str) return '';
       return String(str).toLowerCase()
@@ -884,7 +918,7 @@
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
     }
 
-    /* === 高性能搜索双层缓存管理器 (LRU + SessionStorage) === */
+    /* === 搜索双层缓存管理器 (LRU + SessionStorage) === */
     const VodSearchCache = {
       maxMemEntries: 20,
       ttl: 15 * 60 * 1000,
@@ -1050,10 +1084,12 @@
       }
     }
 
+    let gestureTipTimer = null;
     function showGestureTip(text) {
       gestureTip.textContent = text;
       gestureTip.style.opacity = '1';
-      setTimeout(() => { gestureTip.style.opacity = '0'; }, 800);
+      clearTimeout(gestureTipTimer);
+      gestureTipTimer = setTimeout(() => { gestureTip.style.opacity = '0'; }, 900);
     }
 
     function formatTime(sec) {
@@ -1074,29 +1110,107 @@
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('pointerdown', showControls);
 
+    /* === YouTube 级多击累计快进/后退手势引擎 === */
+    let seekChainTimer = null;
+    let seekAccumSec = 0;
+    let seekActiveDir = null; // 'left' | 'right' | null
     let lastTapTime = 0;
+    let lastTapSide = null; // 'left' | 'right' | 'center'
+
     wrap.addEventListener('touchend', (e) => {
-      const now = performance.now();
-      const rect = wrap.getBoundingClientRect();
+      if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
       const touch = e.changedTouches[0];
-      if (now - lastTapTime < 300) {
-        const xRatio = (touch.clientX - rect.left) / rect.width;
-        if (xRatio < 0.35) {
-          if (!isLiveMode) {
-            video.currentTime = Math.max(0, video.currentTime - 10);
-            showGestureTip("⏪ 快退 10 秒");
-          }
-        } else if (xRatio > 0.65) {
-          if (!isLiveMode) {
-            video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-            showGestureTip("⏩ 快进 10 秒");
-          }
+      if (!touch) return;
+
+      const rect = wrap.getBoundingClientRect();
+      const xRatio = (touch.clientX - rect.left) / rect.width;
+      const now = performance.now();
+      const dt = now - lastTapTime;
+
+      let side = 'center';
+      if (xRatio < 0.35) side = 'left';
+      else if (xRatio > 0.65) side = 'right';
+
+      if (isLiveMode) {
+        if (dt < 320 && side === 'center') {
+          togglePlay();
+          showGestureTip(video.paused ? "⏸ 暂停" : "▶ 播放");
+        }
+        lastTapTime = now;
+        showControls();
+        return;
+      }
+
+      // 如果当前正处于连续点按快进/快退的有效时间窗口（750ms内继续点同一侧）
+      if (seekActiveDir && seekActiveDir === side && dt < 750) {
+        seekAccumSec += 10;
+        if (side === 'left') {
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          showGestureTip(`⏪ 快退 ${seekAccumSec} 秒`);
+        } else {
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+          showGestureTip(`⏩ 快进 ${seekAccumSec} 秒`);
+        }
+
+        // 立即同步更新进度条与时间文本反馈
+        if (video.duration && isFinite(video.duration)) {
+          streamTimeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+          progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
+        }
+
+        lastTapTime = now;
+        clearTimeout(seekChainTimer);
+        seekChainTimer = setTimeout(() => {
+          seekActiveDir = null;
+          seekAccumSec = 0;
+        }, 750);
+
+        showControls();
+        return;
+      }
+
+      // 处于非连击态下的起步双击检测（320ms内同一侧点两下）
+      if (dt < 320 && lastTapSide === side) {
+        if (side === 'left') {
+          seekActiveDir = 'left';
+          seekAccumSec = 10;
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          showGestureTip(`⏪ 快退 10 秒`);
+          clearTimeout(seekChainTimer);
+          seekChainTimer = setTimeout(() => {
+            seekActiveDir = null;
+            seekAccumSec = 0;
+          }, 750);
+        } else if (side === 'right') {
+          seekActiveDir = 'right';
+          seekAccumSec = 10;
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+          showGestureTip(`⏩ 快进 10 秒`);
+          clearTimeout(seekChainTimer);
+          seekChainTimer = setTimeout(() => {
+            seekActiveDir = null;
+            seekAccumSec = 0;
+          }, 750);
         } else {
           togglePlay();
           showGestureTip(video.paused ? "⏸ 暂停" : "▶ 播放");
         }
+
+        if (video.duration && isFinite(video.duration)) {
+          streamTimeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+          progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
+        }
+      } else {
+        // 如果点到了不同侧，重置先前的连击累积链
+        if (seekActiveDir && seekActiveDir !== side) {
+          seekActiveDir = null;
+          seekAccumSec = 0;
+          clearTimeout(seekChainTimer);
+        }
       }
+
       lastTapTime = now;
+      lastTapSide = side;
       showControls();
     }, { passive: true });
 
@@ -1534,7 +1648,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2414,7 +2528,6 @@
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
 
-          // 核心容错：无有效发布日期的影视项始终沉底
           if (!timeA && !timeB) return 0;
           if (!timeA) return 1;
           if (!timeB) return -1;
@@ -2455,7 +2568,6 @@
       }
     }
 
-    /* === 三态无缝流转：综合排序 -> 最新降序 -> 最早倒序 -> 综合排序 === */
     function toggleTimeSort() {
       if (currentVodSortType === 'score') {
         currentVodSortType = 'time_desc';
@@ -2701,10 +2813,16 @@
       const pubDate = group._displayDate || (group.items[0]?.vod?.vod_time ? String(group.items[0].vod.vod_time).split(' ')[0] : '');
       const pubDateHtml = pubDate ? `<span class="group-pub-time">${escapeHtml(pubDate)}</span>` : '';
 
+      // 判断该群组是否属于其他专区，属于时提取「有码/无码」标签
+      const isSpecial = isGroupNSFW(group);
+
       if (isSingle) {
         const item = group.items[0];
         const isCurrentActive = (item.id === activeSubItemId);
         let singleCard = domNodeCache.get(group.title);
+
+        const censorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
+        const censorHtml = censorTag ? `<span class="card-censor ${censorTag === '无码' ? 'c-wuma' : 'c-youma'}">${censorTag}</span>` : '';
 
         if (!singleCard || !singleCard.classList.contains('single-source-card')) {
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
@@ -2724,6 +2842,7 @@
                 <div class="group-meta-tag">
                   <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
                   <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                  ${censorHtml}
                   ${pubDateHtml}
                   ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
                   <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
@@ -2796,6 +2915,15 @@
         const isCurrentActiveGroup = (group.title === activeGroupTitle);
         let groupCard = domNodeCache.get(group.title);
 
+        let groupCensorTag = '';
+        if (isSpecial) {
+          for (const it of group.items) {
+            const tag = detectCensorshipTag(it.vod, it.siteName);
+            if (tag) { groupCensorTag = tag; break; }
+          }
+        }
+        const groupCensorHtml = groupCensorTag ? `<span class="card-censor ${groupCensorTag === '无码' ? 'c-wuma' : 'c-youma'}">${groupCensorTag}</span>` : '';
+
         if (!groupCard || groupCard.classList.contains('single-source-card')) {
           const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
           groupCard = document.createElement('div');
@@ -2808,6 +2936,7 @@
                   <div class="group-main-title">${escapeHtml(group.title)}</div>
                   <div class="group-meta-tag">
                     <span>${escapeHtml(group.type || '影视')}</span>
+                    ${groupCensorHtml}
                     ${pubDateHtml}
                     ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(group.actor)}</span>` : ''}
                     <span class="group-badge-count">${group.items.length} 个版本/源</span>
@@ -2903,6 +3032,9 @@
             const q = parseQualityTag(item.vod.vod_remarks);
             const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
+            const subCensorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
+            const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag === '无码' ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
+
             let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
             let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
@@ -2910,6 +3042,7 @@
               <div class="source-sub-left">
                 <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
                 <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+                ${subCensorHtml}
               </div>
               <div class="card-status-bar">
                 <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
@@ -2995,7 +3128,6 @@
         else currentCategoryFilter = 'multi';
       }
 
-      /* 当前排序按钮文本与高亮状态 */
       let sortLabel = '⭐ 综合排序';
       let isSortActive = false;
       if (currentVodSortType === 'time_desc') {
