@@ -258,7 +258,7 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 单排常驻吸顶工具栏：分类药丸 + 排序按钮同排展示，滑动时牢牢吸顶不滚走 */
+    /* 单排常驻吸顶工具栏：分类药丸 + 排序按钮同排展示，绝对不随列表滚动消失 */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 6px;
       padding: 7px 10px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
@@ -330,7 +330,7 @@
     
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
-    .source-sub-card.active-sub .card-sitename-tag { background: var(--accent); color: #fff; }
+    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
     
     .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .card-quality.q-4k { background: #4a2828; color: #f87171; }
@@ -2516,7 +2516,7 @@
       return testUrl;
     }
 
-    /* === 智能测速探针：双协议（HEAD ➔ GET）回退保障，防止专区测速被阻断 === */
+    /* === 智能测速探针：高并发轻量探针，防止专区测速被阻断 === */
     async function probeStreamLatency(testUrl) {
       if (!testUrl || typeof testUrl !== 'string') return 9999;
       let url = testUrl.trim();
@@ -2526,22 +2526,15 @@
       if (!isSafeUrl(url)) return 9999;
 
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2200);
+      const timer = setTimeout(() => controller.abort(), 1500);
       const t0 = performance.now();
       try {
         await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
         clearTimeout(timer);
         return Math.max(1, Math.round(performance.now() - t0));
       } catch (_) {
-        try {
-          const t1 = performance.now();
-          await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
-          clearTimeout(timer);
-          return Math.max(1, Math.round(performance.now() - t1));
-        } catch (_) {
-          clearTimeout(timer);
-          return 9999;
-        }
+        clearTimeout(timer);
+        return 9999;
       }
     }
 
@@ -2604,13 +2597,16 @@
     }
 
     function getGroupBestPing(group) {
-      if (!group.items || group.items.length === 0) return 9999;
-      let best = 9999;
+      if (!group.items || group.items.length === 0) return -1;
+      let best = 99999;
+      let tested = false;
       group.items.forEach(i => {
-        const p = (i.ping === undefined || i.ping < 0) ? 9999 : i.ping;
-        if (p < best) best = p;
+        if (i.ping !== undefined && i.ping >= 0) {
+          tested = true;
+          if (i.ping < best) best = i.ping;
+        }
       });
-      return best;
+      return tested ? best : -1;
     }
 
     /* === 提取群组最新更新时间戳（毫秒数） === */
@@ -2667,8 +2663,8 @@
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
           const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
           if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
-          const pa = a.ping < 0 ? 9999 : a.ping;
-          const pb = b.ping < 0 ? 9999 : b.ping;
+          const pa = (a.ping === undefined || a.ping < 0) ? 9999 : a.ping;
+          const pb = (b.ping === undefined || b.ping < 0) ? 9999 : b.ping;
           return pa - pb;
         });
       });
@@ -2686,7 +2682,11 @@
 
         // 3. 在各自组段内部，根据当前按钮激活的排序条件进行同等深度排序
         if (currentVodSortType === 'speed') {
-          return getGroupBestPing(a) - getGroupBestPing(b);
+          const pa = getGroupBestPing(a);
+          const pb = getGroupBestPing(b);
+          const va = pa < 0 ? 99999 : pa;
+          const vb = pb < 0 ? 99999 : pb;
+          return va - vb;
         } else if (currentVodSortType === 'time_desc') {
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
@@ -2874,13 +2874,14 @@
       saveVodSessionState();
     }
 
-    /* === 单独对某个展开的多源小分组进行定向测速 === */
+    /* === 单独对某个展开的多源小分组进行定向快速测速 === */
     async function testGroupSources(group, panel) {
       if (!group || !group.items || group.items.length <= 1) return;
 
       const cleanTitleKey = normalizeCleanKey(group.title);
       const groupPingEl = document.getElementById(`group-ping-${cleanTitleKey}`);
       if (groupPingEl) {
+        groupPingEl.style.display = 'inline';
         groupPingEl.textContent = "测速中...";
         groupPingEl.className = "metric-ping-wait";
       }
@@ -2915,9 +2916,12 @@
 
       const bestPing = getGroupBestPing(group);
       if (groupPingEl) {
-        const isErr = bestPing >= 9999 || bestPing < 0;
-        groupPingEl.textContent = isErr ? "超时" : `${bestPing}ms`;
-        groupPingEl.className = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        if (bestPing >= 0) {
+          const isErr = bestPing >= 9999;
+          groupPingEl.style.display = 'inline';
+          groupPingEl.textContent = isErr ? "超时" : `${bestPing}ms`;
+          groupPingEl.className = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        }
       }
 
       const subCards = Array.from(panel.querySelectorAll('.source-sub-card'));
@@ -2974,6 +2978,7 @@
         const cleanTitleKey = normalizeCleanKey(group.title);
         const gel = document.getElementById(`group-ping-${cleanTitleKey}`);
         if (gel) {
+          gel.style.display = 'inline';
           gel.textContent = "测速中...";
           gel.className = "metric-ping-wait";
         }
@@ -2985,7 +2990,7 @@
       });
 
       // 并发探测
-      await asyncPool(12, targetItemsToTest, async ({ group, item }) => {
+      await asyncPool(16, targetItemsToTest, async ({ group, item }) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
 
@@ -2999,8 +3004,9 @@
         const bestPing = getGroupBestPing(group);
         const cleanTitleKey = normalizeCleanKey(group.title);
         const gel = document.getElementById(`group-ping-${cleanTitleKey}`);
-        if (gel) {
-          const isErr = bestPing >= 9999 || bestPing < 0;
+        if (gel && bestPing >= 0) {
+          const isErr = bestPing >= 9999;
+          gel.style.display = 'inline';
           gel.textContent = isErr ? "超时" : `${bestPing}ms`;
           gel.className = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
         }
@@ -3156,12 +3162,18 @@
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
-      // 测速状态展示
+      // 测速状态展示：若未测速，默认隐蔽不显示“超时”
       const cleanTitleKey = normalizeCleanKey(group.title);
       const bestPing = getGroupBestPing(group);
-      let pingText = bestPing >= 0 ? (bestPing >= 9999 ? "超时" : `${bestPing}ms`) : "待测速";
-      let pingClass = bestPing < 0 ? "metric-ping-wait" : (bestPing < 500 ? 'metric-ping-ok' : bestPing < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-      const pingBadgeHtml = `<span id="group-ping-${cleanTitleKey}" class="${pingClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${pingText}</span>`;
+      let pingBadgeHtml = '';
+      if (bestPing >= 0) {
+        const isErr = bestPing >= 9999;
+        const pingText = isErr ? "超时" : `${bestPing}ms`;
+        const pingClass = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        pingBadgeHtml = `<span id="group-ping-${cleanTitleKey}" class="${pingClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${pingText}</span>`;
+      } else {
+        pingBadgeHtml = `<span id="group-ping-${cleanTitleKey}" style="display:none;margin-left:auto;font-family:monospace;font-size:11px;"></span>`;
+      }
 
       if (!groupCard || !groupCard.classList.contains('title-group-box')) {
         const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
@@ -3245,7 +3257,7 @@
           const panel = buildGroupBodyPanel(group);
           groupCard.appendChild(panel);
 
-          // 核心调整：仅在手动展开折叠的多源时，自动定向测速该卡片内部的小分组线路
+          // 仅在手动展开多源小分组时，自动对其内部线路极速测速
           testGroupSources(group, panel);
 
           setTimeout(() => {
@@ -3309,9 +3321,6 @@
       let normalMulti = normalGroups.filter(g => g.items.length > 1);
       let normalSingle = normalGroups.filter(g => g.items.length === 1);
 
-      let nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
-      let nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
-
       const countMulti = normalMulti.length;
       const countSingle = normalSingle.length;
       const countNsfw = nsfwGroups.length;
@@ -3350,6 +3359,7 @@
       } else if (currentCategoryFilter === 'single') {
         normalSingle.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'nsfw') {
+        // 专区：多源折叠优先在前，单源紧随其后，且已按选中规则排序
         nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
 
