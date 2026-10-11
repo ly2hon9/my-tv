@@ -274,7 +274,7 @@
 
     .btn-sort-action { 
       background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; 
-      padding: 3px 6px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      padding: 3px 7px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
       white-space: nowrap; font-weight: 500; transition: background 0.15s, color 0.15s, border-color 0.15s; outline: none;
     }
     .btn-sort-action:hover { background: var(--bg-card-hover); }
@@ -2543,7 +2543,7 @@
       if (!group.items || group.items.length === 0) return 9999;
       let best = 9999;
       group.items.forEach(i => {
-        const p = i.ping < 0 ? 9999 : i.ping;
+        const p = (i.ping === undefined || i.ping < 0) ? 9999 : i.ping;
         if (p < best) best = p;
       });
       return best;
@@ -2649,20 +2649,12 @@
       }
     }
 
-    /* === 平铺4个独立按钮专属调用调度 === */
+    /* === 平铺4个独立按钮专属调用调度：点击测速按钮每次重新探测当前分组并排序 === */
     async function setSortType(type) {
       if (type === 'speed') {
-        currentVodSortType = 'speed';
-        const hasTested = groupedVodList.some(g => g.items.some(i => i.ping >= 0));
-        if (hasTested) {
-          showGestureTip("已按响应速度排序 ⚡");
-          sortGroupedVodList();
-          renderGroupedVodSources();
-        } else {
-          if (isSpeedTesting) return;
-          showGestureTip("⚡ 正在测速并按速度排序...");
-          await startSpeedTest();
-        }
+        if (isSpeedTesting) return;
+        showGestureTip("⚡ 正在测速并按响应速度排序...");
+        await startSpeedTest();
       } else {
         currentVodSortType = type;
         if (type === 'score') showGestureTip("已切换为：智能综合排序");
@@ -2821,54 +2813,57 @@
       renderGroupedVodSources();
     }
 
-    /* === 测速引擎优化：全专区并发测速并自动执行低延迟排序 === */
+    /* === 测速引擎优化：各组独立测速，按需收集并全部测完后再排序 === */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
+      if (isSpeedTesting) return;
 
       isSpeedTesting = true;
       const speedNavBtn = document.getElementById('btn-sort-speed-nav');
       if (speedNavBtn) {
         speedNavBtn.textContent = "⚡ 测速中";
+        speedNavBtn.classList.add('active-sort');
       }
 
       const targetItemsToTest = [];
 
-      // 1. 展开的聚合源组内部所有线路
-      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (activeGroup && activeGroup.items.length > 1) {
-        activeGroup.items.forEach(item => {
-          targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
+      // 3大组测速独立隔离，仅收集当前选定分类下的测速对象
+      if (currentCategoryFilter === 'multi') {
+        const normalMulti = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1);
+        normalMulti.forEach(group => {
+          if (group.title === activeGroupTitle) {
+            group.items.forEach(item => {
+              targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
+            });
+          } else {
+            if (group.items[0]) {
+              targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+            }
+          }
+        });
+      } else if (currentCategoryFilter === 'single') {
+        const normalSingle = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1);
+        normalSingle.forEach(group => {
+          if (group.items[0]) {
+            targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+          }
+        });
+      } else if (currentCategoryFilter === 'nsfw') {
+        const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
+        nsfwGroups.forEach(group => {
+          if (group.title === activeGroupTitle && group.items.length > 1) {
+            group.items.forEach(item => {
+              targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
+            });
+          } else {
+            if (group.items[0]) {
+              targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+            }
+          }
         });
       }
 
-      // 2. 所有独立单源 (group.items.length === 1)
-      groupedVodList.forEach(group => {
-        if (group.items.length === 1) {
-          if (!targetItemsToTest.some(t => t.item === group.items[0])) {
-            targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
-          }
-        }
-      });
-
-      // 3. 其它专区中的所有项
-      groupedVodList.filter(g => isGroupNSFW(g)).forEach(group => {
-        group.items.forEach(item => {
-          if (!targetItemsToTest.some(t => t.item === item)) {
-            targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
-          }
-        });
-      });
-
-      // 4. 普通聚合源未展开的组探测首项
-      groupedVodList.forEach(group => {
-        if (group.items.length > 1 && !isGroupNSFW(group)) {
-          const firstItem = group.items[0];
-          if (!targetItemsToTest.some(t => t.item === firstItem)) {
-            targetItemsToTest.push({ item: firstItem, site: parsedSites.find(s => s.name === firstItem.siteName) });
-          }
-        }
-      });
-
+      // 重置并显示测速状态
       targetItemsToTest.forEach(({ item }) => {
         const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
@@ -2877,6 +2872,7 @@
         }
       });
 
+      // 并发探测
       await Promise.allSettled(targetItemsToTest.map(async ({ item, site }) => {
         const episodes = getEpisodesList(item);
         const targetEp = episodes[currentActiveEp] || episodes[0];
@@ -2894,7 +2890,7 @@
         }
       }));
 
-      // 内部排序：每个 group 内部线路按延迟从低到高排列
+      // 组内多线路自动按照延迟由快到慢重排
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2910,6 +2906,7 @@
       currentVodSortType = 'speed';
       sortGroupedVodList();
       renderGroupedVodSources();
+      showGestureTip("⚡ 测速完毕，已按速度从快到慢排序");
     }
 
     function toggleEpisodesOrder() {
@@ -3080,7 +3077,6 @@
               playCurrentVodSource(group.items[0], 0);
             }
             renderGroupedVodSources();
-            startSpeedTest();
           }
         };
 
@@ -3226,7 +3222,7 @@
       let nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
       let nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
 
-      /* === 独立单源与其它专区在测速后自动按延迟排序 === */
+      /* === 各组排序应用 === */
       if (currentVodSortType === 'speed' || currentVodSortType === 'score') {
         normalSingle.sort((a, b) => {
           const pa = (a.items[0]?.ping < 0) ? 9999 : a.items[0].ping;
@@ -3258,7 +3254,6 @@
         else currentCategoryFilter = 'multi';
       }
 
-      // 平铺的 4 个独立按钮布局，移除原本单独的测速按钮
       const headerBar = document.createElement('div');
       headerBar.className = 'sources-header-bar';
       const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
@@ -3268,7 +3263,7 @@
           <button type="button" class="btn-sort-action ${currentVodSortType === 'score' ? 'active-sort' : ''}" onclick="setSortType('score')">⭐ 综合</button>
           <button type="button" class="btn-sort-action ${currentVodSortType === 'time_desc' ? 'active-sort' : ''}" onclick="setSortType('time_desc')">🕒 最新</button>
           <button type="button" class="btn-sort-action ${currentVodSortType === 'time_asc' ? 'active-sort' : ''}" onclick="setSortType('time_asc')">🕒 最早</button>
-          <button type="button" id="btn-sort-speed-nav" class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="setSortType('speed')">${isSpeedTesting ? '⚡ 测速中' : '⚡ 速度'}</button>
+          <button type="button" id="btn-sort-speed-nav" class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="setSortType('speed')">${isSpeedTesting ? '⚡ 测速中' : '⚡ 测速'}</button>
         </div>
       `;
       frag.appendChild(headerBar);
