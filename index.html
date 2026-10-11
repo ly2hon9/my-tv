@@ -1718,7 +1718,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2807,9 +2807,18 @@
           
           if (!isRelevant) return;
 
-          const uniqueId = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
+          // 生成纯字母数字的安全 ID，彻底杜绝特殊符号导致的 DOM 异常
+          const rawUniqueKey = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
+          let hash = 0;
+          for (let c = 0; c < rawUniqueKey.length; c++) {
+            hash = ((hash << 5) - hash) + rawUniqueKey.charCodeAt(c);
+            hash |= 0;
+          }
+          const safeId = 'src_' + Math.abs(hash).toString(36) + '_' + itemIdx;
+
           const itemResult = {
-            id: uniqueId,
+            id: safeId,
+            rawKey: rawUniqueKey,
             siteName: site.name,
             versionTag: versionTag,
             vod: item,
@@ -2835,7 +2844,7 @@
             if (!group.actor && vodActor) group.actor = vodActor;
           }
 
-          if (!group.items.some(i => i.id === uniqueId)) {
+          if (!group.items.some(i => i.rawKey === rawUniqueKey)) {
             group.items.push(itemResult);
           }
         });
@@ -2870,7 +2879,7 @@
       if (!group || !group.items || group.items.length <= 1) return;
 
       group.items.forEach(item => {
-        const el = panel.querySelector(`#ping-badge-${item.id}`);
+        const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           el.textContent = "测速中...";
           el.className = "metric-ping-wait";
@@ -2878,16 +2887,16 @@
       });
 
       // 统一采用上方高效轻量测速探针并发探测
-      await Promise.allSettled(group.items.map(async (item) => {
+      await asyncPool(16, group.items, async (item) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
-        const el = panel.querySelector(`#ping-badge-${item.id}`);
+        const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           const isErr = item.ping >= 9999 || item.ping < 0;
           el.textContent = isErr ? "超时" : `${item.ping}ms`;
           el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
         }
-      }));
+      });
 
       // 仅在当前卡片内部将子卡片由快到慢重排
       group.items.sort((a, b) => {
@@ -3119,7 +3128,7 @@
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
-      // 仅在单源卡片且实际测过速时才在单源右侧显示延迟，多源折叠卡片头部一律不显示测速/超时文本
+      // 仅在单源卡片且实际手动测过速时才在单源右侧显示延迟，多源折叠卡片头部一律不显示测速/超时文本
       let singlePingHtml = '';
       if (group.items.length === 1 && firstItem.ping >= 0) {
         const isErr = firstItem.ping >= 9999;
@@ -3562,7 +3571,8 @@
 
         groupEl.onclick = () => {
           const isHide = subList.style.display === 'none';
-          subList.style.display = 'block';
+          subList.style.display = isHide ? 'block' : 'none';
+          groupEl.querySelector('span:last-child').textContent = isHide ? '▼' : '▶';
         };
 
         for (let chName in channels) {
