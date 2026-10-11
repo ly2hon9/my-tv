@@ -2877,7 +2877,7 @@
         }
       });
 
-      // 统一采用轻量并发探针高效探测
+      // 统一采用上方高效轻量测速探针并发探测
       await Promise.allSettled(group.items.map(async (item) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
@@ -2889,7 +2889,7 @@
         }
       }));
 
-      // 仅在当前小分组内部按速度由快到慢重排
+      // 仅在当前卡片内部将子卡片由快到慢重排
       group.items.sort((a, b) => {
         const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
         const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
@@ -2899,10 +2899,13 @@
         return pa - pb;
       });
 
-      const subCards = Array.from(panel.querySelectorAll('.source-sub-card'));
-      if (subCards.length > 0) {
+      if (panel && panel.isConnected) {
+        const cardMap = new Map();
+        panel.querySelectorAll('.source-sub-card').forEach(c => {
+          if (c.dataset.itemId) cardMap.set(c.dataset.itemId, c);
+        });
         group.items.forEach(item => {
-          const card = subCards.find(c => c.querySelector(`#ping-badge-${item.id}`));
+          const card = cardMap.get(item.id);
           if (card) panel.appendChild(card);
         });
       }
@@ -3048,6 +3051,7 @@
           const isSubActive = (item.id === activeSubItemId);
           const subCard = document.createElement('div');
           subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
+          subCard.dataset.itemId = item.id;
           
           const q = parseQualityTag(item.vod.vod_remarks);
           const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
@@ -3119,7 +3123,7 @@
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
-      // 仅在单源卡片且实际测过速时才在单源右侧显示延迟，多源折叠卡片头部一律不显示测速/超时文本
+      // 单源卡片且实际测过速时才在单源右侧显示延迟，多源折叠卡片头部绝不显示“超时”
       let singlePingHtml = '';
       if (group.items.length === 1 && firstItem.ping >= 0) {
         const isErr = firstItem.ping >= 9999;
