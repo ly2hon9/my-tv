@@ -424,9 +424,6 @@
     .btn-small-perm { background: var(--bg-card); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 500; }
     .btn-small-del, .btn-danger-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; margin-left: 4px; }
 
-    .auth-switch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; margin-top: 10px; font-size: 13px; color: var(--text-main); }
-    .toggle-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
-    
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .btn-action { padding: 8px 14px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
     .btn-cancel { background: var(--bg-tag); color: var(--text-main); }
@@ -644,72 +641,22 @@
         <span style="font-size:14px;color:var(--text-sub);cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
 
+      <!-- 1. 顶部管理员栏：左为主管理员，中为门禁开关，右为退出登录 -->
       <div class="settings-user-header-box">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 16px;">👤</span>
           <span id="settings-username-label" style="font-size: 13px; font-weight: bold;">管理员</span>
           <span class="user-badge-role role-admin">主管理员</span>
         </div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-main);">
+          <span style="font-weight: 500;">门禁</span>
+          <input type="checkbox" id="auth-require-toggle" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent);" onchange="toggleRequireLoginSwitch(this.checked)">
+        </div>
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <label class="input-label">系统主题外观：</label>
-      <select id="sys-theme-select" onchange="changeSystemTheme(this.value)">
-        <option value="auto">自动调节 (跟随系统时间)</option>
-        <option value="light">白天白色主题 (太阳)</option>
-        <option value="dark">晚上黑色主题 (月亮)</option>
-      </select>
-
-      <div class="auth-switch-row">
-        <span>🔒 强制账号登录门禁</span>
-        <input type="checkbox" id="auth-require-toggle" class="toggle-checkbox" onchange="toggleRequireLoginSwitch(this.checked)">
-      </div>
-      <div style="font-size: 11px; color: var(--text-sub); margin-top: 4px; margin-bottom: 8px;">开启后访客必须登录；关闭后任何人可免密直接打开观影。</div>
-
-      <label class="input-label">影视订阅地址：</label>
-      <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
-      <div class="sub-stats">数据将永久安全保存在云数据库中</div>
-
-      <label class="input-label">电视直播源地址（M3U）：</label>
-      <input type="text" id="source-m3u-input" placeholder="输入直播源 M3U 地址">
-
-      <label class="input-label">自动更新周期：</label>
-      <select id="auto-sync-interval">
-        <option value="0">仅手动更新 (推荐)</option>
-        <option value="12">每 12 小时自动更新</option>
-        <option value="24">每 24 小时 (1 天) 自动更新</option>
-        <option value="72">每 3 天自动更新</option>
-        <option value="168">每 7 天自动更新</option>
-      </select>
-      <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
-
-      <div class="collapsible-setting-box">
-        <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
-          <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
-          <span id="accounts-toggle-arrow">▼ 展开</span>
-        </div>
-        <div id="accounts-manager-body" class="collapsible-setting-body">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <div>
-                <div style="font-size: 12px; font-weight: 600;">📦 视频源分组权限</div>
-                <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">给不同用户分配不同视频源，新用户默认继承标有 [默认] 的分组</div>
-              </div>
-              <button type="button" class="btn-small-perm" style="font-size: 12px; font-weight: bold; padding: 3px 10px;" onclick="promptAddSourceGroup()" title="添加新分组">＋ 添加分组</button>
-            </div>
-            <div id="source-groups-list-container"></div>
-          </div>
-
-          <div style="display:flex; gap:6px; margin-bottom:8px;">
-            <input type="text" id="new-user-name" placeholder="账号名" style="flex:1; padding:6px !important; font-size:11px !important;">
-            <input type="password" id="new-user-pass" placeholder="密码" style="flex:1; padding:6px !important; font-size:11px !important;">
-            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="adminAddNewUser()">+ 添加用户</button>
-          </div>
-          <div id="users-items-container"></div>
-        </div>
-      </div>
-
-      <div class="collapsible-setting-box">
+      <!-- 2. 🎬 视频采集源管理（对调到最上层） -->
+      <div class="collapsible-setting-box" style="margin-top: 0; margin-bottom: 12px;">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('sites-manager-body', 'sites-toggle-arrow')">
           <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
           <span id="sites-toggle-arrow">▼ 展开</span>
@@ -737,6 +684,58 @@
           <div id="sites-items-container"></div>
         </div>
       </div>
+
+      <!-- 3. 👥 账号与权限管理（放在换过位置的视频采集源管理下面） -->
+      <div class="collapsible-setting-box" style="margin-top: 0; margin-bottom: 12px;">
+        <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
+          <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
+          <span id="accounts-toggle-arrow">▼ 展开</span>
+        </div>
+        <div id="accounts-manager-body" class="collapsible-setting-body">
+          <div style="background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 600;">📦 视频源分组权限</div>
+                <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">给不同用户分配不同视频源，新用户默认继承标有 [默认] 的分组</div>
+              </div>
+              <button type="button" class="btn-small-perm" style="font-size: 12px; font-weight: bold; padding: 3px 10px;" onclick="promptAddSourceGroup()" title="添加新分组">＋ 添加分组</button>
+            </div>
+            <div id="source-groups-list-container"></div>
+          </div>
+
+          <div style="display:flex; gap:6px; margin-bottom:8px;">
+            <input type="text" id="new-user-name" placeholder="账号名" style="flex:1; padding:6px !important; font-size:11px !important;">
+            <input type="password" id="new-user-pass" placeholder="密码" style="flex:1; padding:6px !important; font-size:11px !important;">
+            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="adminAddNewUser()">+ 添加用户</button>
+          </div>
+          <div id="users-items-container"></div>
+        </div>
+      </div>
+
+      <label class="input-label">影视订阅地址：</label>
+      <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
+      <div class="sub-stats">数据将永久安全保存在云数据库中</div>
+
+      <label class="input-label">电视直播源地址（M3U）：</label>
+      <input type="text" id="source-m3u-input" placeholder="输入直播源 M3U 地址">
+
+      <label class="input-label">自动更新周期：</label>
+      <select id="auto-sync-interval">
+        <option value="0">仅手动更新 (推荐)</option>
+        <option value="12">每 12 小时自动更新</option>
+        <option value="24">每 24 小时 (1 天) 自动更新</option>
+        <option value="72">每 3 天自动更新</option>
+        <option value="168">每 7 天自动更新</option>
+      </select>
+      <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
+
+      <!-- 4. 系统主题外观（对调到下方） -->
+      <label class="input-label" style="margin-top: 12px;">系统主题外观：</label>
+      <select id="sys-theme-select" onchange="changeSystemTheme(this.value)">
+        <option value="auto">自动调节 (跟随系统时间)</option>
+        <option value="light">白天白色主题 (太阳)</option>
+        <option value="dark">晚上黑色主题 (月亮)</option>
+      </select>
 
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="closeSourceModal()">取消</button>
@@ -1263,7 +1262,6 @@
       video.volume = parseFloat(val);
       video.muted = (val == 0);
       document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
-      volSlider.value = video.muted ? 0 : video.volume;
     }
 
     async function togglePiP() {
