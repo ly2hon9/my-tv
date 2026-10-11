@@ -258,7 +258,7 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 单排常驻吸顶工具栏：分类药丸 + 排序按钮同排显示，绝对不随列表滚动消失 */
+    /* 单排常驻吸顶工具栏：分类药丸 + 排序按钮同排展示，绝对不随列表滚动消失 */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 6px;
       padding: 7px 10px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
@@ -312,10 +312,6 @@
     .group-body-panel { display: none; background: var(--bg-sub-panel); padding: 6px 10px 12px 10px; border-top: 1px solid var(--border-color); }
     .title-group-box.expanded .group-body-panel { display: block; }
 
-    .single-source-card { border-bottom: 1px solid var(--border-color); background: var(--bg-card); padding: 10px 12px; transition: background 0.15s; }
-    .single-source-card.active-group { background: var(--accent-soft); border-left: 3px solid var(--accent); }
-    .single-top-row { display: flex; gap: 10px; align-items: center; cursor: pointer; }
-
     .episodes-collapse-box { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px; }
     .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--text-main); }
     .episodes-actions { display: flex; align-items: center; gap: 8px; }
@@ -334,7 +330,7 @@
     
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
-    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
+    .source-sub-card.active-sub .card-sitename-tag { background: var(--accent); color: #fff; }
     
     .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .card-quality.q-4k { background: #4a2828; color: #f87171; }
@@ -342,6 +338,7 @@
     .card-quality.q-720 { background: #26354a; color: #60a5fa; }
     .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
 
+    /* 有码/无码 专区微标签 */
     .card-censor { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
     .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
     .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
@@ -921,6 +918,7 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
+    const KEY_SESSION_VOD_STATE = "session_active_vod_state"; // 刷新不丢失、关闭网页自动销毁
 
     function getCurrentFavKey() {
       return currentUser ? `favs_u_${currentUser.username}` : KEY_FAVS;
@@ -1696,6 +1694,12 @@
       const input = document.getElementById('filter');
       input.value = '';
       toggleClearBtn('');
+      sessionStorage.removeItem(KEY_SESSION_VOD_STATE);
+      groupedVodList = [];
+      currentSearchingWord = '';
+      activeGroupTitle = '';
+      activeSubItemId = '';
+      document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
       input.focus();
     }
 
@@ -2390,6 +2394,44 @@
       return extractSitesFromAnyJson(parsed);
     }
 
+    /* === 跨刷新持久化会话快照（刷新不丢，关闭标签页自动清空） === */
+    function saveVodSessionState() {
+      if (currentMode !== 'vod') return;
+      try {
+        const state = {
+          keyword: currentSearchingWord || document.getElementById('filter').value || '',
+          groupedVodList: groupedVodList || [],
+          categoryFilter: currentCategoryFilter,
+          sortType: currentVodSortType,
+          activeGroupTitle: activeGroupTitle,
+          activeSubItemId: activeSubItemId,
+          currentActiveEp: currentActiveEp
+        };
+        sessionStorage.setItem(KEY_SESSION_VOD_STATE, JSON.stringify(state));
+      } catch (_) {}
+    }
+
+    function restoreVodSessionState() {
+      try {
+        const raw = sessionStorage.getItem(KEY_SESSION_VOD_STATE);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+        if (state && Array.isArray(state.groupedVodList) && state.groupedVodList.length > 0) {
+          currentSearchingWord = state.keyword || '';
+          document.getElementById('filter').value = currentSearchingWord;
+          toggleClearBtn(currentSearchingWord);
+          groupedVodList = state.groupedVodList;
+          currentCategoryFilter = state.categoryFilter || 'auto';
+          currentVodSortType = state.sortType || 'score';
+          activeGroupTitle = state.activeGroupTitle || '';
+          activeSubItemId = state.activeSubItemId || '';
+          currentActiveEp = state.currentActiveEp || 0;
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
     function switchMode(mode) {
       currentMode = mode;
       currentView = 'normal';
@@ -2645,7 +2687,7 @@
     async function setSortType(type) {
       if (type === 'speed') {
         if (isSpeedTesting) return;
-        showGestureTip("⚡ 正在对当前专区测速并排序...");
+        showGestureTip("⚡ 正在测速并按响应速度排序...");
         await startSpeedTest();
       } else {
         currentVodSortType = type;
@@ -2654,6 +2696,7 @@
         else if (type === 'time_asc') showGestureTip("已切换为：早期时间 (升序 ↑)");
         sortGroupedVodList();
         renderGroupedVodSources();
+        saveVodSessionState();
       }
     }
 
@@ -2676,6 +2719,7 @@
         isSearchingActive = false;
         sortGroupedVodList();
         renderGroupedVodSources();
+        saveVodSessionState();
         showGestureTip("⚡ 已从极速缓存秒开");
         return;
       }
@@ -2803,9 +2847,10 @@
       sortGroupedVodList();
       VodSearchCache.set(keyword, userGroupId, groupedVodList);
       renderGroupedVodSources();
+      saveVodSessionState();
     }
 
-    /* === 测速引擎优化：各组独立测速，按需收集并全部测完后再排序 === */
+    /* === 测速引擎：各大专区完全独立测速，全部测完后再进行重排 === */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
       if (isSpeedTesting) return;
@@ -2855,7 +2900,6 @@
         });
       }
 
-      // 重置并显示测速状态
       targetItemsToTest.forEach(({ item }) => {
         const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
@@ -2864,7 +2908,6 @@
         }
       });
 
-      // 并发探测
       await Promise.allSettled(targetItemsToTest.map(async ({ item, site }) => {
         const episodes = getEpisodesList(item);
         const targetEp = episodes[currentActiveEp] || episodes[0];
@@ -2882,7 +2925,6 @@
         }
       }));
 
-      // 组内多线路自动按照延迟由快到慢重排
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2898,6 +2940,7 @@
       currentVodSortType = 'speed';
       sortGroupedVodList();
       renderGroupedVodSources();
+      saveVodSessionState();
       showGestureTip("⚡ 测速完毕，已按速度从快到慢排序");
     }
 
@@ -2910,84 +2953,96 @@
     function setCategoryFilter(filterKey) {
       currentCategoryFilter = filterKey;
       renderGroupedVodSources();
+      saveVodSessionState();
     }
 
-    function renderCardNode(group, isSingle) {
+    /* === 3大专区完全统一卡片架构：点击标题栏仅折叠/展开，绝不自动起播 === */
+    function renderCardNode(group) {
+      const isCurrentActiveGroup = (group.title === activeGroupTitle);
+      let groupCard = domNodeCache.get(group.title);
+
+      const isSpecial = isGroupNSFW(group);
+      let groupCensorTag = '';
+      if (isSpecial) {
+        for (const it of group.items) {
+          const tag = detectCensorshipTag(it.vod, it.siteName);
+          if (tag) { groupCensorTag = tag; break; }
+        }
+      }
+      const groupCensorHtml = groupCensorTag ? `<span class="card-censor ${groupCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${groupCensorTag}</span>` : '';
+
       const pubDate = group._displayDate || (group.items[0]?.vod?.vod_time ? String(group.items[0].vod.vod_time).split(' ')[0] : '');
       const pubDateHtml = pubDate ? `<span class="group-pub-time">${escapeHtml(pubDate)}</span>` : '';
 
-      const isSpecial = isGroupNSFW(group);
-
-      if (isSingle) {
-        const item = group.items[0];
-        const episodes = getEpisodesList(item);
-        const hasMultipleEps = episodes.length > 1;
-        const isCurrentActive = (item.id === activeSubItemId);
-        let singleCard = domNodeCache.get(group.title);
-
-        const censorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
-        const censorHtml = censorTag ? `<span class="card-censor ${censorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${censorTag}</span>` : '';
-
-        if (!singleCard || !singleCard.classList.contains('single-source-card')) {
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-          const q = parseQualityTag(item.vod.vod_remarks);
-          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-          singleCard = document.createElement('div');
-          singleCard.className = 'single-source-card';
-          singleCard.innerHTML = `
-            <div class="single-top-row">
+      if (!groupCard || !groupCard.classList.contains('title-group-box')) {
+        const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+        groupCard = document.createElement('div');
+        groupCard.className = 'title-group-box';
+        groupCard.innerHTML = `
+          <div class="title-group-header">
+            <div class="group-header-left">
               <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-              <div class="group-info-wrap" style="flex:1;">
+              <div class="group-info-wrap">
                 <div class="group-main-title">${escapeHtml(group.title)}</div>
                 <div class="group-meta-tag">
-                  <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                  <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                  ${censorHtml}
+                  <span>${escapeHtml(group.type || '影视')}</span>
+                  ${groupCensorHtml}
                   ${pubDateHtml}
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
-                  <span id="ping-badge-${item.id}" class="${pingClass}" style="margin-left:auto;font-family:monospace;">${pingText}</span>
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(group.actor)}</span>` : ''}
+                  <span class="group-badge-count">${group.items.length} 个版本/源</span>
                 </div>
               </div>
             </div>
-          `;
+            <div class="group-arrow">▶</div>
+          </div>
+        `;
+        domNodeCache.set(group.title, groupCard);
+      } else {
+        const badge = groupCard.querySelector('.group-badge-count');
+        if (badge) badge.textContent = `${group.items.length} 个版本/源`;
+      }
 
-          // 单源点击逻辑优化：单集片源点击直接秒播不展开，大于1集才展开并切换集数
-          singleCard.querySelector('.single-top-row').onclick = () => {
-            activeGroupTitle = group.title;
-            activeSubItemId = item.id;
+      groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
+
+      const headerEl = groupCard.querySelector('.title-group-header');
+      headerEl.onclick = () => {
+        const isExpanded = groupCard.classList.contains('expanded');
+        document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('expanded'));
+        if (!isExpanded) {
+          groupCard.classList.add('expanded');
+          activeGroupTitle = group.title;
+          if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
+            activeSubItemId = group.items[0]?.id || '';
             currentActiveEp = 0;
-            playCurrentVodSource(item, 0);
-
-            if (hasMultipleEps) {
-              renderGroupedVodSources();
-            } else {
-              document.querySelectorAll('.single-source-card').forEach(el => el.classList.remove('active-group'));
-              singleCard.classList.add('active-group');
-            }
-          };
-
-          domNodeCache.set(group.title, singleCard);
+          }
+          renderGroupedVodSources();
+          saveVodSessionState();
+        } else {
+          activeGroupTitle = '';
+          renderGroupedVodSources();
+          saveVodSessionState();
         }
+      };
 
-        singleCard.className = 'single-source-card ' + (isCurrentActive ? 'active-group' : '');
+      const oldPanel = groupCard.querySelector('.group-body-panel');
+      if (oldPanel) oldPanel.remove();
 
-        const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
-        if (oldCollapse) oldCollapse.remove();
+      if (isCurrentActiveGroup) {
+        const bodyPanel = document.createElement('div');
+        bodyPanel.className = 'group-body-panel';
 
-        // 仅在大于1集时才显示选集展开框，只有1集的单集片源保持极简不渲染
-        if (isCurrentActive && hasMultipleEps) {
+        const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+        const episodes = getEpisodesList(currentSubItem);
+
+        if (episodes.length > 0) {
           const collapseBox = document.createElement('div');
           collapseBox.className = 'episodes-collapse-box';
           collapseBox.innerHTML = `
             <div class="episodes-header">
-              <span>📺 选集 (${episodes.length} 集) - 第 ${currentActiveEp + 1} 集</span>
+              <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
               <div class="episodes-actions">
                 <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);">▼ 折叠</span>
+                <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
               </div>
             </div>
             <div class="episodes-grid" id="episodes-grid-list"></div>
@@ -3004,8 +3059,10 @@
             btn.onclick = (e) => {
               e.stopPropagation();
               currentActiveEp = epIdx;
-              renderGroupedVodSources();
-              playCurrentVodSource(item, epIdx);
+              document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+              btn.classList.add('active');
+              playCurrentVodSource(currentSubItem, epIdx);
+              saveVodSessionState();
             };
             epGrid.appendChild(btn);
           });
@@ -3018,160 +3075,48 @@
             collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
           };
 
-          singleCard.appendChild(collapseBox);
+          bodyPanel.appendChild(collapseBox);
         }
-        return singleCard;
-      } else {
-        const isCurrentActiveGroup = (group.title === activeGroupTitle);
-        let groupCard = domNodeCache.get(group.title);
 
-        let groupCensorTag = '';
-        if (isSpecial) {
-          for (const it of group.items) {
-            const tag = detectCensorshipTag(it.vod, it.siteName);
-            if (tag) { groupCensorTag = tag; break; }
-          }
-        }
-        const groupCensorHtml = groupCensorTag ? `<span class="card-censor ${groupCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${groupCensorTag}</span>` : '';
+        group.items.forEach((item) => {
+          const isSubActive = (item.id === activeSubItemId);
+          const subCard = document.createElement('div');
+          subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
+          
+          const q = parseQualityTag(item.vod.vod_remarks);
+          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
 
-        if (!groupCard || groupCard.classList.contains('single-source-card')) {
-          const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-          groupCard = document.createElement('div');
-          groupCard.className = 'title-group-box';
-          groupCard.innerHTML = `
-            <div class="title-group-header">
-              <div class="group-header-left">
-                <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-                <div class="group-info-wrap">
-                  <div class="group-main-title">${escapeHtml(group.title)}</div>
-                  <div class="group-meta-tag">
-                    <span>${escapeHtml(group.type || '影视')}</span>
-                    ${groupCensorHtml}
-                    ${pubDateHtml}
-                    ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(group.actor)}</span>` : ''}
-                    <span class="group-badge-count">${group.items.length} 个版本/源</span>
-                  </div>
-                </div>
-              </div>
-              <div class="group-arrow">▶</div>
+          const subCensorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
+          const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
+
+          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
+          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+
+          subCard.innerHTML = `
+            <div class="source-sub-left">
+              <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
+              <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+              ${subCensorHtml}
+            </div>
+            <div class="card-status-bar">
+              <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
             </div>
           `;
-          domNodeCache.set(group.title, groupCard);
-        } else {
-          const badge = groupCard.querySelector('.group-badge-count');
-          if (badge) badge.textContent = `${group.items.length} 个版本/源`;
-        }
 
-        groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
-
-        const headerEl = groupCard.querySelector('.title-group-header');
-        // 展开分组优化：仅展开折叠列表，绝对不自动起播，必须手动点击才播放
-        headerEl.onclick = () => {
-          const isExpanded = groupCard.classList.contains('expanded');
-          document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('expanded'));
-          if (!isExpanded) {
-            groupCard.classList.add('expanded');
-            activeGroupTitle = group.title;
-            if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
-              activeSubItemId = group.items[0].id;
-              currentActiveEp = 0;
-            }
+          subCard.onclick = (e) => {
+            e.stopPropagation();
+            activeSubItemId = item.id;
             renderGroupedVodSources();
-          }
-        };
+            playCurrentVodSource(item, currentActiveEp);
+            saveVodSessionState();
+          };
 
-        const oldPanel = groupCard.querySelector('.group-body-panel');
-        if (oldPanel) oldPanel.remove();
+          bodyPanel.appendChild(subCard);
+        });
 
-        if (isCurrentActiveGroup) {
-          const bodyPanel = document.createElement('div');
-          bodyPanel.className = 'group-body-panel';
-
-          const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
-          const episodes = getEpisodesList(currentSubItem);
-
-          if (episodes.length > 0) {
-            const collapseBox = document.createElement('div');
-            collapseBox.className = 'episodes-collapse-box';
-            collapseBox.innerHTML = `
-              <div class="episodes-header">
-                <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
-                <div class="episodes-actions">
-                  <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                  <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
-                </div>
-              </div>
-              <div class="episodes-grid" id="episodes-grid-list"></div>
-            `;
-
-            const epGrid = collapseBox.querySelector('#episodes-grid-list');
-            const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
-
-            displayEps.forEach((ep) => {
-              const epIdx = ep.originalIdx;
-              const btn = document.createElement('button');
-              btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-              btn.textContent = ep.name;
-              btn.onclick = (e) => {
-                e.stopPropagation();
-                currentActiveEp = epIdx;
-                document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
-                btn.classList.add('active');
-                playCurrentVodSource(currentSubItem, epIdx);
-              };
-              epGrid.appendChild(btn);
-            });
-
-            collapseBox.querySelector('.episodes-header').onclick = (e) => {
-              if (e.target.tagName === 'BUTTON') return;
-              e.stopPropagation();
-              const isHide = epGrid.style.display === 'none';
-              epGrid.style.display = isHide ? 'grid' : 'none';
-              collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-            };
-
-            bodyPanel.appendChild(collapseBox);
-          }
-
-          group.items.forEach((item) => {
-            const isSubActive = (item.id === activeSubItemId);
-            const subCard = document.createElement('div');
-            subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
-            
-            const q = parseQualityTag(item.vod.vod_remarks);
-            const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-            const subCensorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
-            const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
-
-            let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-            let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-            subCard.innerHTML = `
-              <div class="source-sub-left">
-                <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-                <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
-                ${subCensorHtml}
-              </div>
-              <div class="card-status-bar">
-                <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
-              </div>
-            `;
-
-            subCard.onclick = (e) => {
-              e.stopPropagation();
-              activeSubItemId = item.id;
-              renderGroupedVodSources();
-              playCurrentVodSource(item, currentActiveEp);
-            };
-
-            bodyPanel.appendChild(subCard);
-          });
-
-          groupCard.appendChild(bodyPanel);
-        }
-        return groupCard;
+        groupCard.appendChild(bodyPanel);
       }
+      return groupCard;
     }
 
     function appendVodCardsChunk(targetList, startIdx, count) {
@@ -3180,8 +3125,8 @@
       const endIdx = Math.min(targetList.length, startIdx + count);
 
       for (let i = startIdx; i < endIdx; i++) {
-        const item = targetList[i];
-        frag.appendChild(renderCardNode(item.group, item.isSingle));
+        const group = targetList[i];
+        frag.appendChild(renderCardNode(group));
       }
 
       currentlyRenderedCount = endIdx;
@@ -3222,11 +3167,11 @@
       let nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
       let nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
 
-      /* === 各组排序应用 === */
+      /* === 各组排序规则应用 === */
       if (currentVodSortType === 'speed' || currentVodSortType === 'score') {
         normalSingle.sort((a, b) => {
-          const pa = (a.items[0]?.ping < 0) ? 9999 : a.items[0].ping;
-          const pb = (b.items[0]?.ping < 0) ? 9999 : b.items[0].ping;
+          const pa = (a.items[0]?.ping === undefined || a.items[0]?.ping < 0) ? 9999 : a.items[0].ping;
+          const pb = (b.items[0]?.ping === undefined || b.items[0]?.ping < 0) ? 9999 : b.items[0].ping;
           return pa - pb;
         });
 
@@ -3273,20 +3218,19 @@
 
       activeDisplayCardList = [];
       if (currentCategoryFilter === 'multi') {
-        normalMulti.forEach(g => activeDisplayCardList.push({ group: g, isSingle: false }));
+        normalMulti.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'single') {
-        normalSingle.forEach(g => activeDisplayCardList.push({ group: g, isSingle: true }));
+        normalSingle.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'nsfw') {
-        nsfwMulti.forEach(g => activeDisplayCardList.push({ group: g, isSingle: false }));
-        nsfwSingle.forEach(g => activeDisplayCardList.push({ group: g, isSingle: true }));
+        nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
 
       currentlyRenderedCount = 0;
       const initialChunkSize = Math.min(activeDisplayCardList.length, CHUNK_PAGE_SIZE);
 
       for (let i = 0; i < initialChunkSize; i++) {
-        const item = activeDisplayCardList[i];
-        frag.appendChild(renderCardNode(item.group, item.isSingle));
+        const group = activeDisplayCardList[i];
+        frag.appendChild(renderCardNode(group));
       }
       currentlyRenderedCount = initialChunkSize;
 
@@ -3715,7 +3659,11 @@
       });
 
       initTv();
+      const hasRestored = restoreVodSessionState();
       switchMode('vod');
+      if (hasRestored) {
+        renderGroupedVodSources();
+      }
       checkAutoSyncSchedule();
     });
   </script>
