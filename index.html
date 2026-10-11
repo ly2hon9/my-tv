@@ -54,7 +54,7 @@
     html, body { width: 100%; height: 100%; background-color: var(--bg-base); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; transition: background-color 0.25s, color 0.25s; }
 
     #auth-gate-screen {
-      position: fixed; inset: 0; z-index: 9999999;
+      position: fixed inset: 0; z-index: 9999999;
       display: none; flex-direction: column; align-items: center; justify-content: center;
       background: linear-gradient(180deg, #edf5f8 0%, #f4f7f6 45%, #fcfdfc 100%);
       transition: background 0.3s ease;
@@ -330,7 +330,7 @@
     
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
-    .source-sub-card.active-sub .card-sitename-tag { background: var(--accent); color: #fff; }
+    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
     
     .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .card-quality.q-4k { background: #4a2828; color: #f87171; }
@@ -987,7 +987,7 @@
       }
 
       const result = new Uint8Array(leadingOnes + bytes.length);
-      for (let i = 0; i < leadingOnes; i++) result[i] = 0;
+      for (let i = leadingOnes; i < leadingOnes; i++) result[i] = 0;
       for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
@@ -1703,7 +1703,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2909,7 +2909,6 @@
         }
       });
 
-      // 统一采用上方高效轻量测速探针并发探测
       await asyncPool(16, group.items, async (item) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
@@ -2921,7 +2920,6 @@
         }
       });
 
-      // 仅在当前卡片内部将子卡片由快到慢重排
       group.items.sort((a, b) => {
         const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
         const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
@@ -3140,16 +3138,11 @@
       const isSingleSourceSingleEp = (group.items.length === 1 && episodes.length <= 1);
       const isSingle = (group.items.length === 1);
 
-      // 重点增强：单源和专区明确标注采集来源站标签
+      // 单源项目（单源专区及专区内的单源）：在卡片头部明确标注来源站
+      // 专区折叠多源片源：不在卡片头部标注，与聚合专区保持一致，在点击展开后的折叠栏中逐一显示
       let sourceTagHtml = '';
       if (isSingle) {
-        // 单源项目（包括单源专区项目及专区内的单源）：直接标注该源名称
         sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(firstItem.siteName)}</span>`;
-      } else if (isSpecial) {
-        // 专区内的多源项目：标注包含的源站名称
-        const uniqueSites = Array.from(new Set(group.items.map(i => i.siteName)));
-        const sitesStr = uniqueSites.slice(0, 2).join('+') + (uniqueSites.length > 2 ? '等' : '');
-        sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(sitesStr)}</span>`;
       }
 
       // 角标优化：单集电影显示单集正片，多集显示总集数，多源显示版本数量
@@ -3696,6 +3689,16 @@
       document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
 
       renderGateEyeIcon(false);
+
+      // 清理可能遗留的旧版本大体积 vod_cache_* 碎片，保障存储充裕
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('vod_cache_')) {
+            sessionStorage.removeItem(k);
+          }
+        }
+      } catch (_) {}
 
       try {
         const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
