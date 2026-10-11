@@ -396,7 +396,26 @@
     .collapsible-setting-header:hover { background: var(--bg-card-hover); }
     .collapsible-setting-body { padding: 10px; display: none; }
 
-    .site-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; }
+    /* 采集源列表内部独立视窗化，避免撑长页面 */
+    #sites-items-container {
+      max-height: 280px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-sub-panel);
+      padding: 2px 6px;
+      scrollbar-width: thin;
+    }
+
+    /* 采集源列表行布局：源名(左) - 统计与自定义(正中间居中) - 按钮(右) */
+    .site-toggle-row { 
+      display: flex; 
+      align-items: center; 
+      padding: 7px 4px; 
+      border-bottom: 1px solid var(--border-color); 
+      font-size: 12px; 
+    }
     .site-toggle-row:last-child { border-bottom: none; }
     .btn-site-toggle { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
     .btn-site-toggle.enabled { background: #238636; color: #fff; }
@@ -547,7 +566,7 @@
                 <path fill="#FFFFFF" d="M19.1 19h9.8l-1.8-8h-6.2l-1.8 8z"/>
                 <path fill="#FFFFFF" d="M16.9 29h14.2l-1.6-7H18.5l-1.6 7z"/>
                 <path fill="#FF8800" d="M7 40c0 2.2 7.6 4 17 4s17-1.8 17-4l-3-6H10l-3 6z"/>
-                <ellipse cx="24" cy="40" rx="17" ry="3.5" fill="#E65100"/>
+                <ellipse cx="24" rx="17" ry="3.5" fill="#E65100"/>
                 <path fill="#FF9800" d="M10 34h28l-2.4 5H12.4L10 34z"/>
               </svg>
             </button>
@@ -702,16 +721,19 @@
             <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="addNewCustomSite()">+ 添加</button>
           </div>
 
-          <!-- 统计、自定义阈值与重置控制条 -->
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border-color); font-size:11px;">
-            <div style="flex:1; min-width:0; color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">源站名称</div>
-            <div style="display:flex; align-items:center; gap:8px; margin:0 8px; flex-shrink:0;">
-              <span style="width:36px; text-align:center; color:var(--text-sub); font-weight:600;">统计</span>
-              <button type="button" class="btn-action" style="padding:2px 6px; font-size:11px; background:var(--bg-tag); color:var(--accent); border:1px solid var(--border-light);" onclick="promptCustomFailureThreshold()" title="点击自定义失效禁用次数">⚙️ 自定义: <span id="custom-threshold-badge">5</span>次</button>
+          <!-- 精准居中对齐表头 -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:6px 6px; background:var(--bg-card); border-radius:6px; border:1px solid var(--border-color); font-size:11px;">
+            <div style="flex:1.3; min-width:0; color:var(--text-sub); font-weight:600;">源站名称</div>
+            <div style="flex:1.4; display:flex; align-items:center; justify-content:center; gap:8px;">
+              <span style="width:40px; text-align:center; color:var(--text-sub); font-weight:600;">统计</span>
+              <button type="button" class="btn-action" style="padding:2px 7px; font-size:10px; background:var(--bg-tag); color:var(--accent); border:1px solid var(--border-light); border-radius:4px;" onclick="promptCustomFailureThreshold()" title="点击自定义失效禁用次数">⚙️ 自定义: <span id="custom-threshold-badge">5</span>次</button>
             </div>
-            <button type="button" class="btn-action" style="padding:3px 8px; font-size:11px; background:var(--accent); color:#fff; flex-shrink:0;" onclick="resetAllFailedSites()">🔄 重置</button>
+            <div style="flex:0.9; display:flex; justify-content:flex-end;">
+              <button type="button" class="btn-action" style="padding:3px 9px; font-size:11px; background:var(--accent); color:#fff;" onclick="resetAllFailedSites()">🔄 重置</button>
+            </div>
           </div>
 
+          <!-- 紧凑视窗化独立滚动容器，彻底避免展开过长撑爆屏幕 -->
           <div id="sites-items-container"></div>
         </div>
       </div>
@@ -1008,7 +1030,7 @@
     let parsedSites = [];
     let disabledSites = [];
     let sourceFailures = {};
-    let failThreshold = 5; // 默认自定义禁用阈值为 5 次
+    let failThreshold = 5;
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
@@ -1241,6 +1263,7 @@
       video.volume = parseFloat(val);
       video.muted = (val == 0);
       document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
+      volSlider.value = video.muted ? 0 : video.volume;
     }
 
     async function togglePiP() {
@@ -2236,14 +2259,14 @@
 
         return `
           <div class="site-toggle-row" style="${isDis ? 'opacity:0.65;background:rgba(0,0,0,0.1);' : ''}">
-            <div style="flex:1; min-width:0; display:flex; align-items:center;">
+            <div style="flex:1.3; min-width:0; display:flex; align-items:center;">
               <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🎬 ${escapeHtml(site.name)}</span>
             </div>
-            <div style="display:flex; align-items:center; gap:8px; margin:0 8px; flex-shrink:0;">
-              <span style="width:36px; text-align:center; font-family:monospace; font-size:12px; font-weight:600; color:${failCount > 0 ? (failCount >= failThreshold ? '#ef4444' : '#facc15') : 'var(--text-mute)'};">${failCount}</span>
-              <span style="width:58px; text-align:center; font-family:monospace; font-size:12px; color:var(--text-sub);">${failThreshold}</span>
+            <div style="flex:1.4; display:flex; align-items:center; justify-content:center; gap:8px;">
+              <span style="width:40px; text-align:center; font-family:monospace; font-size:12px; font-weight:600; color:${failCount > 0 ? (failCount >= failThreshold ? '#ef4444' : '#facc15') : 'var(--text-mute)'};">${failCount}</span>
+              <span style="width:64px; text-align:center; font-family:monospace; font-size:12px; color:var(--text-sub);">${failThreshold}</span>
             </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+            <div style="flex:0.9; display:flex; align-items:center; justify-content:flex-end; gap:6px;">
               <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
                 ${isDis ? '已禁用' : '已启用'}
               </button>
@@ -2644,6 +2667,9 @@
       if (!isSafeUrl(testUrl)) {
         const site = parsedSites.find(s => s.name === item.siteName);
         testUrl = site?.api || '';
+      }
+      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
+        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
       }
       return testUrl;
     }
@@ -3574,7 +3600,6 @@
       const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
       setStatus(tipText, true);
 
-      // 捕获编码格式不支持错误，并触发去重失败统计
       if (tipText.includes("编码格式不支持")) {
         if (currentPlayingMeta?.siteName) {
           recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
@@ -3808,7 +3833,6 @@
 
       renderGateEyeIcon(false);
 
-      // 清理可能遗留的旧版本大体积 vod_cache_* 碎片，保障存储充裕
       try {
         for (let i = sessionStorage.length - 1; i >= 0; i--) {
           const k = sessionStorage.key(i);
