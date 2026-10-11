@@ -54,7 +54,7 @@
     html, body { width: 100%; height: 100%; background-color: var(--bg-base); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; transition: background-color 0.25s, color 0.25s; }
 
     #auth-gate-screen {
-      position: fixed inset: 0; z-index: 9999999;
+      position: fixed; inset: 0; z-index: 9999999;
       display: none; flex-direction: column; align-items: center; justify-content: center;
       background: linear-gradient(180deg, #edf5f8 0%, #f4f7f6 45%, #fcfdfc 100%);
       transition: background 0.3s ease;
@@ -701,6 +701,13 @@
             <input type="text" id="new-site-api" placeholder="接口 API (https://...)" style="flex:2; padding:6px !important; font-size:11px !important;">
             <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="addNewCustomSite()">+ 添加</button>
           </div>
+
+          <!-- 一键恢复失效源操作栏 -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border-color);">
+            <span style="font-size:11px; color:var(--text-sub);">累计失败 5 次自动禁用并沉底</span>
+            <button type="button" class="btn-action" style="padding:3px 8px; font-size:11px; background:var(--accent); color:#fff;" onclick="resetAllFailedSites()">🔄 一键恢复所有源</button>
+          </div>
+
           <div id="sites-items-container"></div>
         </div>
       </div>
@@ -906,6 +913,7 @@
     const KEY_SUB = "custom_vod_sub_url";
     const KEY_SITES = "cached_parsed_sites";
     const KEY_DISABLED_SITES = "disabled_sites_list";
+    const KEY_SOURCE_FAILURES = "sys_source_failure_stats_v2"; // 永久统计失效源
     const KEY_HISTORY = "history_list_v2";
     const KEY_FAVS = "favorites_list_v2";
     const KEY_LAST_SYNC = "last_subscription_sync_time";
@@ -987,13 +995,14 @@
       }
 
       const result = new Uint8Array(leadingOnes + bytes.length);
-      for (let i = leadingOnes; i < leadingOnes; i++) result[i] = 0;
+      for (let i = 0; i < leadingOnes; i++) result[i] = 0;
       for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
 
     let parsedSites = [];
     let disabledSites = [];
+    let sourceFailures = {}; // 记录格式: { [siteName]: { count: number, failedVideos: string[] } }
     let currentMode = 'vod';
     let currentView = 'normal';
     let groups = {};
@@ -1085,7 +1094,7 @@
       gestureTip.textContent = text;
       gestureTip.style.opacity = '1';
       clearTimeout(gestureTipTimer);
-      gestureTipTimer = setTimeout(() => { gestureTip.style.opacity = '0'; }, 900);
+      gestureTipTimer = setTimeout(() => { gestureTip.style.opacity = '0'; }, 1100);
     }
 
     function formatTime(sec) {
@@ -1703,7 +1712,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2129,6 +2138,46 @@
       showGestureTip(checked ? "✓ 门禁已开启" : "✓ 门禁已关闭");
     }
 
+    /* === 失效源统计与沉底渲染逻辑 === */
+    async function recordSourceFailure(siteName, videoKey) {
+      if (!siteName) return;
+      const vKey = videoKey || currentVodUniqueKey || currentPlayingMeta?.title || '未知影片';
+      if (!sourceFailures[siteName]) {
+        sourceFailures[siteName] = { count: 0, failedVideos: [] };
+      }
+      const rec = sourceFailures[siteName];
+      if (!rec.failedVideos) rec.failedVideos = [];
+
+      // 同一影片重复点击报错去重，仅计算 1 次
+      if (!rec.failedVideos.includes(vKey)) {
+        rec.failedVideos.push(vKey);
+        rec.count = rec.failedVideos.length;
+
+        // 累计达 5 次自动熔断禁用
+        if (rec.count >= 5 && !disabledSites.includes(siteName)) {
+          disabledSites.push(siteName);
+          await setD1Data(KEY_DISABLED_SITES, disabledSites);
+          showGestureTip(`⚠️ 源【${siteName}】多次失效，已自动禁用并沉底`);
+        }
+        await setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
+
+        if (document.getElementById('modal-mask').style.display === 'flex') {
+          renderSitesManagerList();
+        }
+      }
+    }
+
+    /* === 一键恢复所有失效源并清除失败统计 === */
+    async function resetAllFailedSites() {
+      if (!confirm("确定一键恢复所有失效源并重置错误统计吗？")) return;
+      sourceFailures = {};
+      disabledSites = [];
+      await setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
+      await setD1Data(KEY_DISABLED_SITES, disabledSites);
+      renderSitesManagerList();
+      showGestureTip("✓ 所有视频源已恢复并重置失败计数");
+    }
+
     function renderSitesManagerList() {
       const container = document.getElementById('sites-items-container');
       document.getElementById('sites-count-badge').textContent = parsedSites.length;
@@ -2138,11 +2187,27 @@
         return;
       }
 
-      container.innerHTML = parsedSites.map((site) => {
+      // 禁用的源强制沉底排布（启用在上，禁用在下，且各自内部按失效次数从高到低排列）
+      const sortedSites = parsedSites.slice().sort((a, b) => {
+        const isDisA = disabledSites.includes(a.name) ? 1 : 0;
+        const isDisB = disabledSites.includes(b.name) ? 1 : 0;
+        if (isDisA !== isDisB) return isDisA - isDisB;
+        const failA = sourceFailures[a.name]?.count || 0;
+        const failB = sourceFailures[b.name]?.count || 0;
+        return failB - failA;
+      });
+
+      container.innerHTML = sortedSites.map((site) => {
         const isDis = disabledSites.includes(site.name);
+        const failCount = sourceFailures[site.name]?.count || 0;
+        const failBadge = failCount > 0 ? `<span style="font-size:10px; color:${failCount >= 5 ? '#ef4444' : '#facc15'}; margin-left:6px; font-weight:600;">(失效 ${failCount}/5)</span>` : '';
+
         return `
-          <div class="site-toggle-row">
-            <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">🎬 ${escapeHtml(site.name)}</span>
+          <div class="site-toggle-row" style="${isDis ? 'opacity:0.65;background:rgba(0,0,0,0.1);' : ''}">
+            <div style="display:flex; align-items:center; min-width:0; max-width:210px;">
+              <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🎬 ${escapeHtml(site.name)}</span>
+              ${failBadge}
+            </div>
             <div style="display:flex; align-items:center; gap:6px;">
               <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
                 ${isDis ? '已禁用' : '已启用'}
@@ -2156,10 +2221,18 @@
 
     async function toggleSiteStatus(siteName) {
       const idx = disabledSites.indexOf(siteName);
-      if (idx >= 0) disabledSites.splice(idx, 1);
-      else disabledSites.push(siteName);
+      if (idx >= 0) {
+        disabledSites.splice(idx, 1);
+        // 手动恢复该源时重置其失效计数，避免立刻再次被自动熔断
+        if (sourceFailures[siteName]) {
+          delete sourceFailures[siteName];
+          await setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
+        }
+      } else {
+        disabledSites.push(siteName);
+      }
 
-      setD1Data(KEY_DISABLED_SITES, disabledSites);
+      await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
     }
 
@@ -2185,8 +2258,10 @@
       if (!confirm(`确定要移除采集源【${siteName}】吗？`)) return;
       parsedSites = parsedSites.filter(s => s.name !== siteName);
       disabledSites = disabledSites.filter(n => n !== siteName);
+      if (sourceFailures[siteName]) delete sourceFailures[siteName];
       setD1Data(KEY_SITES, parsedSites);
       setD1Data(KEY_DISABLED_SITES, disabledSites);
+      setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
       renderSitesManagerList();
     }
 
@@ -2259,6 +2334,7 @@
       if (m3uUrl) tasks.push(setD1Data(KEY_M3U, m3uUrl));
       tasks.push(setD1Data(KEY_SYNC_INTERVAL, interval));
       tasks.push(setD1Data(KEY_DISABLED_SITES, disabledSites));
+      tasks.push(setD1Data(KEY_SOURCE_FAILURES, sourceFailures));
       tasks.push(setD1Data(KEY_SITES, parsedSites));
       tasks.push(setD1Data(KEY_AUTH_CONFIG, authConfig));
       tasks.push(setD1Data(KEY_USERS_LIST, userList));
@@ -3462,6 +3538,13 @@
       try { video.pause(); } catch(_) {}
       const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
       setStatus(tipText, true);
+
+      // 捕获编码格式不支持错误，并触发去重失败统计
+      if (tipText.includes("编码格式不支持")) {
+        if (currentPlayingMeta?.siteName) {
+          recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
+        }
+      }
     }
 
     function manualPlayOnly(url) {
@@ -3489,7 +3572,7 @@
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
       video.onerror = () => {
-        showFailTip("当前线路受限 (格式或协议被拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请在下方选择其他源，或点击外部播放器图标秒播</span>");
+        showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
       };
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
@@ -3533,7 +3616,7 @@
                 hls.recoverMediaError();
                 break;
               default:
-                showFailTip();
+                showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
                 break;
             }
           }
@@ -3713,6 +3796,8 @@
         if (localSites) parsedSites = JSON.parse(localSites);
         const localDis = localStorage.getItem(KEY_DISABLED_SITES);
         if (localDis) disabledSites = JSON.parse(localDis);
+        const localFails = localStorage.getItem(KEY_SOURCE_FAILURES);
+        if (localFails) sourceFailures = JSON.parse(localFails);
         const localTheme = localStorage.getItem(KEY_THEME_PREF);
         if (localTheme) currentThemeSetting = localTheme;
       } catch (_) {}
@@ -3753,6 +3838,7 @@
       Promise.allSettled([
         getD1Data(KEY_SITES, null),
         getD1Data(KEY_DISABLED_SITES, '[]'),
+        getD1Data(KEY_SOURCE_FAILURES, '{}'),
         getD1Data(KEY_AUTH_CONFIG, ''),
         getD1Data(KEY_ADMIN_INFO, ''),
         getD1Data(KEY_USERS_LIST, ''),
@@ -3768,8 +3854,11 @@
           try { disabledSites = JSON.parse(results[1].value) || []; } catch (_) {}
         }
         if (results[2].status === 'fulfilled' && results[2].value) {
+          try { sourceFailures = JSON.parse(results[2].value) || {}; } catch (_) {}
+        }
+        if (results[3].status === 'fulfilled' && results[3].value) {
           try {
-            authConfig = JSON.parse(results[2].value);
+            authConfig = JSON.parse(results[3].value);
             if (authConfig.requireLogin && !currentUser) {
               gateScreen.style.display = 'flex';
             } else {
@@ -3777,24 +3866,24 @@
             }
           } catch (_) {}
         }
-        if (results[3].status === 'fulfilled' && results[3].value) {
-          try { adminAccount = JSON.parse(results[3].value); } catch (_) {}
-        }
         if (results[4].status === 'fulfilled' && results[4].value) {
-          try { userList = JSON.parse(results[4].value); } catch (_) {}
+          try { adminAccount = JSON.parse(results[4].value); } catch (_) {}
         }
         if (results[5].status === 'fulfilled' && results[5].value) {
-          try { const p = JSON.parse(results[5].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
+          try { userList = JSON.parse(results[5].value); } catch (_) {}
         }
         if (results[6].status === 'fulfilled' && results[6].value) {
-          currentThemeSetting = results[6].value;
-          applyGlobalTheme(currentThemeSetting);
+          try { const p = JSON.parse(results[6].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
         }
         if (results[7].status === 'fulfilled' && results[7].value) {
-          localStorage.setItem(KEY_SUB, results[7].value);
+          currentThemeSetting = results[7].value;
+          applyGlobalTheme(currentThemeSetting);
         }
         if (results[8].status === 'fulfilled' && results[8].value) {
-          localStorage.setItem(KEY_M3U, results[8].value);
+          localStorage.setItem(KEY_SUB, results[8].value);
+        }
+        if (results[9].status === 'fulfilled' && results[9].value) {
+          localStorage.setItem(KEY_M3U, results[9].value);
         }
       });
 
