@@ -330,7 +330,7 @@
     
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
-    .source-sub-card.active-sub .card-sitename-tag { background: var(--accent); color: #fff; }
+    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
     
     .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .card-quality.q-4k { background: #4a2828; color: #f87171; }
@@ -918,7 +918,7 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
-    const KEY_SESSION_VOD_STATE = "session_active_vod_state";
+    const KEY_SESSION_VOD_STATE = "session_active_vod_state_v3";
 
     function getCurrentFavKey() {
       return currentUser ? `favs_u_${currentUser.username}` : KEY_FAVS;
@@ -927,7 +927,7 @@
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
     }
 
-    /* === 搜索双层缓存管理器 (LRU + SessionStorage) === */
+    /* === 搜索内存缓存管理器（纯内存 LRU，绝不污染 sessionStorage 避免 5MB 溢出） === */
     const VodSearchCache = {
       maxMemEntries: 20,
       ttl: 15 * 60 * 1000,
@@ -944,32 +944,17 @@
         if (memHit && (Date.now() - memHit.time < this.ttl)) {
           return memHit.data;
         }
-        try {
-          const raw = sessionStorage.getItem(key);
-          if (raw) {
-            const entry = JSON.parse(raw);
-            if (Date.now() - entry.time < this.ttl) {
-              this.memMap.set(key, entry);
-              return entry.data;
-            }
-            sessionStorage.removeItem(key);
-          }
-        } catch (_) {}
         return null;
       },
 
       set(kw, groupId, data) {
         if (!kw || !data || data.length === 0) return;
         const key = this.makeKey(kw, groupId);
-        const entry = { time: Date.now(), data };
-        this.memMap.set(key, entry);
+        this.memMap.set(key, { time: Date.now(), data });
         if (this.memMap.size > this.maxMemEntries) {
           const oldestKey = this.memMap.keys().next().value;
           this.memMap.delete(oldestKey);
         }
-        try {
-          sessionStorage.setItem(key, JSON.stringify(entry));
-        } catch (_) {}
       }
     };
 
@@ -1694,7 +1679,7 @@
       const input = document.getElementById('filter');
       input.value = '';
       toggleClearBtn('');
-      sessionStorage.removeItem(KEY_SESSION_VOD_STATE);
+      try { sessionStorage.removeItem(KEY_SESSION_VOD_STATE); } catch (_) {}
       groupedVodList = [];
       currentSearchingWord = '';
       activeGroupTitle = '';
@@ -2394,13 +2379,46 @@
       return extractSitesFromAnyJson(parsed);
     }
 
-    /* === 跨刷新持久化会话快照（刷新不丢，关闭标签页自动清空） === */
+    /* === 精简版对象生成器：彻底剥离庞大剧情与无关字段，确保永不超配 === */
+    function slimGroupForStorage(g) {
+      return {
+        title: g.title,
+        poster: g.poster,
+        type: g.type,
+        actor: g.actor,
+        _latestTimestamp: g._latestTimestamp,
+        _displayDate: g._displayDate,
+        items: (g.items || []).map(item => ({
+          id: item.id,
+          rawKey: item.rawKey,
+          siteName: item.siteName,
+          versionTag: item.versionTag,
+          ping: item.ping,
+          vod: {
+            vod_name: item.vod?.vod_name || '',
+            vod_remarks: item.vod?.vod_remarks || '',
+            vod_sub: item.vod?.vod_sub || '',
+            type_name: item.vod?.type_name || '',
+            vod_time: item.vod?.vod_time || '',
+            vod_pubdate: item.vod?.vod_pubdate || '',
+            vod_play_url: item.vod?.vod_play_url || '',
+            vod_pic: item.vod?.vod_pic || ''
+          }
+        }))
+      };
+    }
+
+    /* === 跨刷新持久化会话快照（精简化存储，刷新绝不重置，关闭标签页自动销毁） === */
     function saveVodSessionState() {
       if (currentMode !== 'vod') return;
       try {
+        if (!groupedVodList || groupedVodList.length === 0) {
+          sessionStorage.removeItem(KEY_SESSION_VOD_STATE);
+          return;
+        }
         const state = {
-          keyword: currentSearchingWord || document.getElementById('filter').value || '',
-          groupedVodList: groupedVodList || [],
+          keyword: currentSearchingWord || document.getElementById('filter')?.value || '',
+          groupedVodList: groupedVodList.map(slimGroupForStorage),
           categoryFilter: currentCategoryFilter,
           sortType: currentVodSortType,
           activeGroupTitle: activeGroupTitle,
@@ -2418,8 +2436,11 @@
         const state = JSON.parse(raw);
         if (state && Array.isArray(state.groupedVodList) && state.groupedVodList.length > 0) {
           currentSearchingWord = state.keyword || '';
-          document.getElementById('filter').value = currentSearchingWord;
-          toggleClearBtn(currentSearchingWord);
+          const filterEl = document.getElementById('filter');
+          if (filterEl) {
+            filterEl.value = currentSearchingWord;
+            toggleClearBtn(currentSearchingWord);
+          }
           groupedVodList = state.groupedVodList;
           currentCategoryFilter = state.categoryFilter || 'auto';
           currentVodSortType = state.sortType || 'score';
@@ -2431,6 +2452,9 @@
       } catch (_) {}
       return false;
     }
+
+    window.addEventListener('beforeunload', saveVodSessionState);
+    window.addEventListener('pagehide', saveVodSessionState);
 
     function switchMode(mode) {
       currentMode = mode;
@@ -2509,6 +2533,9 @@
       if (!isSafeUrl(testUrl)) {
         const site = parsedSites.find(s => s.name === item.siteName);
         testUrl = site?.api || '';
+      }
+      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
+        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
       }
       return testUrl;
     }
@@ -2807,7 +2834,6 @@
           
           if (!isRelevant) return;
 
-          // 生成纯字母数字的安全 ID，彻底杜绝特殊符号导致的 DOM 异常
           const rawUniqueKey = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
           let hash = 0;
           for (let c = 0; c < rawUniqueKey.length; c++) {
@@ -2886,7 +2912,6 @@
         }
       });
 
-      // 统一采用上方高效轻量测速探针并发探测
       await asyncPool(16, group.items, async (item) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
@@ -2898,7 +2923,6 @@
         }
       });
 
-      // 仅在当前卡片内部将子卡片由快到慢重排
       group.items.sort((a, b) => {
         const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
         const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
@@ -3282,6 +3306,26 @@
       let normalMulti = normalGroups.filter(g => g.items.length > 1);
       let normalSingle = normalGroups.filter(g => g.items.length === 1);
 
+      let nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
+      let nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
+
+      /* === 各组排序规则应用 === */
+      if (currentVodSortType === 'speed' || currentVodSortType === 'score') {
+        normalSingle.sort((a, b) => {
+          const pa = (a.items[0]?.ping === undefined || a.items[0]?.ping < 0) ? 9999 : a.items[0].ping;
+          const pb = (b.items[0]?.ping === undefined || b.items[0]?.ping < 0) ? 9999 : b.items[0].ping;
+          return pa - pb;
+        });
+
+        nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
+        nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
+        nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
+
+        if (currentVodSortType === 'speed') {
+          normalMulti.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
+        }
+      }
+
       const countMulti = normalMulti.length;
       const countSingle = normalSingle.length;
       const countNsfw = nsfwGroups.length;
@@ -3320,7 +3364,6 @@
       } else if (currentCategoryFilter === 'single') {
         normalSingle.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'nsfw') {
-        // 专区：多源折叠优先在前，单源紧随其后，且已按选中规则排序
         nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
 
@@ -3659,6 +3702,16 @@
 
       renderGateEyeIcon(false);
 
+      // 清理可能遗留的旧版本大体积 vod_cache_* 碎片，保障存储充裕
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('vod_cache_')) {
+            sessionStorage.removeItem(k);
+          }
+        }
+      } catch (_) {}
+
       try {
         const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
         if (localAuth) authConfig = JSON.parse(localAuth);
@@ -3759,9 +3812,15 @@
 
       initTv();
       const hasRestored = restoreVodSessionState();
-      switchMode('vod');
       if (hasRestored) {
+        currentMode = 'vod';
+        currentView = 'normal';
+        document.getElementById('tab-tv').className = 'mode-tab';
+        document.getElementById('tab-vod').className = 'mode-tab active';
+        document.getElementById('filter').placeholder = "搜索片名、视频、电视频道...";
         renderGroupedVodSources();
+      } else {
+        switchMode('vod');
       }
       checkAutoSyncSchedule();
     });
