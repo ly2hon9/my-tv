@@ -263,11 +263,11 @@
       background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); 
     }
     .sources-header-title { font-size: 13px; font-weight: bold; color: var(--text-main); }
-    .header-actions-group { display: flex; align-items: center; gap: 6px; }
+    .header-actions-group { display: flex; align-items: center; gap: 4px; }
 
     .btn-sort-speed, .btn-sort-action { 
       background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 4px; 
-      padding: 3px 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-weight: 500;
+      padding: 3px 7px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 2px; font-weight: 500;
       white-space: nowrap; transition: background 0.15s;
     }
     .btn-sort-action { background: var(--bg-card); border-color: var(--border-light); color: var(--text-main); }
@@ -342,7 +342,7 @@
     .card-quality.q-720 { background: #26354a; color: #60a5fa; }
     .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
 
-    /* 有码/无码 专区高质感微标签 */
+    /* 有码/无码 专区微标签 */
     .card-censor { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
     .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
     .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
@@ -1033,7 +1033,7 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
-    /* === 排序状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早倒序) === */
+    /* === 排序状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早倒序) / speed (网络低延迟优先) === */
     let currentVodSortType = 'score';
 
     /* === 虚拟分块增量渲染状态 === */
@@ -1446,7 +1446,7 @@
       container.replaceChildren(frag);
     }
 
-    /* === 收藏项局部无感平滑移除（彻底消除闪烁） === */
+    /* === 收藏项局部无感平滑移除 === */
     async function removeFavoriteItem(matchKey, cardEl) {
       if (cardEl) {
         cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -1538,7 +1538,7 @@
       container.replaceChildren(frag);
     }
 
-    /* === 播放历史单条无感平滑移除（彻底消除闪烁） === */
+    /* === 播放历史单条无感平滑移除 === */
     async function removeHistoryItem(key, cardEl) {
       if (cardEl) {
         cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -2561,7 +2561,7 @@
       return maxTime;
     }
 
-    /* === 综合排序、最新降序、最旧倒序执行器 === */
+    /* === 综合排序、最新降序、最旧倒序、延迟排序执行器 === */
     function sortGroupedVodList() {
       if (!groupedVodList || groupedVodList.length === 0) return;
 
@@ -2585,7 +2585,14 @@
         });
       });
 
-      if (currentVodSortType === 'time_desc' || currentVodSortType === 'time_asc') {
+      if (currentVodSortType === 'speed') {
+        groupedVodList.sort((a, b) => {
+          const nsfwA = isGroupNSFW(a) ? 1 : 0;
+          const nsfwB = isGroupNSFW(b) ? 1 : 0;
+          if (nsfwA !== nsfwB) return nsfwA - nsfwB;
+          return getGroupBestPing(a) - getGroupBestPing(b);
+        });
+      } else if (currentVodSortType === 'time_desc' || currentVodSortType === 'time_asc') {
         groupedVodList.sort((a, b) => {
           const nsfwA = isGroupNSFW(a) ? 1 : 0;
           const nsfwB = isGroupNSFW(b) ? 1 : 0;
@@ -2635,7 +2642,7 @@
     }
 
     function toggleTimeSort() {
-      if (currentVodSortType === 'score') {
+      if (currentVodSortType === 'score' || currentVodSortType === 'speed') {
         currentVodSortType = 'time_desc';
         showGestureTip("已切换为：最新时间 (降序 ↓)");
       } else if (currentVodSortType === 'time_desc') {
@@ -2644,6 +2651,23 @@
       } else {
         currentVodSortType = 'score';
         showGestureTip("已切换为：智能综合排序");
+      }
+      sortGroupedVodList();
+      renderGroupedVodSources();
+    }
+
+    /* === 新增：速度排序切换按钮（未测速时自动唤醒一键测速） === */
+    function toggleSpeedSort() {
+      if (currentVodSortType === 'speed') {
+        currentVodSortType = 'score';
+        showGestureTip("已恢复：综合排序");
+      } else {
+        currentVodSortType = 'speed';
+        showGestureTip("已切换为：按响应速度排序 ⚡");
+        const hasAnyTested = groupedVodList.some(g => g.items.some(i => i.ping >= 0));
+        if (!hasAnyTested) {
+          startSpeedTest();
+        }
       }
       sortGroupedVodList();
       renderGroupedVodSources();
@@ -2797,6 +2821,7 @@
       renderGroupedVodSources();
     }
 
+    /* === 测速引擎优化：复刻原有机制，全专区并发测速并自动执行低延迟排序 === */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
 
@@ -2808,14 +2833,39 @@
 
       const targetItemsToTest = [];
 
+      // 1. 展开的聚合源组内部所有线路
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
       if (activeGroup && activeGroup.items.length > 1) {
-        activeGroup.items.forEach(item => targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) }));
+        activeGroup.items.forEach(item => {
+          targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
+        });
       }
 
+      // 2. 所有独立单源 (group.items.length === 1)
       groupedVodList.forEach(group => {
         if (group.items.length === 1) {
-          targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+          if (!targetItemsToTest.some(t => t.item === group.items[0])) {
+            targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+          }
+        }
+      });
+
+      // 3. 其它专区中的所有项（单源+多源首项与子项全覆盖）
+      groupedVodList.filter(g => isGroupNSFW(g)).forEach(group => {
+        group.items.forEach(item => {
+          if (!targetItemsToTest.some(t => t.item === item)) {
+            targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
+          }
+        });
+      });
+
+      // 4. 普通聚合源未展开的组，测试其第一项以获得 groupBestPing 用于排序
+      groupedVodList.forEach(group => {
+        if (group.items.length > 1 && !isGroupNSFW(group)) {
+          const firstItem = group.items[0];
+          if (!targetItemsToTest.some(t => t.item === firstItem)) {
+            targetItemsToTest.push({ item: firstItem, site: parsedSites.find(s => s.name === firstItem.siteName) });
+          }
         }
       });
 
@@ -2844,18 +2894,20 @@
         }
       }));
 
-      if (activeGroup && activeGroup.items.length > 1) {
-        activeGroup.items.sort((a, b) => {
+      // 内部排序：每个 group 内部的 items 均按延迟从低到高排列
+      groupedVodList.forEach(group => {
+        group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
           const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
           if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
-
           const pa = a.ping < 0 ? 9999 : a.ping;
           const pb = b.ping < 0 ? 9999 : b.ping;
           return pa - pb;
         });
-      }
+      });
 
+      // 外部排序：复刻原有机制，执行排序与重绘
+      sortGroupedVodList();
       renderGroupedVodSources();
 
       if (sortBtn) {
@@ -3172,11 +3224,28 @@
       const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
       const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
 
-      const normalMulti = normalGroups.filter(g => g.items.length > 1);
-      const normalSingle = normalGroups.filter(g => g.items.length === 1);
+      let normalMulti = normalGroups.filter(g => g.items.length > 1);
+      let normalSingle = normalGroups.filter(g => g.items.length === 1);
 
-      const nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
-      const nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
+      let nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
+      let nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
+
+      /* === 复刻原有机制：独立单源与其它专区在测速后自动按延迟由快到慢排序 === */
+      if (currentVodSortType === 'speed' || currentVodSortType === 'score') {
+        normalSingle.sort((a, b) => {
+          const pa = (a.items[0]?.ping < 0) ? 9999 : a.items[0].ping;
+          const pb = (b.items[0]?.ping < 0) ? 9999 : b.items[0].ping;
+          return pa - pb;
+        });
+
+        nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
+        nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
+        nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
+
+        if (currentVodSortType === 'speed') {
+          normalMulti.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
+        }
+      }
 
       const countMulti = normalMulti.length;
       const countSingle = normalSingle.length;
@@ -3193,14 +3262,14 @@
         else currentCategoryFilter = 'multi';
       }
 
-      let sortLabel = '⭐ 综合排序';
-      let isSortActive = false;
+      let timeSortLabel = '⭐ 综合';
+      let isTimeActive = (currentVodSortType === 'score');
       if (currentVodSortType === 'time_desc') {
-        sortLabel = '🕒 最新 ↓';
-        isSortActive = true;
+        timeSortLabel = '🕒 最新 ↓';
+        isTimeActive = true;
       } else if (currentVodSortType === 'time_asc') {
-        sortLabel = '🕒 最早 ↑';
-        isSortActive = true;
+        timeSortLabel = '🕒 最早 ↑';
+        isTimeActive = true;
       }
 
       const headerBar = document.createElement('div');
@@ -3209,8 +3278,11 @@
       headerBar.innerHTML = `
         <span class="sources-header-title">搜索结果 (${countTotal} 部)${searchStatusText}</span>
         <div class="header-actions-group">
-          <button class="btn-sort-action ${isSortActive ? 'active-sort' : ''}" onclick="toggleTimeSort()" title="点击切换：综合排序 / 最新降序 / 最早倒序">
-            ${sortLabel}
+          <button class="btn-sort-action ${isTimeActive ? 'active-sort' : ''}" onclick="toggleTimeSort()" title="点击切换：综合排序 / 最新降序 / 最早倒序">
+            ${timeSortLabel}
+          </button>
+          <button class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="toggleSpeedSort()" title="点击按网络响应速度从快到慢排序">
+            ⚡ 速度
           </button>
           <button class="btn-sort-speed" onclick="startSpeedTest()">⚡ 测速</button>
         </div>
