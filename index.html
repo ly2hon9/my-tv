@@ -299,14 +299,14 @@
     }
     .title-group-header:hover { background: var(--bg-card-hover); }
     .title-group-box.active-group .title-group-header { background: var(--accent-soft); border-left: 3px solid var(--accent); }
-    .group-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .group-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
     .group-poster { width: 44px; height: 60px; border-radius: 4px; object-fit: cover; background: var(--border-color); flex-shrink: 0; }
-    .group-info-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .group-info-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
     .group-main-title { font-size: 14px; font-weight: bold; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .group-meta-tag { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .group-badge-count { background: var(--bg-tag); color: var(--accent); padding: 1px 6px; border-radius: 10px; font-weight: 500; }
     .group-pub-time { font-size: 10px; color: var(--text-mute); font-family: monospace; }
-    .group-arrow { font-size: 12px; color: var(--text-sub); transition: transform 0.2s ease; }
+    .group-arrow { font-size: 12px; color: var(--text-sub); transition: transform 0.2s ease; margin-left: 8px; flex-shrink: 0; }
     .title-group-box.expanded .group-arrow { transform: rotate(180deg); color: var(--accent); }
 
     .group-body-panel { display: none; background: var(--bg-sub-panel); padding: 6px 10px 12px 10px; border-top: 1px solid var(--border-color); }
@@ -485,7 +485,7 @@
       
       <button type="button" class="gate-submit-btn" id="gate-submit-btn" onclick="submitGateAuth()">登 录</button>
       
-      <div id="gate-error-tip" class="gate-error-tip"></div>
+      <div id="gate-error-msg" class="gate-error-tip"></div>
     </div>
   </div>
 
@@ -2500,18 +2500,48 @@
       return Promise.all(ret);
     }
 
+    /* === 视频流探测地址安全获取 === */
+    function getItemTestUrl(item) {
+      if (!item) return '';
+      const episodes = getEpisodesList(item);
+      const targetEp = episodes[0];
+      let testUrl = targetEp?.url || item.vod?.vod_play_url || '';
+      if (!isSafeUrl(testUrl)) {
+        const site = parsedSites.find(s => s.name === item.siteName);
+        testUrl = site?.api || '';
+      }
+      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
+        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
+      }
+      return testUrl;
+    }
+
+    /* === 智能测速探针：双协议（HEAD ➔ GET）回退保障，防止专区测速被阻断 === */
     async function probeStreamLatency(testUrl) {
-      if (!isSafeUrl(testUrl)) return 9999;
+      if (!testUrl || typeof testUrl !== 'string') return 9999;
+      let url = testUrl.trim();
+      if (window.location.protocol === 'https:' && url.startsWith('http://')) {
+        url = url.replace(/^http:\/\//i, 'https://');
+      }
+      if (!isSafeUrl(url)) return 9999;
+
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2000);
+      const timer = setTimeout(() => controller.abort(), 2200);
       const t0 = performance.now();
       try {
-        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
+        await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
         clearTimeout(timer);
         return Math.max(1, Math.round(performance.now() - t0));
       } catch (_) {
-        clearTimeout(timer);
-        return 9999;
+        try {
+          const t1 = performance.now();
+          await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
+          clearTimeout(timer);
+          return Math.max(1, Math.round(performance.now() - t1));
+        } catch (_) {
+          clearTimeout(timer);
+          return 9999;
+        }
       }
     }
 
@@ -2672,7 +2702,6 @@
           if (!timeB) return -1;
           return timeA - timeB;
         } else {
-          // 'score' 综合排序
           return calcGroupScore(b, kw, starClassics) - calcGroupScore(a, kw, starClassics);
         }
       });
@@ -2863,39 +2892,34 @@
       if (currentCategoryFilter === 'multi') {
         const normalMulti = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1);
         normalMulti.forEach(group => {
-          if (group.title === activeGroupTitle) {
-            group.items.forEach(item => {
-              targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
-            });
-          } else {
-            if (group.items[0]) {
-              targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
-            }
-          }
+          group.items.forEach(item => {
+            targetItemsToTest.push({ group, item });
+          });
         });
       } else if (currentCategoryFilter === 'single') {
         const normalSingle = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1);
         normalSingle.forEach(group => {
           if (group.items[0]) {
-            targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
+            targetItemsToTest.push({ group, item: group.items[0] });
           }
         });
       } else if (currentCategoryFilter === 'nsfw') {
         const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
         nsfwGroups.forEach(group => {
-          if (group.title === activeGroupTitle && group.items.length > 1) {
-            group.items.forEach(item => {
-              targetItemsToTest.push({ item, site: parsedSites.find(s => s.name === item.siteName) });
-            });
-          } else {
-            if (group.items[0]) {
-              targetItemsToTest.push({ item: group.items[0], site: parsedSites.find(s => s.name === group.items[0].siteName) });
-            }
-          }
+          group.items.forEach(item => {
+            targetItemsToTest.push({ group, item });
+          });
         });
       }
 
-      targetItemsToTest.forEach(({ item }) => {
+      // 重置并显示测速中状态
+      targetItemsToTest.forEach(({ group, item }) => {
+        const cleanTitleKey = normalizeCleanKey(group.title);
+        const gel = document.getElementById(`group-ping-${cleanTitleKey}`);
+        if (gel) {
+          gel.textContent = "测速中...";
+          gel.className = "metric-ping-wait";
+        }
         const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           el.textContent = "测速中...";
@@ -2903,13 +2927,9 @@
         }
       });
 
-      await Promise.allSettled(targetItemsToTest.map(async ({ item, site }) => {
-        const episodes = getEpisodesList(item);
-        const targetEp = episodes[currentActiveEp] || episodes[0];
-        let testUrl = targetEp ? targetEp.url : (item.vod.vod_play_url || '');
-
-        if (!isSafeUrl(testUrl)) testUrl = site?.api || '';
-
+      // 并发探测
+      await asyncPool(12, targetItemsToTest, async ({ group, item }) => {
+        const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
 
         const el = document.getElementById(`ping-badge-${item.id}`);
@@ -2918,7 +2938,16 @@
           el.textContent = isErr ? "超时" : `${item.ping}ms`;
           el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
         }
-      }));
+
+        const bestPing = getGroupBestPing(group);
+        const cleanTitleKey = normalizeCleanKey(group.title);
+        const gel = document.getElementById(`group-ping-${cleanTitleKey}`);
+        if (gel) {
+          const isErr = bestPing >= 9999 || bestPing < 0;
+          gel.textContent = isErr ? "超时" : `${bestPing}ms`;
+          gel.className = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        }
+      });
 
       isSpeedTesting = false;
       currentVodSortType = 'speed';
@@ -3058,15 +3087,24 @@
       const episodes = getEpisodesList(firstItem);
       const isSingleSourceSingleEp = (group.items.length === 1 && episodes.length <= 1);
 
+      // 角标优化：单集电影显示单集正片，多集显示总集数，多源显示版本数量
       const countBadgeHtml = isSingleSourceSingleEp 
         ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
         : (group.items.length === 1 
             ? `<span class="group-badge-count">${episodes.length} 集全</span>` 
             : `<span class="group-badge-count">${group.items.length} 个版本/源</span>`);
 
+      // 右侧动作图标：单源单集显示极简播放三角 ▶；有多集或多版本显示折叠箭头
       const arrowIconHtml = isSingleSourceSingleEp
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
+
+      // 测速状态展示
+      const cleanTitleKey = normalizeCleanKey(group.title);
+      const bestPing = getGroupBestPing(group);
+      let pingText = bestPing >= 0 ? (bestPing >= 9999 ? "超时" : `${bestPing}ms`) : "待测速";
+      let pingClass = bestPing < 0 ? "metric-ping-wait" : (bestPing < 500 ? 'metric-ping-ok' : bestPing < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
+      const pingBadgeHtml = `<span id="group-ping-${cleanTitleKey}" class="${pingClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${pingText}</span>`;
 
       if (!groupCard || !groupCard.classList.contains('title-group-box')) {
         const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
@@ -3082,8 +3120,9 @@
                   <span>${escapeHtml(group.type || '影视')}</span>
                   ${groupCensorHtml}
                   ${pubDateHtml}
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(group.actor)}</span>` : ''}
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
                   ${countBadgeHtml}
+                  ${pingBadgeHtml}
                 </div>
               </div>
             </div>
@@ -3098,8 +3137,9 @@
             <span>${escapeHtml(group.type || '影视')}</span>
             ${groupCensorHtml}
             ${pubDateHtml}
-            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(group.actor)}</span>` : ''}
+            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
             ${countBadgeHtml}
+            ${pingBadgeHtml}
           `;
         }
       }
@@ -3109,7 +3149,7 @@
 
       const headerEl = groupCard.querySelector('.title-group-header');
 
-      // 单源单集直接秒播；多集或多版本执行纯局部折叠
+      // 核心点击处理：单源单集秒播无面板；多集/多源纯局部展开，绝对不重绘全列表，滚动条 0 跳动！
       headerEl.onclick = () => {
         if (isSingleSourceSingleEp) {
           document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('active-group'));
@@ -3150,7 +3190,7 @@
 
           setTimeout(() => {
             groupCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 50);
+          }, 40);
         }
         saveVodSessionState();
       };
@@ -3206,8 +3246,8 @@
       const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
       const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
 
-      const normalMulti = normalGroups.filter(g => g.items.length > 1);
-      const normalSingle = normalGroups.filter(g => g.items.length === 1);
+      let normalMulti = normalGroups.filter(g => g.items.length > 1);
+      let normalSingle = normalGroups.filter(g => g.items.length === 1);
 
       const countMulti = normalMulti.length;
       const countSingle = normalSingle.length;
@@ -3223,7 +3263,7 @@
         else currentCategoryFilter = 'multi';
       }
 
-      // 单排吸顶栏：分类药丸与4个排序按钮平铺同排展示，滑动时牢牢吸顶不滚走
+      // 单排吸顶工具栏：分类药丸与4个排序按钮平铺同排展示，滑动时牢牢吸顶不滚走
       const unifiedBar = document.createElement('div');
       unifiedBar.className = 'top-unified-bar';
       unifiedBar.innerHTML = `
@@ -3247,7 +3287,7 @@
       } else if (currentCategoryFilter === 'single') {
         normalSingle.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'nsfw') {
-        // 专区：排序时已确保多源折叠排在前面，单源排在后面
+        // 专区：多源折叠优先在前，单源紧随其后，且已按选中规则排序
         nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
 
