@@ -258,46 +258,39 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    .sources-header-bar { 
-      display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; 
-      background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); 
-      gap: 6px;
-    }
-    .sources-header-title { font-size: 13px; font-weight: bold; color: var(--text-main); white-space: nowrap; flex-shrink: 0; }
-    
-    /* 4个独立平铺按钮容器 */
-    .header-actions-group { 
-      display: flex; align-items: center; gap: 4px; 
-      overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; flex-shrink: 1; 
-    }
-    .header-actions-group::-webkit-scrollbar { display: none; }
-
-    .btn-sort-action { 
-      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; 
-      padding: 3px 7px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-      white-space: nowrap; font-weight: 500; transition: background 0.15s, color 0.15s, border-color 0.15s; outline: none;
-    }
-    .btn-sort-action:hover { background: var(--bg-card-hover); }
-    .btn-sort-action.active-sort { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-
-    .section-filter-bar {
-      display: flex; align-items: center; gap: 6px; padding: 8px 12px;
-      background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
+    /* 单排常驻吸顶工具栏：分类药丸 + 排序按钮同排显示，绝对不随列表滚动消失 */
+    .top-unified-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      padding: 7px 10px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
+      position: sticky; top: 0; z-index: 20;
       overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-      position: sticky; top: 0; z-index: 5;
+      white-space: nowrap;
     }
-    .section-filter-bar::-webkit-scrollbar { display: none; }
+    .top-unified-bar::-webkit-scrollbar { display: none; }
+
+    .bar-left-group, .bar-right-group {
+      display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+
     .filter-pill-btn {
       background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub);
-      padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 500;
-      cursor: pointer; white-space: nowrap; transition: all 0.2s ease;
-      display: inline-flex; align-items: center; gap: 3px; outline: none;
+      padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s ease;
+      display: inline-flex; align-items: center; outline: none;
     }
     .filter-pill-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
     .filter-pill-btn.active {
       background: var(--accent); color: #fff; border-color: var(--accent);
       box-shadow: 0 2px 6px rgba(0, 112, 243, 0.35); font-weight: 600;
     }
+
+    .btn-sort-action { 
+      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; 
+      padding: 3px 6px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      white-space: nowrap; font-weight: 500; transition: background 0.15s, color 0.15s, border-color 0.15s; outline: none;
+    }
+    .btn-sort-action:hover { background: var(--bg-card-hover); }
+    .btn-sort-action.active-sort { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 
     .title-group-box { border-bottom: 1px solid var(--border-color); background: var(--bg-card); transition: background 0.2s; }
     .title-group-header {
@@ -349,7 +342,6 @@
     .card-quality.q-720 { background: #26354a; color: #60a5fa; }
     .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
 
-    /* 有码/无码 专区微标签 */
     .card-censor { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
     .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
     .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
@@ -1402,7 +1394,7 @@
 
       const frag = document.createDocumentFragment();
       const headerBar = document.createElement('div');
-      headerBar.className = 'sources-header-bar';
+      headerBar.className = 'top-unified-bar';
       headerBar.innerHTML = `
         <span class="sources-header-title">⭐ 我的收藏 (${favs.length})</span>
         <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
@@ -1491,7 +1483,7 @@
 
       const frag = document.createDocumentFragment();
       const headerBar = document.createElement('div');
-      headerBar.className = 'sources-header-bar';
+      headerBar.className = 'top-unified-bar';
       headerBar.innerHTML = `
         <span class="sources-header-title">🕒 播放历史 (${history.length})</span>
         <div>
@@ -1722,7 +1714,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2653,7 +2645,7 @@
     async function setSortType(type) {
       if (type === 'speed') {
         if (isSpeedTesting) return;
-        showGestureTip("⚡ 正在测速并按响应速度排序...");
+        showGestureTip("⚡ 正在对当前专区测速并排序...");
         await startSpeedTest();
       } else {
         currentVodSortType = type;
@@ -2928,6 +2920,8 @@
 
       if (isSingle) {
         const item = group.items[0];
+        const episodes = getEpisodesList(item);
+        const hasMultipleEps = episodes.length > 1;
         const isCurrentActive = (item.id === activeSubItemId);
         let singleCard = domNodeCache.get(group.title);
 
@@ -2961,11 +2955,19 @@
             </div>
           `;
 
+          // 单源点击逻辑优化：单集片源点击直接秒播不展开，大于1集才展开并切换集数
           singleCard.querySelector('.single-top-row').onclick = () => {
             activeGroupTitle = group.title;
             activeSubItemId = item.id;
-            renderGroupedVodSources();
-            playCurrentVodSource(item, currentActiveEp);
+            currentActiveEp = 0;
+            playCurrentVodSource(item, 0);
+
+            if (hasMultipleEps) {
+              renderGroupedVodSources();
+            } else {
+              document.querySelectorAll('.single-source-card').forEach(el => el.classList.remove('active-group'));
+              singleCard.classList.add('active-group');
+            }
           };
 
           domNodeCache.set(group.title, singleCard);
@@ -2976,49 +2978,47 @@
         const oldCollapse = singleCard.querySelector('.episodes-collapse-box');
         if (oldCollapse) oldCollapse.remove();
 
-        if (isCurrentActive) {
-          const episodes = getEpisodesList(item);
-          if (episodes.length > 0) {
-            const collapseBox = document.createElement('div');
-            collapseBox.className = 'episodes-collapse-box';
-            collapseBox.innerHTML = `
-              <div class="episodes-header">
-                <span>📺 选集 (${episodes.length} 集) - 第 ${currentActiveEp + 1} 集</span>
-                <div class="episodes-actions">
-                  <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                  <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);">▼ 折叠</span>
-                </div>
+        // 仅在大于1集时才显示选集展开框，只有1集的单集片源保持极简不渲染
+        if (isCurrentActive && hasMultipleEps) {
+          const collapseBox = document.createElement('div');
+          collapseBox.className = 'episodes-collapse-box';
+          collapseBox.innerHTML = `
+            <div class="episodes-header">
+              <span>📺 选集 (${episodes.length} 集) - 第 ${currentActiveEp + 1} 集</span>
+              <div class="episodes-actions">
+                <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);">▼ 折叠</span>
               </div>
-              <div class="episodes-grid" id="episodes-grid-list"></div>
-            `;
+            </div>
+            <div class="episodes-grid" id="episodes-grid-list"></div>
+          `;
 
-            const epGrid = collapseBox.querySelector('#episodes-grid-list');
-            const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+          const epGrid = collapseBox.querySelector('#episodes-grid-list');
+          const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
-            displayEps.forEach((ep) => {
-              const epIdx = ep.originalIdx;
-              const btn = document.createElement('button');
-              btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-              btn.textContent = ep.name;
-              btn.onclick = (e) => {
-                e.stopPropagation();
-                currentActiveEp = epIdx;
-                renderGroupedVodSources();
-                playCurrentVodSource(item, epIdx);
-              };
-              epGrid.appendChild(btn);
-            });
-
-            collapseBox.querySelector('.episodes-header').onclick = (e) => {
-              if (e.target.tagName === 'BUTTON') return;
+          displayEps.forEach((ep) => {
+            const epIdx = ep.originalIdx;
+            const btn = document.createElement('button');
+            btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+            btn.textContent = ep.name;
+            btn.onclick = (e) => {
               e.stopPropagation();
-              const isHide = epGrid.style.display === 'none';
-              epGrid.style.display = isHide ? 'grid' : 'none';
-              collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+              currentActiveEp = epIdx;
+              renderGroupedVodSources();
+              playCurrentVodSource(item, epIdx);
             };
+            epGrid.appendChild(btn);
+          });
 
-            singleCard.appendChild(collapseBox);
-          }
+          collapseBox.querySelector('.episodes-header').onclick = (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.stopPropagation();
+            const isHide = epGrid.style.display === 'none';
+            epGrid.style.display = isHide ? 'grid' : 'none';
+            collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+          };
+
+          singleCard.appendChild(collapseBox);
         }
         return singleCard;
       } else {
@@ -3065,6 +3065,7 @@
         groupCard.className = 'title-group-box ' + (isCurrentActiveGroup ? 'active-group expanded' : '');
 
         const headerEl = groupCard.querySelector('.title-group-header');
+        // 展开分组优化：仅展开折叠列表，绝对不自动起播，必须手动点击才播放
         headerEl.onclick = () => {
           const isExpanded = groupCard.classList.contains('expanded');
           document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('expanded'));
@@ -3074,7 +3075,6 @@
             if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
               activeSubItemId = group.items[0].id;
               currentActiveEp = 0;
-              playCurrentVodSource(group.items[0], 0);
             }
             renderGroupedVodSources();
           }
@@ -3242,7 +3242,6 @@
       const countMulti = normalMulti.length;
       const countSingle = normalSingle.length;
       const countNsfw = nsfwGroups.length;
-      const countTotal = countMulti + countSingle + countNsfw;
 
       if (currentCategoryFilter === 'auto' ||
           (currentCategoryFilter === 'multi' && countMulti === 0) ||
@@ -3254,50 +3253,23 @@
         else currentCategoryFilter = 'multi';
       }
 
-      const headerBar = document.createElement('div');
-      headerBar.className = 'sources-header-bar';
-      const searchStatusText = isSearchingActive ? ` (⚡检索中...)` : '';
-      headerBar.innerHTML = `
-        <span class="sources-header-title">搜索结果 (${countTotal} 部)${searchStatusText}</span>
-        <div class="header-actions-group">
+      // 单排吸顶栏：分类药丸与4个排序按钮平铺同排展示，滑动时牢牢吸顶不滚走
+      const unifiedBar = document.createElement('div');
+      unifiedBar.className = 'top-unified-bar';
+      unifiedBar.innerHTML = `
+        <div class="bar-left-group">
+          ${countMulti > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'multi' ? 'active' : ''}" onclick="setCategoryFilter('multi')">🎬 聚合(${countMulti})</button>` : ''}
+          ${countSingle > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'single' ? 'active' : ''}" onclick="setCategoryFilter('single')">⚡ 单源(${countSingle})</button>` : ''}
+          ${countNsfw > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'nsfw' ? 'active' : ''}" onclick="setCategoryFilter('nsfw')">🌶️ 专区(${countNsfw})</button>` : ''}
+        </div>
+        <div class="bar-right-group">
           <button type="button" class="btn-sort-action ${currentVodSortType === 'score' ? 'active-sort' : ''}" onclick="setSortType('score')">⭐ 综合</button>
           <button type="button" class="btn-sort-action ${currentVodSortType === 'time_desc' ? 'active-sort' : ''}" onclick="setSortType('time_desc')">🕒 最新</button>
           <button type="button" class="btn-sort-action ${currentVodSortType === 'time_asc' ? 'active-sort' : ''}" onclick="setSortType('time_asc')">🕒 最早</button>
           <button type="button" id="btn-sort-speed-nav" class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="setSortType('speed')">${isSpeedTesting ? '⚡ 测速中' : '⚡ 测速'}</button>
         </div>
       `;
-      frag.appendChild(headerBar);
-
-      let filterPillsHtml = '';
-
-      if (countMulti > 0) {
-        filterPillsHtml += `
-          <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'multi' ? 'active' : ''}" onclick="setCategoryFilter('multi')">
-            🎬 聚合源(${countMulti})
-          </button>
-        `;
-      }
-      if (countSingle > 0) {
-        filterPillsHtml += `
-          <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'single' ? 'active' : ''}" onclick="setCategoryFilter('single')">
-            ⚡ 独立单源(${countSingle})
-          </button>
-        `;
-      }
-      if (countNsfw > 0) {
-        filterPillsHtml += `
-          <button type="button" class="filter-pill-btn ${currentCategoryFilter === 'nsfw' ? 'active' : ''}" onclick="setCategoryFilter('nsfw')">
-            🌶️ 其它专区(${countNsfw})
-          </button>
-        `;
-      }
-
-      if (filterPillsHtml) {
-        const filterBar = document.createElement('div');
-        filterBar.className = 'section-filter-bar';
-        filterBar.innerHTML = filterPillsHtml;
-        frag.appendChild(filterBar);
-      }
+      frag.appendChild(unifiedBar);
 
       activeDisplayCardList = [];
       if (currentCategoryFilter === 'multi') {
