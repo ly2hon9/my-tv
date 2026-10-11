@@ -330,7 +330,7 @@
     
     .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
-    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
+    .source-sub-card.active-sub .card-sitename-tag { background: var(--accent); color: #fff; }
     
     .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .card-quality.q-4k { background: #4a2828; color: #f87171; }
@@ -2510,26 +2510,17 @@
         const site = parsedSites.find(s => s.name === item.siteName);
         testUrl = site?.api || '';
       }
-      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
-        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
-      }
       return testUrl;
     }
 
-    /* === 智能测速探针：高并发轻量探针，防止专区测速被阻断 === */
+    /* === 极速测速探针：轻量 HEAD 并发探测，1500ms 超时无重试阻塞 === */
     async function probeStreamLatency(testUrl) {
-      if (!testUrl || typeof testUrl !== 'string') return 9999;
-      let url = testUrl.trim();
-      if (window.location.protocol === 'https:' && url.startsWith('http://')) {
-        url = url.replace(/^http:\/\//i, 'https://');
-      }
-      if (!isSafeUrl(url)) return 9999;
-
+      if (!isSafeUrl(testUrl)) return 9999;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 1500);
       const t0 = performance.now();
       try {
-        await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
+        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
         clearTimeout(timer);
         return Math.max(1, Math.round(performance.now() - t0));
       } catch (_) {
@@ -2874,30 +2865,23 @@
       saveVodSessionState();
     }
 
-    /* === 单独对某个展开的多源小分组进行定向快速测速 === */
+    /* === 单独对某个展开的多源小分组进行定向极速测速 === */
     async function testGroupSources(group, panel) {
       if (!group || !group.items || group.items.length <= 1) return;
 
-      const cleanTitleKey = normalizeCleanKey(group.title);
-      const groupPingEl = document.getElementById(`group-ping-${cleanTitleKey}`);
-      if (groupPingEl) {
-        groupPingEl.style.display = 'inline';
-        groupPingEl.textContent = "测速中...";
-        groupPingEl.className = "metric-ping-wait";
-      }
-
       group.items.forEach(item => {
-        const el = panel.querySelector(`#ping-badge-${item.id}`) || document.getElementById(`ping-badge-${item.id}`);
+        const el = panel.querySelector(`#ping-badge-${item.id}`);
         if (el) {
           el.textContent = "测速中...";
           el.className = "metric-ping-wait";
         }
       });
 
+      // 统一采用上方高效轻量测速探针并发探测
       await Promise.allSettled(group.items.map(async (item) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
-        const el = panel.querySelector(`#ping-badge-${item.id}`) || document.getElementById(`ping-badge-${item.id}`);
+        const el = panel.querySelector(`#ping-badge-${item.id}`);
         if (el) {
           const isErr = item.ping >= 9999 || item.ping < 0;
           el.textContent = isErr ? "超时" : `${item.ping}ms`;
@@ -2905,6 +2889,7 @@
         }
       }));
 
+      // 仅在当前卡片内部将子卡片由快到慢重排
       group.items.sort((a, b) => {
         const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
         const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
@@ -2913,16 +2898,6 @@
         const pb = (b.ping === undefined || b.ping < 0) ? 9999 : b.ping;
         return pa - pb;
       });
-
-      const bestPing = getGroupBestPing(group);
-      if (groupPingEl) {
-        if (bestPing >= 0) {
-          const isErr = bestPing >= 9999;
-          groupPingEl.style.display = 'inline';
-          groupPingEl.textContent = isErr ? "超时" : `${bestPing}ms`;
-          groupPingEl.className = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        }
-      }
 
       const subCards = Array.from(panel.querySelectorAll('.source-sub-card'));
       if (subCards.length > 0) {
@@ -2973,15 +2948,7 @@
         });
       }
 
-      // 重置并显示测速中状态
-      targetItemsToTest.forEach(({ group, item }) => {
-        const cleanTitleKey = normalizeCleanKey(group.title);
-        const gel = document.getElementById(`group-ping-${cleanTitleKey}`);
-        if (gel) {
-          gel.style.display = 'inline';
-          gel.textContent = "测速中...";
-          gel.className = "metric-ping-wait";
-        }
+      targetItemsToTest.forEach(({ item }) => {
         const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           el.textContent = "测速中...";
@@ -2990,7 +2957,7 @@
       });
 
       // 并发探测
-      await asyncPool(16, targetItemsToTest, async ({ group, item }) => {
+      await asyncPool(16, targetItemsToTest, async ({ item }) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
 
@@ -2999,16 +2966,6 @@
           const isErr = item.ping >= 9999 || item.ping < 0;
           el.textContent = isErr ? "超时" : `${item.ping}ms`;
           el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        }
-
-        const bestPing = getGroupBestPing(group);
-        const cleanTitleKey = normalizeCleanKey(group.title);
-        const gel = document.getElementById(`group-ping-${cleanTitleKey}`);
-        if (gel && bestPing >= 0) {
-          const isErr = bestPing >= 9999;
-          gel.style.display = 'inline';
-          gel.textContent = isErr ? "超时" : `${bestPing}ms`;
-          gel.className = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
         }
       });
 
@@ -3162,17 +3119,12 @@
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
-      // 测速状态展示：若未测速，默认隐蔽不显示“超时”
-      const cleanTitleKey = normalizeCleanKey(group.title);
-      const bestPing = getGroupBestPing(group);
-      let pingBadgeHtml = '';
-      if (bestPing >= 0) {
-        const isErr = bestPing >= 9999;
-        const pingText = isErr ? "超时" : `${bestPing}ms`;
-        const pingClass = isErr ? "metric-ping-err" : (bestPing < 500 ? "metric-ping-ok" : bestPing < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        pingBadgeHtml = `<span id="group-ping-${cleanTitleKey}" class="${pingClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${pingText}</span>`;
-      } else {
-        pingBadgeHtml = `<span id="group-ping-${cleanTitleKey}" style="display:none;margin-left:auto;font-family:monospace;font-size:11px;"></span>`;
+      // 仅在单源卡片且实际测过速时才在单源右侧显示延迟，多源折叠卡片头部一律不显示测速/超时文本
+      let singlePingHtml = '';
+      if (group.items.length === 1 && firstItem.ping >= 0) {
+        const isErr = firstItem.ping >= 9999;
+        const pClass = isErr ? "metric-ping-err" : (firstItem.ping < 500 ? "metric-ping-ok" : firstItem.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
       if (!groupCard || !groupCard.classList.contains('title-group-box')) {
@@ -3191,7 +3143,7 @@
                   ${pubDateHtml}
                   ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
                   ${countBadgeHtml}
-                  ${pingBadgeHtml}
+                  ${singlePingHtml}
                 </div>
               </div>
             </div>
@@ -3208,7 +3160,7 @@
             ${pubDateHtml}
             ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
             ${countBadgeHtml}
-            ${pingBadgeHtml}
+            ${singlePingHtml}
           `;
         }
       }
