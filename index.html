@@ -307,7 +307,7 @@
     .group-badge-count { background: var(--bg-tag); color: var(--accent); padding: 1px 6px; border-radius: 10px; font-weight: 500; }
     .group-pub-time { font-size: 10px; color: var(--text-mute); font-family: monospace; }
     .group-arrow { font-size: 12px; color: var(--text-sub); transition: transform 0.2s ease; }
-    .title-group-box.expanded .group-arrow { transform: rotate(90deg); color: var(--accent); }
+    .title-group-box.expanded .group-arrow { transform: rotate(180deg); color: var(--accent); }
 
     .group-body-panel { display: none; background: var(--bg-sub-panel); padding: 6px 10px 12px 10px; border-top: 1px solid var(--border-color); }
     .title-group-box.expanded .group-body-panel { display: block; }
@@ -485,7 +485,7 @@
       
       <button type="button" class="gate-submit-btn" id="gate-submit-btn" onclick="submitGateAuth()">登 录</button>
       
-      <div id="gate-error-msg" class="gate-error-tip"></div>
+      <div id="gate-error-tip" class="gate-error-tip"></div>
     </div>
   </div>
 
@@ -918,7 +918,7 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
-    const KEY_SESSION_VOD_STATE = "session_active_vod_state"; // 刷新不丢失、关闭网页自动销毁
+    const KEY_SESSION_VOD_STATE = "session_active_vod_state";
 
     function getCurrentFavKey() {
       return currentUser ? `favs_u_${currentUser.username}` : KEY_FAVS;
@@ -2603,7 +2603,22 @@
       return maxTime;
     }
 
-    /* === 综合排序、最新降序、最旧倒序、延迟排序执行器 === */
+    /* === 综合得分计算器 === */
+    function calcGroupScore(group, kw, starClassics) {
+      let score = 0;
+      const aName = group.title.toLowerCase();
+      const aActor = (group.actor || '').toLowerCase();
+      const aType = (group.type || '').toLowerCase();
+
+      if (starClassics.some(c => aName === c.toLowerCase())) score += 180;
+      if (aActor.includes(kw)) score += 120;
+      if (aType.includes('电影') || aType.includes('动作')) score += 40;
+      if (aName === kw) score += 80;
+      score += (group.items ? group.items.length : 0) * 2;
+      return score;
+    }
+
+    /* === 综合排序、最新降序、最旧倒序、延迟排序执行器（多源在前，单源在后，各段分别按按钮规则排） === */
     function sortGroupedVodList() {
       if (!groupedVodList || groupedVodList.length === 0) return;
 
@@ -2616,6 +2631,7 @@
         }
       }
 
+      // 组内多线路自动按照延迟由快到慢重排
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2627,60 +2643,39 @@
         });
       });
 
-      if (currentVodSortType === 'speed') {
-        groupedVodList.sort((a, b) => {
-          const nsfwA = isGroupNSFW(a) ? 1 : 0;
-          const nsfwB = isGroupNSFW(b) ? 1 : 0;
-          if (nsfwA !== nsfwB) return nsfwA - nsfwB;
-          return getGroupBestPing(a) - getGroupBestPing(b);
-        });
-      } else if (currentVodSortType === 'time_desc' || currentVodSortType === 'time_asc') {
-        groupedVodList.sort((a, b) => {
-          const nsfwA = isGroupNSFW(a) ? 1 : 0;
-          const nsfwB = isGroupNSFW(b) ? 1 : 0;
-          if (nsfwA !== nsfwB) return nsfwA - nsfwB;
+      groupedVodList.sort((a, b) => {
+        // 1. 常规与其它专区物理隔开
+        const nsfwA = isGroupNSFW(a) ? 1 : 0;
+        const nsfwB = isGroupNSFW(b) ? 1 : 0;
+        if (nsfwA !== nsfwB) return nsfwA - nsfwB;
 
+        // 2. 核心逻辑：多源折叠优先排在前，单源排在后（3大类均统一遵循）
+        const isMultiA = a.items.length > 1 ? 1 : 0;
+        const isMultiB = b.items.length > 1 ? 1 : 0;
+        if (isMultiA !== isMultiB) return isMultiB - isMultiA;
+
+        // 3. 在各自组段内部，根据当前按钮激活的排序条件进行同等深度排序
+        if (currentVodSortType === 'speed') {
+          return getGroupBestPing(a) - getGroupBestPing(b);
+        } else if (currentVodSortType === 'time_desc') {
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
-
           if (!timeA && !timeB) return 0;
           if (!timeA) return 1;
           if (!timeB) return -1;
-
-          return currentVodSortType === 'time_desc' ? (timeB - timeA) : (timeA - timeB);
-        });
-      } else {
-        groupedVodList.sort((a, b) => {
-          const nsfwA = isGroupNSFW(a) ? 1 : 0;
-          const nsfwB = isGroupNSFW(b) ? 1 : 0;
-          if (nsfwA !== nsfwB) return nsfwA - nsfwB;
-
-          let scoreA = 0, scoreB = 0;
-          const aName = a.title.toLowerCase();
-          const bName = b.title.toLowerCase();
-          const aActor = (a.actor || '').toLowerCase();
-          const bActor = (b.actor || '').toLowerCase();
-          const aType = (a.type || '').toLowerCase();
-          const bType = (b.type || '').toLowerCase();
-
-          if (starClassics.some(c => aName === c.toLowerCase())) scoreA += 180;
-          if (starClassics.some(c => bName === c.toLowerCase())) scoreB += 180;
-
-          if (aActor.includes(kw)) scoreA += 120;
-          if (bActor.includes(kw)) scoreB += 120;
-
-          if (aType.includes('电影') || aType.includes('动作')) scoreA += 40;
-          if (bType.includes('电影') || bType.includes('动作')) scoreB += 40;
-
-          if (aName === kw) scoreA += 80;
-          if (bName === kw) scoreB += 80;
-
-          scoreA += a.items.length * 2;
-          scoreB += b.items.length * 2;
-
-          return scoreB - scoreA;
-        });
-      }
+          return timeB - timeA;
+        } else if (currentVodSortType === 'time_asc') {
+          const timeA = getGroupLatestTime(a);
+          const timeB = getGroupLatestTime(b);
+          if (!timeA && !timeB) return 0;
+          if (!timeA) return 1;
+          if (!timeB) return -1;
+          return timeA - timeB;
+        } else {
+          // 'score' 综合排序
+          return calcGroupScore(b, kw, starClassics) - calcGroupScore(a, kw, starClassics);
+        }
+      });
     }
 
     /* === 平铺4个独立按钮专属调用调度：点击测速按钮每次重新探测当前分组并排序 === */
@@ -2925,17 +2920,6 @@
         }
       }));
 
-      groupedVodList.forEach(group => {
-        group.items.sort((a, b) => {
-          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
-          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
-          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
-          const pa = a.ping < 0 ? 9999 : a.ping;
-          const pb = b.ping < 0 ? 9999 : b.ping;
-          return pa - pb;
-        });
-      });
-
       isSpeedTesting = false;
       currentVodSortType = 'speed';
       sortGroupedVodList();
@@ -3074,14 +3058,12 @@
       const episodes = getEpisodesList(firstItem);
       const isSingleSourceSingleEp = (group.items.length === 1 && episodes.length <= 1);
 
-      // badge 优化：单源单集直接显示「单集正片」
       const countBadgeHtml = isSingleSourceSingleEp 
         ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
         : (group.items.length === 1 
             ? `<span class="group-badge-count">${episodes.length} 集全</span>` 
             : `<span class="group-badge-count">${group.items.length} 个版本/源</span>`);
 
-      // 右侧图标：单源单集显示播放小图标 ▶；有多集或多版本显示折叠展开三角
       const arrowIconHtml = isSingleSourceSingleEp
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
@@ -3127,10 +3109,9 @@
 
       const headerEl = groupCard.querySelector('.title-group-header');
 
-      // 核心点击处理：单源单集直接秒播；多集或多版本执行纯局部折叠，绝对不重载整个列表！
+      // 单源单集直接秒播；多集或多版本执行纯局部折叠
       headerEl.onclick = () => {
         if (isSingleSourceSingleEp) {
-          // 单集单源直接播放，无折叠动作，高亮当前卡片
           document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('active-group'));
           groupCard.classList.add('active-group');
           activeGroupTitle = group.title;
@@ -3143,7 +3124,6 @@
 
         const isCurrentlyExpanded = groupCard.classList.contains('expanded');
 
-        // 收起页面上其他已经展开的卡片
         document.querySelectorAll('.title-group-box.expanded').forEach(otherCard => {
           if (otherCard !== groupCard) {
             otherCard.classList.remove('expanded');
@@ -3165,11 +3145,9 @@
             activeSubItemId = group.items[0]?.id || '';
             currentActiveEp = 0;
           }
-          // 局部挂载子面板
           const panel = buildGroupBodyPanel(group);
           groupCard.appendChild(panel);
 
-          // 视口平滑贴合保障：避免手机屏幕被大面板推开后找不到当前头部
           setTimeout(() => {
             groupCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }, 50);
@@ -3177,7 +3155,6 @@
         saveVodSessionState();
       };
 
-      // 如果初始化恢复状态时命中当前激活项，且不是单源单集，则就地挂载面板
       const oldPanel = groupCard.querySelector('.group-body-panel');
       if (oldPanel) oldPanel.remove();
       if (isCurrentActiveGroup && !isSingleSourceSingleEp) {
@@ -3229,28 +3206,8 @@
       const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
       const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
 
-      let normalMulti = normalGroups.filter(g => g.items.length > 1);
-      let normalSingle = normalGroups.filter(g => g.items.length === 1);
-
-      let nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
-      let nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
-
-      /* === 各组排序规则应用 === */
-      if (currentVodSortType === 'speed' || currentVodSortType === 'score') {
-        normalSingle.sort((a, b) => {
-          const pa = (a.items[0]?.ping === undefined || a.items[0]?.ping < 0) ? 9999 : a.items[0].ping;
-          const pb = (b.items[0]?.ping === undefined || b.items[0]?.ping < 0) ? 9999 : b.items[0].ping;
-          return pa - pb;
-        });
-
-        nsfwGroups.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
-        nsfwMulti = nsfwGroups.filter(g => g.items.length > 1);
-        nsfwSingle = nsfwGroups.filter(g => g.items.length === 1);
-
-        if (currentVodSortType === 'speed') {
-          normalMulti.sort((a, b) => getGroupBestPing(a) - getGroupBestPing(b));
-        }
-      }
+      const normalMulti = normalGroups.filter(g => g.items.length > 1);
+      const normalSingle = normalGroups.filter(g => g.items.length === 1);
 
       const countMulti = normalMulti.length;
       const countSingle = normalSingle.length;
@@ -3290,6 +3247,7 @@
       } else if (currentCategoryFilter === 'single') {
         normalSingle.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'nsfw') {
+        // 专区：排序时已确保多源折叠排在前面，单源排在后面
         nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
 
