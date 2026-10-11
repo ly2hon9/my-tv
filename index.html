@@ -2899,13 +2899,10 @@
         return pa - pb;
       });
 
-      if (panel && panel.isConnected) {
-        const cardMap = new Map();
-        panel.querySelectorAll('.source-sub-card').forEach(c => {
-          if (c.dataset.itemId) cardMap.set(c.dataset.itemId, c);
-        });
+      const subCards = Array.from(panel.querySelectorAll('.source-sub-card'));
+      if (subCards.length > 0) {
         group.items.forEach(item => {
-          const card = cardMap.get(item.id);
+          const card = subCards.find(c => c.querySelector(`#ping-badge-${item.id}`));
           if (card) panel.appendChild(card);
         });
       }
@@ -3051,7 +3048,6 @@
           const isSubActive = (item.id === activeSubItemId);
           const subCard = document.createElement('div');
           subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
-          subCard.dataset.itemId = item.id;
           
           const q = parseQualityTag(item.vod.vod_remarks);
           const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
@@ -3123,7 +3119,7 @@
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
-      // 单源卡片且实际测过速时才在单源右侧显示延迟，多源折叠卡片头部绝不显示“超时”
+      // 仅在单源卡片且实际测过速时才在单源右侧显示延迟，多源折叠卡片头部一律不显示测速/超时文本
       let singlePingHtml = '';
       if (group.items.length === 1 && firstItem.ping >= 0) {
         const isErr = firstItem.ping >= 9999;
@@ -3566,8 +3562,7 @@
 
         groupEl.onclick = () => {
           const isHide = subList.style.display === 'none';
-          subList.style.display = isHide ? 'block' : 'none';
-          groupEl.querySelector('span:last-child').textContent = isHide ? '▼' : '▶';
+          subList.style.display = 'block';
         };
 
         for (let chName in channels) {
