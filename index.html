@@ -374,47 +374,128 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
 
-    /* 通用弹窗与容器 */
-    #modal-mask, #user-perm-modal-mask, #user-account-modal-mask, #user-group-assign-modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; }
-    .custom-modal-content { background: var(--bg-modal); color: var(--text-main); border: 1px solid var(--border-light); border-radius: 12px; width: 100%; max-width: 520px; padding: 20px; box-shadow: var(--card-shadow); max-height: 90vh; overflow-y: auto; transition: background 0.25s, color 0.25s; }
-    .custom-modal-content h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text-main); }
+    /* === 类似图2的高级通透 iOS 毛玻璃视窗体系 === */
+    #modal-mask, #user-perm-modal-mask, #user-account-modal-mask, #user-group-assign-modal-mask { 
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+      background: rgba(0, 0, 0, 0.42); 
+      backdrop-filter: blur(14px) saturate(160%); 
+      -webkit-backdrop-filter: blur(14px) saturate(160%); 
+      z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; 
+    }
+    
+    .custom-modal-content { 
+      background: rgba(26, 28, 33, 0.76); 
+      backdrop-filter: blur(32px) saturate(190%); 
+      -webkit-backdrop-filter: blur(32px) saturate(190%); 
+      color: var(--text-main); 
+      border: 1px solid rgba(255, 255, 255, 0.14); 
+      border-radius: 24px; 
+      width: 100%; max-width: 520px; padding: 22px; 
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(255, 255, 255, 0.08); 
+      max-height: 90vh; overflow-y: auto; 
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+    }
+    body.theme-light .custom-modal-content {
+      background: rgba(255, 255, 255, 0.82); 
+      backdrop-filter: blur(32px) saturate(190%); 
+      -webkit-backdrop-filter: blur(32px) saturate(190%); 
+      border: 1px solid rgba(255, 255, 255, 0.85); 
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04); 
+    }
+
+    .custom-modal-content h3 { font-size: 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; color: var(--text-main); font-weight: 600; }
     .input-label { font-size: 12px; color: var(--text-sub); margin-top: 10px; margin-bottom: 4px; display: block; }
-    .custom-modal-content input, .custom-modal-content select { width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-input); color: var(--text-main); font-size: 13px; outline: none; }
+    .custom-modal-content input, .custom-modal-content select { 
+      width: 100%; padding: 9px 12px; border-radius: 8px; 
+      border: 1px solid rgba(255, 255, 255, 0.12); 
+      background: rgba(0, 0, 0, 0.25); 
+      color: var(--text-main); font-size: 13px; outline: none; 
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    }
+    body.theme-light .custom-modal-content input, body.theme-light .custom-modal-content select {
+      background: rgba(255, 255, 255, 0.65);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
     .sub-stats { font-size: 12px; color: var(--accent); margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: var(--text-sub); margin-top: 4px; font-family: monospace; }
 
     .settings-user-header-box {
       display: flex; justify-content: space-between; align-items: center;
-      background: var(--bg-input); border: 1px solid var(--border-light); border-radius: 8px;
-      padding: 10px 14px; margin-bottom: 14px;
+      background: rgba(255, 255, 255, 0.06); 
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.12); 
+      border-radius: 14px;
+      padding: 10px 14px; margin-bottom: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
     }
+    body.theme-light .settings-user-header-box {
+      background: rgba(255, 255, 255, 0.65);
+      border-color: rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
-    .collapsible-setting-box { margin-top: 12px; background: var(--bg-input); border: 1px solid var(--border-light); border-radius: 8px; overflow: hidden; }
-    .collapsible-setting-header { padding: 10px 12px; font-size: 12px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--bg-card); user-select: none; }
-    .collapsible-setting-header:hover { background: var(--bg-card-hover); }
+    /* === 类似图2的高级毛玻璃折叠栏 === */
+    .collapsible-setting-box { 
+      background: rgba(255, 255, 255, 0.05); 
+      backdrop-filter: blur(24px) saturate(180%); 
+      -webkit-backdrop-filter: blur(24px) saturate(180%); 
+      border: 1px solid rgba(255, 255, 255, 0.12); 
+      border-radius: 16px; 
+      overflow: hidden; 
+      transition: all 0.25s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+    body.theme-light .collapsible-setting-box {
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+    }
+
+    .collapsible-setting-header { 
+      padding: 12px 14px; font-size: 13px; font-weight: 500; color: var(--text-main); 
+      display: flex; justify-content: space-between; align-items: center; 
+      cursor: pointer; background: transparent; user-select: none; 
+      transition: background 0.2s; 
+    }
+    .collapsible-setting-header:hover { 
+      background: rgba(255, 255, 255, 0.05); 
+    }
+    body.theme-light .collapsible-setting-header:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
     .collapsible-setting-body { padding: 10px; display: none; }
 
-    /* 采集源列表内部独立视窗化，避免撑长页面 */
+    /* 采集源列表内部独立视窗化平滑滑动容器 */
     #sites-items-container {
       max-height: 280px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: var(--bg-sub-panel);
-      padding: 2px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 4px 6px;
       scrollbar-width: thin;
+    }
+    body.theme-light #sites-items-container {
+      border-color: rgba(0, 0, 0, 0.06);
+      background: rgba(240, 244, 248, 0.7);
     }
 
     /* 采集源列表行布局：源名(左) - 统计与自定义(正中间完全居中) - 按钮(右) */
     .site-toggle-row { 
       display: flex; 
       align-items: center; 
-      padding: 7px 4px; 
-      border-bottom: 1px solid var(--border-color); 
+      padding: 8px 6px; 
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06); 
       font-size: 12px; 
+    }
+    body.theme-light .site-toggle-row {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     }
     .site-toggle-row:last-child { border-bottom: none; }
     .btn-site-toggle { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
@@ -425,7 +506,7 @@
     .btn-small-del, .btn-danger-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; margin-left: 4px; }
 
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-    .btn-action { padding: 8px 14px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
+    .btn-action { padding: 8px 14px; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
     .btn-cancel { background: var(--bg-tag); color: var(--text-main); }
     .btn-sync { background: #238636; color: #fff; }
     .btn-save { background: var(--accent); color: #fff; }
@@ -435,15 +516,23 @@
       gap: 8px; max-height: 240px; overflow-y: auto; margin-top: 10px; padding: 6px 0;
     }
     .perm-site-chip {
-      display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border-light);
-      padding: 6px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; user-select: none; color: var(--text-main);
+      display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 8px; border-radius: 8px; font-size: 11px; cursor: pointer; user-select: none; color: var(--text-main);
+    }
+    body.theme-light .perm-site-chip {
+      background: rgba(255, 255, 255, 0.7);
+      border-color: rgba(0, 0, 0, 0.08);
     }
     .perm-site-chip input { width: 14px; height: 14px; accent-color: var(--accent); }
 
     .group-card-item {
       display: flex; justify-content: space-between; align-items: center;
-      background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;
       padding: 8px 10px; margin-bottom: 6px; font-size: 12px;
+    }
+    body.theme-light .group-card-item {
+      background: rgba(255, 255, 255, 0.6);
+      border-color: rgba(0, 0, 0, 0.06);
     }
 
     .scroll-loading-indicator {
@@ -655,7 +744,7 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 🎬 视频采集源管理（对调到最上层） -->
+      <!-- 2. 🎬 视频采集源管理（对调到上层，应用高级毛玻璃悬浮材质） -->
       <div class="collapsible-setting-box" style="margin-top: 0; margin-bottom: 12px;">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('sites-manager-body', 'sites-toggle-arrow')">
           <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
@@ -669,7 +758,7 @@
           </div>
 
           <!-- 精准居中对齐表头 -->
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:6px 8px; background:var(--bg-card); border-radius:6px; border:1px solid var(--border-color); font-size:11px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:6px 8px; background:rgba(255,255,255,0.06); border-radius:8px; border:1px solid rgba(255,255,255,0.08); font-size:11px;">
             <div style="flex:1.2; min-width:0; color:var(--text-sub); font-weight:600;">源站名称</div>
             <div style="flex:1.5; display:flex; align-items:center; justify-content:center; gap:8px;">
               <span style="width:40px; text-align:center; color:var(--text-sub); font-weight:600;">统计</span>
@@ -685,14 +774,14 @@
         </div>
       </div>
 
-      <!-- 3. 👥 账号与权限管理（放在换过位置的视频采集源管理下面） -->
+      <!-- 3. 👥 账号与权限管理（放在视频采集源管理下面，应用高级毛玻璃悬浮材质） -->
       <div class="collapsible-setting-box" style="margin-top: 0; margin-bottom: 12px;">
         <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
           <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
           <span id="accounts-toggle-arrow">▼ 展开</span>
         </div>
         <div id="accounts-manager-body" class="collapsible-setting-body">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+          <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <div>
                 <div style="font-size: 12px; font-weight: 600;">📦 视频源分组权限</div>
@@ -1262,6 +1351,7 @@
       video.volume = parseFloat(val);
       video.muted = (val == 0);
       document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
+      volSlider.value = video.muted ? 0 : video.volume;
     }
 
     async function togglePiP() {
