@@ -484,7 +484,6 @@
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
-    /* 采集源列表内部独立视窗 */
     #sites-items-container {
       max-height: 320px;
       overflow-y: auto;
@@ -721,7 +720,7 @@
         <button class="btn-tool-mid" id="btn-open-settings" onclick="handleMainSettingsButtonClick()">⚙ 设置</button>
       </div>
 
-      <!-- 修复后的模式切换按钮：双向稳定切换 -->
+      <!-- 模式切换按钮：双向稳定切换 -->
       <div class="mode-tab-group">
         <button type="button" class="mode-tab" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
         <button type="button" class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
@@ -769,7 +768,7 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧文字已去掉，替换为极简 ↕ 箭头图标) -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧替换为极简 ↕ 箭头图标) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
@@ -1070,6 +1069,7 @@
     }
 
     const KEY_M3U = "custom_tv_m3u_url";
+    const KEY_TV_CHANNELS = "cached_tv_channels_v2"; // 实时持久化储存已解析的电视频道列表
     const KEY_SUB = "custom_vod_sub_url";
     const KEY_SITES = "cached_parsed_sites";
     const KEY_DISABLED_SITES = "disabled_sites_list";
@@ -1155,7 +1155,7 @@
       }
 
       const result = new Uint8Array(leadingOnes + bytes.length);
-      for (let i = 0; i < leadingOnes; i++) result[i] = 0;
+      for (let i = leadingOnes; i < leadingOnes; i++) result[i] = 0;
       for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
@@ -1185,7 +1185,6 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
-    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1394,6 +1393,7 @@
       video.volume = parseFloat(val);
       video.muted = (val == 0);
       document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
+      volSlider.value = video.muted ? 0 : video.volume;
     }
 
     async function togglePiP() {
@@ -1883,7 +1883,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2611,8 +2611,13 @@
 
       if (m3uUrl) {
         try {
-          await initTv();
-          msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
+          const text = await fetchWithSmartProxy(m3uUrl, 5000);
+          if (text && text.includes('#EXTINF')) {
+            parseM3U(text, true);
+            msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
+          } else {
+            msg.push(`电视直播源内容解析为空`);
+          }
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
@@ -2792,7 +2797,7 @@
           else renderList(groups, false);
         } else {
           container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
-          initTv().then(() => {
+          initTv(true).then(() => {
             if (Object.keys(groups).length > 0) {
               const kw = filterInput ? filterInput.value.trim() : '';
               if (kw) handleSearchTv();
@@ -3660,11 +3665,9 @@
         else currentCategoryFilter = 'multi';
       }
 
-      // 获取当前排序文本
       const sortLabel = currentVodSortType === 'time_desc' ? '🕒 最新' : (currentVodSortType === 'time_asc' ? '🕒 最早' : '⭐ 综合');
       const isCustomSortActive = (currentVodSortType !== 'speed');
 
-      // 单排吸顶工具栏：手机端一排完整容纳，无横向滚动条
       const unifiedBar = document.createElement('div');
       unifiedBar.className = 'top-unified-bar';
       unifiedBar.innerHTML = `
@@ -3887,17 +3890,24 @@
       }
     }
 
-    async function initTv() {
+    /* === 电视直播模块：持久化拉取与增量更新逻辑 === */
+    async function initTv(force = false) {
+      if (!force && Object.keys(groups).length > 0) {
+        if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+        return;
+      }
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
       try {
-        const text = await fetchWithSmartProxy(targetUrl, 4000);
-        parseM3U(text);
-        if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+        const text = await fetchWithSmartProxy(targetUrl, 5000);
+        if (text && text.includes('#EXTINF')) {
+          parseM3U(text, true);
+          if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+        }
       } catch (_) {}
     }
 
-    function parseM3U(content) {
+    function parseM3U(content, saveToStorage = true) {
       groups = {};
       totalChannelsCount = 0;
       totalStreamsCount = 0;
@@ -3926,6 +3936,11 @@
           }
           temp = null;
         }
+      }
+      // 实时全量持久化储存至 D1 和 localStorage，保证刷新/重启网页数据不丢
+      if (saveToStorage && totalChannelsCount > 0) {
+        const payload = { groups, totalChannelsCount, totalStreamsCount };
+        setD1Data(KEY_TV_CHANNELS, payload);
       }
     }
 
@@ -4060,6 +4075,19 @@
         if (localThreshold) failThreshold = parseInt(localThreshold, 10) || 5;
         const localTheme = localStorage.getItem(KEY_THEME_PREF);
         if (localTheme) currentThemeSetting = localTheme;
+
+        // 本地立即提取持久化电视频道，避免刷新白屏
+        const localTv = localStorage.getItem(KEY_TV_CHANNELS);
+        if (localTv) {
+          try {
+            const parsedTv = JSON.parse(localTv);
+            if (parsedTv && typeof parsedTv === 'object') {
+              groups = parsedTv.groups || parsedTv;
+              totalChannelsCount = parsedTv.totalChannelsCount || 0;
+              totalStreamsCount = parsedTv.totalStreamsCount || 0;
+            }
+          } catch (_) {}
+        }
       } catch (_) {}
 
       applyGlobalTheme(currentThemeSetting);
@@ -4106,7 +4134,8 @@
         getD1Data(KEY_SOURCE_GROUPS, ''),
         getD1Data(KEY_THEME_PREF, ''),
         getD1Data(KEY_SUB, ''),
-        getD1Data(KEY_M3U, '')
+        getD1Data(KEY_M3U, ''),
+        getD1Data(KEY_TV_CHANNELS, '') // 从 D1 异步核验最新电视频道持久化数据
       ]).then(results => {
         if (results[0].status === 'fulfilled' && results[0].value) {
           try { const p = JSON.parse(results[0].value); if (Array.isArray(p)) parsedSites = p; } catch (_) {}
@@ -4149,9 +4178,23 @@
         if (results[10].status === 'fulfilled' && results[10].value) {
           localStorage.setItem(KEY_M3U, results[10].value);
         }
+        // D1 回源校验电视频道数据
+        if (results[11]?.status === 'fulfilled' && results[11].value) {
+          try {
+            const parsedTv = JSON.parse(results[11].value);
+            if (parsedTv && typeof parsedTv === 'object') {
+              groups = parsedTv.groups || parsedTv;
+              totalChannelsCount = parsedTv.totalChannelsCount || 0;
+              totalStreamsCount = parsedTv.totalStreamsCount || 0;
+              if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+            }
+          } catch (_) {}
+        }
       });
 
+      // 初始化 TV
       initTv();
+
       const hasRestored = restoreVodSessionState();
       if (hasRestored) {
         currentMode = 'vod';
