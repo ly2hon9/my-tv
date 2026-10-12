@@ -265,8 +265,8 @@
     .btn-tool-mid.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
     .mode-tab-group { display: flex; gap: 6px; }
-    .mode-tab { flex: 1; padding: 6px 0; background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub); font-size: 12px; border-radius: 4px; cursor: pointer; text-align: center; transition: background 0.2s, color 0.2s, border-color 0.2s; outline: none; }
-    .mode-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+    .mode-tab { flex: 1; padding: 7px 0; background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub); font-size: 12px; border-radius: 6px; cursor: pointer; text-align: center; transition: all 0.2s ease; outline: none; }
+    .mode-tab.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; font-weight: 600; }
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
@@ -275,23 +275,23 @@
        =================================================================== */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between;
-      gap: 3px; padding: 6px 6px; background: var(--bg-search-box);
+      gap: 3px; padding: 6px 8px; background: var(--bg-search-box);
       border-bottom: 1px solid var(--border-color);
       position: sticky; top: 0; z-index: 20;
       width: 100%; box-sizing: border-box; overflow: hidden;
     }
 
     .bar-left-group {
-      display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0;
+      display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0;
     }
 
     .bar-right-group {
-      display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
     }
 
     .filter-pill-btn {
       background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub);
-      padding: 3px 5px; border-radius: 6px; font-size: 10.5px; font-weight: 500;
+      padding: 3px 6px; border-radius: 6px; font-size: 11px; font-weight: 500;
       cursor: pointer; white-space: nowrap; transition: all 0.15s ease;
       display: inline-flex; align-items: center; justify-content: center; outline: none;
       line-height: 1.2;
@@ -304,8 +304,8 @@
 
     .btn-sort-action { 
       background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 6px; 
-      padding: 3px 5px; font-size: 10.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-      white-space: nowrap; font-weight: 500; transition: background 0.15s, color 0.15s, border-color 0.15s; outline: none;
+      padding: 3px 7px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      gap: 3px; white-space: nowrap; font-weight: 500; transition: all 0.15s ease; outline: none;
       line-height: 1.2;
     }
     .btn-sort-action:hover { background: var(--bg-card-hover); }
@@ -313,11 +313,11 @@
 
     @media (max-width: 400px) {
       .filter-pill-btn, .btn-sort-action {
-        padding: 2.5px 3.5px;
+        padding: 2.5px 4.5px;
         font-size: 10px;
       }
       .top-unified-bar {
-        padding: 5px 3px;
+        padding: 5px 4px;
         gap: 2px;
       }
     }
@@ -496,7 +496,6 @@
       scrollbar-width: thin;
     }
 
-    /* 采集源列表行布局：源名(左) - 统计与自定义(正中间完全居中) - 按钮(右) */
     .site-toggle-row { 
       display: flex; 
       align-items: center; 
@@ -770,15 +769,15 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧去掉文字，更换为原生选择框风格双箭头) -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧文字已去掉，替换为极简 ↕ 箭头图标) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
       </button>
 
       <button type="button" class="glass-nav-card-btn" onclick="openAccountsModal()">
         <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
       </button>
 
       <label class="input-label">影视订阅地址：</label>
@@ -1186,6 +1185,7 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
+    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1394,7 +1394,6 @@
       video.volume = parseFloat(val);
       video.muted = (val == 0);
       document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
-      volSlider.value = video.muted ? 0 : video.volume;
     }
 
     async function togglePiP() {
@@ -1414,7 +1413,7 @@
         }
       } catch (_) {}
       try {
-        if (video.webkitPresentationMode && video.webkitPresentationMode === 'picture-in-picture') {
+        if (video && video.webkitPresentationMode === 'picture-in-picture') {
           video.webkitSetPresentationMode('inline');
         }
       } catch (_) {}
@@ -2763,6 +2762,61 @@
     window.addEventListener('beforeunload', saveVodSessionState);
     window.addEventListener('pagehide', saveVodSessionState);
 
+    /* 模式切换：彻底解决按钮失效、高亮异常与无数据黑屏问题 */
+    function switchMode(mode) {
+      currentMode = mode;
+      currentView = 'normal';
+
+      const btnFav = document.getElementById('btn-show-fav');
+      const btnHist = document.getElementById('btn-show-history');
+      if (btnFav) btnFav.classList.remove('active');
+      if (btnHist) btnHist.classList.remove('active');
+
+      const tabTv = document.getElementById('tab-tv');
+      const tabVod = document.getElementById('tab-vod');
+      if (tabTv) {
+        tabTv.classList.toggle('active', mode === 'tv');
+      }
+      if (tabVod) {
+        tabVod.classList.toggle('active', mode === 'vod');
+      }
+
+      const filterInput = document.getElementById('filter');
+      const container = document.getElementById('channel-list');
+
+      if (mode === 'tv') {
+        if (filterInput) filterInput.placeholder = "搜索电视频道...";
+        if (Object.keys(groups).length > 0) {
+          const kw = filterInput ? filterInput.value.trim() : '';
+          if (kw) handleSearchTv();
+          else renderList(groups, false);
+        } else {
+          container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
+          initTv().then(() => {
+            if (Object.keys(groups).length > 0) {
+              const kw = filterInput ? filterInput.value.trim() : '';
+              if (kw) handleSearchTv();
+              else renderList(groups, false);
+            } else {
+              container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">暂无电视直播数据，请在设置中配置直播源（M3U）地址 📺</div>`;
+            }
+          });
+        }
+      } else {
+        if (filterInput) filterInput.placeholder = "搜索片名、视频、电视频道...";
+        if (groupedVodList && groupedVodList.length > 0) {
+          renderGroupedVodSources();
+        } else {
+          const kw = filterInput ? filterInput.value.trim() : '';
+          if (kw) {
+            fastStreamSearchVod(kw);
+          } else {
+            container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
+          }
+        }
+      }
+    }
+
     function handleEnterSearch(e) {
       if (e.isComposing || e.keyCode === 229) return;
       if (e.key === 'Enter') triggerSearch();
@@ -3003,6 +3057,23 @@
       });
     }
 
+    /* 综合/最新/最早 3 合 1 循环极简按钮调度 */
+    function cycleSortMode() {
+      if (currentVodSortType === 'score') {
+        currentVodSortType = 'time_desc';
+        showGestureTip("已切换为：最新时间 (降序 ↓)");
+      } else if (currentVodSortType === 'time_desc') {
+        currentVodSortType = 'time_asc';
+        showGestureTip("已切换为：早期时间 (升序 ↑)");
+      } else {
+        currentVodSortType = 'score';
+        showGestureTip("已切换为：智能综合排序");
+      }
+      sortGroupedVodList();
+      renderGroupedVodSources();
+      saveVodSessionState();
+    }
+
     async function setSortType(type) {
       if (type === 'speed') {
         if (isSpeedTesting) return;
@@ -3010,9 +3081,6 @@
         await startSpeedTest();
       } else {
         currentVodSortType = type;
-        if (type === 'score') showGestureTip("已切换为：智能综合排序");
-        else if (type === 'time_desc') showGestureTip("已切换为：最新时间 (降序 ↓)");
-        else if (type === 'time_asc') showGestureTip("已切换为：早期时间 (升序 ↑)");
         sortGroupedVodList();
         renderGroupedVodSources();
         saveVodSessionState();
@@ -3592,6 +3660,11 @@
         else currentCategoryFilter = 'multi';
       }
 
+      // 获取当前排序文本
+      const sortLabel = currentVodSortType === 'time_desc' ? '🕒 最新' : (currentVodSortType === 'time_asc' ? '🕒 最早' : '⭐ 综合');
+      const isCustomSortActive = (currentVodSortType !== 'speed');
+
+      // 单排吸顶工具栏：手机端一排完整容纳，无横向滚动条
       const unifiedBar = document.createElement('div');
       unifiedBar.className = 'top-unified-bar';
       unifiedBar.innerHTML = `
@@ -3601,9 +3674,10 @@
           ${countNsfw > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'nsfw' ? 'active' : ''}" onclick="setCategoryFilter('nsfw')">🌶️ 专区(${countNsfw})</button>` : ''}
         </div>
         <div class="bar-right-group">
-          <button type="button" class="btn-sort-action ${currentVodSortType === 'score' ? 'active-sort' : ''}" onclick="setSortType('score')">⭐ 综合</button>
-          <button type="button" class="btn-sort-action ${currentVodSortType === 'time_desc' ? 'active-sort' : ''}" onclick="setSortType('time_desc')">🕒 最新</button>
-          <button type="button" class="btn-sort-action ${currentVodSortType === 'time_asc' ? 'active-sort' : ''}" onclick="setSortType('time_asc')">🕒 最早</button>
+          <button type="button" class="btn-sort-action ${isCustomSortActive ? 'active-sort' : ''}" onclick="cycleSortMode()" title="点击切换：综合 / 最新 / 最早">
+            <span>${sortLabel}</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+          </button>
           <button type="button" id="btn-sort-speed-nav" class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="setSortType('speed')">${isSpeedTesting ? '⚡ 测速中' : '⚡ 测速'}</button>
         </div>
       `;
