@@ -265,12 +265,12 @@
     .btn-tool-mid.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
     .mode-tab-group { display: flex; gap: 6px; }
-    .mode-tab { flex: 1; padding: 6px 0; background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub); font-size: 12px; border-radius: 4px; cursor: pointer; text-align: center; transition: background 0.2s, color 0.2s, border-color 0.2s; }
-    .mode-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+    .mode-tab { flex: 1; padding: 6px 0; background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub); font-size: 12px; border-radius: 4px; cursor: pointer; text-align: center; transition: background 0.2s, color 0.2s, border-color 0.2s; outline: none; }
+    .mode-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 单排常驻吸顶工具栏：分类药丸 + 排序按钮同排展示，绝对不随列表滚动消失 */
+    /* 单排常驻吸顶工具栏 */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 6px;
       padding: 7px 10px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
@@ -350,7 +350,6 @@
     .card-quality.q-720 { background: #26354a; color: #60a5fa; }
     .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
 
-    /* 有码/无码 专区微标签 */
     .card-censor { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
     .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
     .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
@@ -533,10 +532,7 @@
       .external-group { max-width: none; }
     }
 
-    /* ===================================================================
-       电脑 / 平板端 全新剧场沉浸双视窗布局 (Theatre Workspace)
-       彻底解决生硬五五分死板粗笨的问题，打造高级悬浮视窗
-       =================================================================== */
+    /* 电脑 / 平板端 全新剧场沉浸双视窗布局 (Theatre Workspace) */
     @media (min-width: 900px) {
       body {
         flex-direction: row;
@@ -708,9 +704,10 @@
         <button class="btn-tool-mid" id="btn-open-settings" onclick="handleMainSettingsButtonClick()">⚙ 设置</button>
       </div>
 
+      <!-- 修复后的模式切换按钮，绑定标准点击事件与高亮逻辑 -->
       <div class="mode-tab-group">
-        <button class="mode-tab" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
-        <button class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
+        <button type="button" class="mode-tab" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
+        <button type="button" class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
       </div>
     </div>
     <div id="channel-list">
@@ -755,15 +752,15 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (已更新为 ⇅ 符号) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
-        <span style="color:var(--accent);">打开管理 ➔</span>
+        <span style="color:var(--accent); font-family: system-ui, sans-serif; font-size:12px;">打开管理 ⇅</span>
       </button>
 
       <button type="button" class="glass-nav-card-btn" onclick="openAccountsModal()">
         <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
-        <span style="color:var(--accent);">打开配置 ➔</span>
+        <span style="color:var(--accent); font-family: system-ui, sans-serif; font-size:12px;">打开配置 ⇅</span>
       </button>
 
       <label class="input-label">影视订阅地址：</label>
@@ -930,7 +927,6 @@
       return { text: remarks.length <= 6 ? remarks : '正片', cls: 'q-normal' };
     }
 
-    /* === 智能识别：精准识别「🔞 无码」与「🔞 有码」，无法识别则返回空字符串 === */
     function detectCensorshipTag(vod, siteName) {
       if (!vod) return '';
       const name = (vod.vod_name || '').toLowerCase();
@@ -1390,6 +1386,20 @@
       } catch (_) {
         alert("当前浏览器暂不支持画中画");
       }
+    }
+
+    /* === 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 === */
+    function exitPictureInPictureMode() {
+      try {
+        if (document.pictureInPictureElement) {
+          document.exitPictureInPicture().catch(() => {});
+        }
+      } catch (_) {}
+      try {
+        if (video.webkitPresentationMode && video.webkitPresentationMode === 'picture-in-picture') {
+          video.webkitSetPresentationMode('inline');
+        }
+      } catch (_) {}
     }
 
     video.addEventListener('ended', () => {
@@ -2390,7 +2400,6 @@
         return;
       }
 
-      // 禁用的源强制沉底排布
       const sortedSites = parsedSites.slice().sort((a, b) => {
         const isDisA = disabledSites.includes(a.name) ? 1 : 0;
         const isDisB = disabledSites.includes(b.name) ? 1 : 0;
@@ -2665,7 +2674,6 @@
       return extractSitesFromAnyJson(parsed);
     }
 
-    /* === 精简版对象生成器：彻底剥离庞大剧情与无关字段，确保永不超配 === */
     function slimGroupForStorage(g) {
       return {
         title: g.title,
@@ -2694,7 +2702,6 @@
       };
     }
 
-    /* === 跨刷新持久化会话快照（精简化存储，刷新绝不重置，关闭标签页自动销毁） === */
     function saveVodSessionState() {
       if (currentMode !== 'vod') return;
       try {
@@ -2742,22 +2749,45 @@
     window.addEventListener('beforeunload', saveVodSessionState);
     window.addEventListener('pagehide', saveVodSessionState);
 
+    /* === 修复后的模式切换：彻底解决按钮失效、高亮异常与无数据黑屏问题 === */
     function switchMode(mode) {
       currentMode = mode;
       currentView = 'normal';
-      document.getElementById('btn-show-fav').classList.remove('active');
-      document.getElementById('btn-show-history').classList.remove('active');
-      document.getElementById('tab-tv').className = 'mode-tab ' + (mode === 'tv' ? 'active' : '');
-      document.getElementById('tab-vod').className = 'mode-tab active' + (mode === 'vod' ? 'active' : '');
+
+      const btnFav = document.getElementById('btn-show-fav');
+      const btnHist = document.getElementById('btn-show-history');
+      if (btnFav) btnFav.classList.remove('active');
+      if (btnHist) btnHist.classList.remove('active');
+
+      const tabTv = document.getElementById('tab-tv');
+      const tabVod = document.getElementById('tab-vod');
+      if (tabTv) tabTv.className = 'mode-tab ' + (mode === 'tv' ? 'active' : '');
+      if (tabVod) tabVod.className = 'mode-tab ' + (mode === 'vod' ? 'active' : '');
+
       const filterInput = document.getElementById('filter');
-      
+      const container = document.getElementById('channel-list');
+
       if (mode === 'tv') {
-        filterInput.placeholder = "搜索电视频道...";
-        renderList(groups, false);
+        if (filterInput) filterInput.placeholder = "搜索电视频道...";
+        if (Object.keys(groups).length > 0) {
+          renderList(groups, false);
+        } else {
+          container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
+          initTv().then(() => {
+            if (Object.keys(groups).length > 0) {
+              renderList(groups, false);
+            } else {
+              container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">暂无电视直播数据，请在设置中配置直播源地址 📺</div>`;
+            }
+          });
+        }
       } else {
-        filterInput.placeholder = "搜索片名、视频、电视频道...";
-        if (groupedVodList.length > 0) scheduleRenderVodSources();
-        else document.getElementById('channel-list').innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
+        if (filterInput) filterInput.placeholder = "搜索片名、视频、电视频道...";
+        if (groupedVodList && groupedVodList.length > 0) {
+          renderGroupedVodSources();
+        } else {
+          container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
+        }
       }
     }
 
@@ -2818,9 +2848,6 @@
       if (!isSafeUrl(testUrl)) {
         const site = parsedSites.find(s => s.name === item.siteName);
         testUrl = site?.api || '';
-      }
-      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
-        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
       }
       return testUrl;
     }
@@ -3697,10 +3724,8 @@
     }
 
     function destroyHlsInstance() {
-      if (playWatchdogTimer) {
-        clearTimeout(playWatchdogTimer);
-        playWatchdogTimer = null;
-      }
+      clearPlayWatchdog();
+      exitPictureInPictureMode();
       if (hls) {
         hls.stopLoad();
         hls.detachMedia();
@@ -3733,6 +3758,7 @@
 
     function manualPlayOnly(url) {
       clearPlayWatchdog();
+      exitPictureInPictureMode();
       destroyHlsInstance();
       setStatus("正在建立连接，请稍候...");
 
