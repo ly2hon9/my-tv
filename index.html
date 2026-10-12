@@ -272,7 +272,7 @@
 
     /* ===================================================================
        单排常驻吸顶工具栏：手机端一排完整排下，绝不左右滑动
-       ================================================================== */
+       =================================================================== */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between;
       gap: 3px; padding: 6px 8px; background: var(--bg-search-box);
@@ -1185,6 +1185,7 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
+    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1417,34 +1418,6 @@
           video.webkitSetPresentationMode('inline');
         }
       } catch (_) {}
-    }
-
-    /* 播放器重置为默认闲置状态（啥也不播放） */
-    function resetPlayerToDefault(msg = "") {
-      clearPlayWatchdog();
-      exitPictureInPictureMode();
-      destroyHlsInstance();
-      try {
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-      } catch (_) {}
-      currentStreamUrl = "";
-      currentVodUniqueKey = "";
-      currentPlayingMeta = null;
-      currentTitle.textContent = "请在下方选择视频起播";
-      routeBadge.style.display = 'none';
-      routeBadge.textContent = '';
-      streamTimeEl.textContent = "00:00 / 00:00";
-      progressBar.style.width = "0%";
-      updatePlayBtn(false);
-      updateFavIconState();
-      if (msg) {
-        setStatus(msg, true);
-        setTimeout(() => setStatus("", false), 2500);
-      } else {
-        setStatus("", false);
-      }
     }
 
     video.addEventListener('ended', () => {
@@ -2795,363 +2768,114 @@
     window.addEventListener('beforeunload', saveVodSessionState);
     window.addEventListener('pagehide', saveVodSessionState);
 
-    /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
-    function switchMode(mode) {
-      currentMode = mode;
-      currentView = 'normal';
+    /* 辅助：根据集数名称与编号精准匹配集数，防止集数不同步时错误起播第一集 */
+    function findMatchingEpisode(episodes, targetEpName, targetIdx) {
+      if (!episodes || episodes.length === 0) return null;
 
-      // 切换板块时彻底清空上方搜索框文字并重置清除按钮
-      const filterInput = document.getElementById('filter');
-      if (filterInput) {
-        filterInput.value = '';
-        toggleClearBtn('');
-      }
+      // 1. 如果有明确的集数名称，先优先尝试名称比对
+      if (targetEpName) {
+        const cleanTarget = targetEpName.trim().toLowerCase();
+        const exact = episodes.find(e => e.name.trim().toLowerCase() === cleanTarget);
+        if (exact) return exact;
 
-      const btnFav = document.getElementById('btn-show-fav');
-      const btnHist = document.getElementById('btn-show-history');
-      if (btnFav) btnFav.classList.remove('active');
-      if (btnHist) btnHist.classList.remove('active');
-
-      const tabTv = document.getElementById('tab-tv');
-      const tabVod = document.getElementById('tab-vod');
-      if (tabTv) {
-        tabTv.classList.toggle('active', mode === 'tv');
-      }
-      if (tabVod) {
-        tabVod.classList.toggle('active', mode === 'vod');
-      }
-
-      const container = document.getElementById('channel-list');
-
-      if (mode === 'tv') {
-        if (filterInput) filterInput.placeholder = "搜索电视频道...";
-        if (Object.keys(groups).length > 0) {
-          renderList(groups, false);
-        } else {
-          container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
-          initTv(true).then(() => {
-            if (Object.keys(groups).length > 0) {
-              renderList(groups, false);
-            } else {
-              container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">暂无电视直播数据，请在设置中配置直播源（M3U）地址 📺</div>`;
-            }
+        // 2. 尝试提取纯数字比对（例如 “第214集” 与 “214” 或 “214集”）
+        const numMatch = cleanTarget.match(/\d+/);
+        if (numMatch) {
+          const targetNum = parseInt(numMatch[0], 10);
+          const numFound = episodes.find(e => {
+            const m = e.name.match(/\d+/);
+            return m && parseInt(m[0], 10) === targetNum;
           });
-        }
-      } else {
-        if (filterInput) filterInput.placeholder = "搜索片名、视频、电视频道...";
-        if (groupedVodList && groupedVodList.length > 0) {
-          renderGroupedVodSources();
-        } else {
-          container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
+          if (numFound) return numFound;
         }
       }
+
+      // 3. 按索引核验，必须严格在目标源集数范围以内
+      if (targetIdx !== undefined && targetIdx >= 0 && targetIdx < episodes.length) {
+        return episodes[targetIdx];
+      }
+
+      // 4. 未匹配到说明该源确实尚未更新此集
+      return null;
     }
 
-    /* 选集面板动态重构：确保多源切换时剧集与集数实时同步 */
-    function refreshGroupEpisodesPanel(group, bodyPanel) {
-      let collapseBox = bodyPanel.querySelector('.episodes-collapse-box');
-      const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
-      const episodes = getEpisodesList(currentSubItem);
-
+    /* 选集面板网格自适应重渲染函数 */
+    function renderEpisodesGridContent(collapseBox, item) {
+      const epGrid = collapseBox.querySelector('.episodes-grid');
+      const headerTitle = collapseBox.querySelector('.episodes-title-text');
+      if (!epGrid) return;
+      const episodes = getEpisodesList(item);
       if (episodes.length <= 1) {
-        if (collapseBox) collapseBox.remove();
+        collapseBox.style.display = 'none';
         return;
       }
-
-      if (!collapseBox) {
-        collapseBox = document.createElement('div');
-        collapseBox.className = 'episodes-collapse-box';
-        bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
+      collapseBox.style.display = 'block';
+      if (headerTitle) {
+        headerTitle.textContent = `📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集`;
       }
-
-      const hasEp = (currentActiveEp >= 0 && currentActiveEp < episodes.length && episodes[currentActiveEp]);
-      const epHeaderTitle = hasEp 
-        ? `📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集`
-        : `📺 选集 (${episodes.length} 集) - 该源未更新当前集`;
-
-      collapseBox.innerHTML = `
-        <div class="episodes-header">
-          <span class="ep-header-text">${escapeHtml(epHeaderTitle)}</span>
-          <div class="episodes-actions">
-            <button type="button" class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-            <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
-          </div>
-        </div>
-        <div class="episodes-grid" id="episodes-grid-list"></div>
-      `;
-
-      const epGrid = collapseBox.querySelector('#episodes-grid-list');
+      epGrid.innerHTML = '';
       const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
-
       displayEps.forEach((ep) => {
         const epIdx = ep.originalIdx;
         const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ep-item ' + (epIdx === currentActiveEp && hasEp ? 'active' : '');
+        btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
         btn.textContent = ep.name;
         btn.onclick = (e) => {
           e.stopPropagation();
           currentActiveEp = epIdx;
-          bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+          epGrid.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
           btn.classList.add('active');
-          const activeSub = group.items.find(r => r.id === activeSubItemId) || group.items[0];
-          playCurrentVodSource(activeSub, epIdx);
-          refreshGroupEpisodesPanel(group, bodyPanel);
+          if (headerTitle) {
+            headerTitle.textContent = `📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集`;
+          }
+          playCurrentVodSource(item, epIdx);
           saveVodSessionState();
         };
         epGrid.appendChild(btn);
       });
-
-      collapseBox.querySelector('.episodes-header').onclick = (e) => {
-        if (e.target.tagName === 'BUTTON') return;
-        e.stopPropagation();
-        const isHide = epGrid.style.display === 'none';
-        epGrid.style.display = isHide ? 'grid' : 'none';
-        collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-      };
     }
 
-    function buildGroupBodyPanel(group) {
-      const bodyPanel = document.createElement('div');
-      bodyPanel.className = 'group-body-panel';
-
-      // 选集列表实时同步
-      refreshGroupEpisodesPanel(group, bodyPanel);
-
-      // 如果存在多个版本/源，才渲染多线路子卡片列表
-      if (group.items.length > 1) {
-        group.items.forEach((item) => {
-          const isSubActive = (item.id === activeSubItemId);
-          const subCard = document.createElement('div');
-          subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
-          
-          const q = parseQualityTag(item.vod.vod_remarks);
-          const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
-
-          const isSpecial = isGroupNSFW(group);
-          const subCensorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
-          const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
-
-          let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
-          let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-
-          // 搜到的片源集数实时显示
-          const itemEpisodes = getEpisodesList(item);
-          let epStatusText = '';
-          if (itemEpisodes.length > 1) {
-            epStatusText = item.vod?.vod_remarks && /(集|话|期|全|更新)/.test(item.vod.vod_remarks)
-              ? item.vod.vod_remarks
-              : `更新至${itemEpisodes.length}集`;
-          } else {
-            epStatusText = q.text;
-          }
-
-          subCard.innerHTML = `
-            <div class="source-sub-left">
-              <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-              <span class="card-quality ${q.cls}">${escapeHtml(epStatusText)}</span>
-              ${subCensorHtml}
-            </div>
-            <div class="card-status-bar">
-              <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
-            </div>
-          `;
-
-          subCard.onclick = (e) => {
-            e.stopPropagation();
-            activeSubItemId = item.id;
-            bodyPanel.querySelectorAll('.source-sub-card').forEach(c => c.classList.remove('active-sub'));
-            subCard.classList.add('active-sub');
-
-            // 切换子源时：选集列表实时同步为该源的实际集数
-            refreshGroupEpisodesPanel(group, bodyPanel);
-
-            // 播放对应集数；若该源没有当前集数（如正在看214集，此源只有213集），则播放器回到默认初始状态啥也不播放
-            playCurrentVodSource(item, currentActiveEp);
-            saveVodSessionState();
-          };
-
-          bodyPanel.appendChild(subCard);
-        });
-      }
-
-      return bodyPanel;
-    }
-
-    function renderCardNode(group) {
-      let groupCard = domNodeCache.get(group.title);
-
-      const isSpecial = isGroupNSFW(group);
-      let groupCensorTag = '';
-      if (isSpecial) {
-        for (const it of group.items) {
-          const tag = detectCensorshipTag(it.vod, it.siteName);
-          if (tag) { groupCensorTag = tag; break; }
-        }
-      }
-      const groupCensorHtml = groupCensorTag ? `<span class="card-censor ${groupCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${groupCensorTag}</span>` : '';
-
-      const pubDate = group._displayDate || (group.items[0]?.vod?.vod_time ? String(group.items[0].vod.vod_time).split(' ')[0] : '');
-      const pubDateHtml = pubDate ? `<span class="group-pub-time">${escapeHtml(pubDate)}</span>` : '';
-
-      const firstItem = group.items[0];
-      const episodes = getEpisodesList(firstItem);
-      const isSingleSourceSingleEp = (group.items.length === 1 && episodes.length <= 1);
-      const isSingle = (group.items.length === 1);
-
-      let sourceTagHtml = '';
-      if (isSingle) {
-        sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(firstItem.siteName)}</span>`;
-      }
-
-      // 实时获取多源组内的最高更新进度
-      let maxEps = 0;
-      let latestEpRemark = '';
-      (group.items || []).forEach(it => {
-        const eps = getEpisodesList(it);
-        if (eps.length > maxEps) {
-          maxEps = eps.length;
-          if (it.vod?.vod_remarks && /(集|话|期|全|更新)/.test(it.vod.vod_remarks)) {
-            latestEpRemark = it.vod.vod_remarks;
-          }
-        }
-      });
-
-      const countBadgeHtml = isSingleSourceSingleEp 
-        ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
-        : (group.items.length === 1 
-            ? `<span class="group-badge-count">${latestEpRemark || `${episodes.length} 集全`}</span>` 
-            : `<span class="group-badge-count">${latestEpRemark || (maxEps > 1 ? `更新至${maxEps}集` : `${group.items.length} 个源`)} · ${group.items.length} 个源</span>`);
-
-      const arrowIconHtml = isSingleSourceSingleEp
-        ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
-        : `<div class="group-arrow">▼</div>`;
-
-      let singlePingHtml = '';
-      if (group.items.length === 1 && firstItem.ping >= 0) {
-        const isErr = firstItem.ping >= 9999;
-        const pClass = isErr ? "metric-ping-err" : (firstItem.ping < 500 ? "metric-ping-ok" : firstItem.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
-      }
-
-      if (!groupCard || !groupCard.classList.contains('title-group-box')) {
-        const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
-        groupCard = document.createElement('div');
-        groupCard.className = 'title-group-box';
-        groupCard.innerHTML = `
-          <div class="title-group-header">
-            <div class="group-header-left">
-              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-              <div class="group-info-wrap">
-                <div class="group-main-title">${escapeHtml(group.title)}</div>
-                <div class="group-meta-tag">
-                  <span>${escapeHtml(group.type || '影视')}</span>
-                  ${groupCensorHtml}
-                  ${sourceTagHtml}
-                  ${pubDateHtml}
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
-                  ${countBadgeHtml}
-                  ${singlePingHtml}
-                </div>
-              </div>
-            </div>
-            ${arrowIconHtml}
-          </div>
-        `;
-        domNodeCache.set(group.title, groupCard);
-      } else {
-        const metaTag = groupCard.querySelector('.group-meta-tag');
-        if (metaTag) {
-          metaTag.innerHTML = `
-            <span>${escapeHtml(group.type || '影视')}</span>
-            ${groupCensorHtml}
-            ${sourceTagHtml}
-            ${pubDateHtml}
-            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
-            ${countBadgeHtml}
-            ${singlePingHtml}
-          `;
-        }
-      }
-
-      const isCurrentActiveGroup = (group.title === activeGroupTitle);
-      groupCard.className = 'title-group-box' + (isCurrentActiveGroup ? ' active-group expanded' : '');
-
-      const headerEl = groupCard.querySelector('.title-group-header');
-
-      headerEl.onclick = () => {
-        if (isSingleSourceSingleEp) {
-          document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('active-group'));
-          groupCard.classList.add('active-group');
-          activeGroupTitle = group.title;
-          activeSubItemId = firstItem.id;
-          currentActiveEp = 0;
-          playCurrentVodSource(firstItem, 0);
-          saveVodSessionState();
-          return;
-        }
-
-        const isCurrentlyExpanded = groupCard.classList.contains('expanded');
-
-        document.querySelectorAll('.title-group-box.expanded').forEach(otherCard => {
-          if (otherCard !== groupCard) {
-            otherCard.classList.remove('expanded');
-            const p = otherCard.querySelector('.group-body-panel');
-            if (p) p.remove();
-          }
-        });
-
-        const oldPanel = groupCard.querySelector('.group-body-panel');
-        if (oldPanel) oldPanel.remove();
-
-        if (isCurrentlyExpanded) {
-          groupCard.classList.remove('expanded');
-          activeGroupTitle = '';
-        } else {
-          groupCard.classList.add('expanded');
-          activeGroupTitle = group.title;
-          if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
-            activeSubItemId = group.items[0]?.id || '';
-            currentActiveEp = 0;
-          }
-          const panel = buildGroupBodyPanel(group);
-          groupCard.appendChild(panel);
-
-          testGroupSources(group, panel);
-
-          setTimeout(() => {
-            groupCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 40);
-        }
-        saveVodSessionState();
-      };
-
-      const oldPanel = groupCard.querySelector('.group-body-panel');
-      if (oldPanel) oldPanel.remove();
-      if (isCurrentActiveGroup && !isSingleSourceSingleEp) {
-        groupCard.appendChild(buildGroupBodyPanel(group));
-      }
-
-      return groupCard;
-    }
-
+    /* 播放源处理：仅针对影视剧场，源与集数不同步时（如 A 214，B 仅 213）啥都不要播放，绝不回退至第1集 */
     function playCurrentVodSource(item, epIdx = 0) {
       if (!item?.vod) return;
       isLiveMode = false;
 
       const episodes = getEpisodesList(item);
-      // 如果当前切换到的源没有该集数（如正在看214集，该源只有213集） -> 播放页默认状态 啥也不播放
-      if (!episodes || episodes.length === 0 || epIdx >= episodes.length || !episodes[epIdx]) {
-        resetPlayerToDefault(episodes.length > 0 ? `该源仅更新至第 ${episodes.length} 集，暂无当前集` : "该源暂无播放线路");
+      if (!episodes || episodes.length === 0) {
+        clearPlayWatchdog();
+        exitPictureInPictureMode();
+        destroyHlsInstance();
+        video.pause();
+        updatePlayBtn(false);
+        currentStreamUrl = "";
+        currentPlayingMeta = null;
+        updateFavIconState();
+        setStatus("该线路暂无可用播放资源", true);
         return;
       }
 
-      const targetEp = episodes[epIdx];
-      if (!targetEp?.url) {
-        resetPlayerToDefault("当前集数播放地址无效");
+      const prevEpName = currentPlayingMeta?.epName || '';
+      const targetEp = findMatchingEpisode(episodes, prevEpName, epIdx);
+
+      // 核心拦截：如果目标源没有这一集，啥都不要播放，绝不回滚至第一集
+      if (!targetEp) {
+        const missingName = prevEpName || `第${epIdx + 1}集`;
+        clearPlayWatchdog();
+        exitPictureInPictureMode();
+        destroyHlsInstance();
+        video.pause();
+        updatePlayBtn(false);
+        currentStreamUrl = "";
+        currentTitle.textContent = `${item.vod.vod_name} - (未更新此集)`;
+        routeBadge.style.display = 'inline-block';
+        routeBadge.textContent = item.siteName;
+        currentPlayingMeta = null;
+        updateFavIconState();
+        setStatus(`该线路暂未更新【${escapeHtml(missingName)}】<br><span style="color:var(--text-sub);font-size:12px;">请切换回原线路或选择其他已更新的片源</span>`, true);
         return;
       }
 
+      currentActiveEp = targetEp.originalIdx;
       let rawUrl = targetEp.url;
       if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
         rawUrl = rawUrl.replace('http://', 'https://');
@@ -3176,6 +2900,440 @@
       updateFavIconState();
       manualPlayOnly(rawUrl);
     }
+
+    function destroyHlsInstance() {
+      clearPlayWatchdog();
+      exitPictureInPictureMode();
+      if (hls) {
+        hls.stopLoad();
+        hls.detachMedia();
+        hls.destroy();
+        hls = null;
+      }
+    }
+
+    function clearPlayWatchdog() {
+      if (playWatchdogTimer) {
+        clearTimeout(playWatchdogTimer);
+        playWatchdogTimer = null;
+      }
+    }
+
+    function showFailTip(msg) {
+      clearPlayWatchdog();
+      destroyHlsInstance();
+      updatePlayBtn(false);
+      try { video.pause(); } catch(_) {}
+      const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
+      setStatus(tipText, true);
+
+      if (tipText.includes("编码格式不支持")) {
+        if (currentPlayingMeta?.siteName) {
+          recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
+        }
+      }
+    }
+
+    function manualPlayOnly(url) {
+      clearPlayWatchdog();
+      exitPictureInPictureMode();
+      destroyHlsInstance();
+      setStatus("正在建立连接，请稍候...");
+
+      let hasStarted = false;
+      const markPlaySuccess = () => {
+        if (hasStarted) return;
+        hasStarted = true;
+        clearPlayWatchdog();
+        setStatus("", false);
+        updatePlayBtn(true);
+        restorePlaybackProgress();
+        showControls();
+      };
+
+      playWatchdogTimer = setTimeout(() => {
+        if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
+          showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
+        }
+      }, 6000);
+
+      video.onplaying = markPlaySuccess;
+      video.onloadeddata = markPlaySuccess;
+      video.onerror = () => {
+        showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+      };
+
+      const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
+
+      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.load();
+        video.play().then(() => {}).catch(err => {
+          if (err && err.name === 'NotSupportedError') {
+            showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+          }
+        });
+        return;
+      }
+
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 60,
+          manifestLoadingTimeOut: 5000,
+          manifestLoadingMaxRetry: 1,
+          fragLoadingTimeOut: 5000,
+          fragLoadingMaxRetry: 1,
+          xhrSetup: (xhr) => { xhr.withCredentials = false; }
+        });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {});
+        });
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                showFailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+                break;
+            }
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.load();
+        video.play().catch(() => {});
+      }
+    }
+
+    /* === 电视直播模块：持久化拉取与增量更新逻辑 === */
+    async function initTv(force = false) {
+      if (!force && Object.keys(groups).length > 0) {
+        if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+        return;
+      }
+      const targetUrl = await getD1Data(KEY_M3U, '');
+      if (!targetUrl) return;
+      try {
+        const text = await fetchWithSmartProxy(targetUrl, 5000);
+        if (text && text.includes('#EXTINF')) {
+          parseM3U(text, true);
+          if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+        }
+      } catch (_) {}
+    }
+
+    function parseM3U(content, saveToStorage = true) {
+      groups = {};
+      totalChannelsCount = 0;
+      totalStreamsCount = 0;
+      const lines = content.split('\n');
+      let temp = null;
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('#EXTINF:')) {
+          const rawName = (line.split(',')[1] || '').trim();
+          const tvgMatch = line.match(/tvg-name="([^"]+)"/);
+          const name = tvgMatch ? tvgMatch[1] : (rawName || '未命名频道');
+          const groupMatch = line.match(/group-title="([^"]+)"/);
+          const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
+          temp = { name, group };
+        } else if (line && !line.startsWith('#') && temp) {
+          if (isSafeUrl(line)) {
+            if (!groups[temp.group]) groups[temp.group] = {};
+            if (!groups[temp.group][temp.name]) {
+              groups[temp.group][temp.name] = [];
+              totalChannelsCount++;
+            }
+            if (!groups[temp.group][temp.name].includes(line)) {
+              groups[temp.group][temp.name].push(line);
+              totalStreamsCount++;
+            }
+          }
+          temp = null;
+        }
+      }
+      // 实时全量持久化储存至 D1 和 localStorage，保证刷新/重启网页数据不丢
+      if (saveToStorage && totalChannelsCount > 0) {
+        const payload = { groups, totalChannelsCount, totalStreamsCount };
+        setD1Data(KEY_TV_CHANNELS, payload);
+      }
+    }
+
+    function renderList(targetGroups, isSearchMode = false) {
+      const container = document.getElementById('channel-list');
+      container.innerHTML = '';
+      for (let groupName in targetGroups) {
+        const channels = targetGroups[groupName];
+        if (Object.keys(channels).length === 0) continue;
+        const groupEl = document.createElement('div');
+        groupEl.className = 'group-header';
+        groupEl.innerHTML = `<span>${escapeHtml(groupName)}</span><span>▼</span>`;
+        const subList = document.createElement('div');
+        subList.className = 'group-channels';
+        if (isSearchMode) subList.style.display = 'block';
+
+        groupEl.onclick = () => {
+          const isHide = subList.style.display === 'none';
+          subList.style.display = isHide ? 'block' : 'none';
+          groupEl.querySelector('span:last-child').textContent = isHide ? '▼' : '▶';
+        };
+
+        for (let chName in channels) {
+          const urls = channels[chName];
+          const rowEl = document.createElement('div');
+          rowEl.className = 'channel-row';
+          const panelEl = document.createElement('div');
+          panelEl.className = 'sources-panel';
+
+          urls.forEach((url, idx) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'source-item';
+            itemEl.innerHTML = `<span class="source-name">线路 ${idx + 1}</span>`;
+            itemEl.onclick = (e) => {
+              e.stopPropagation();
+              isLiveMode = true;
+              currentVodUniqueKey = "";
+              document.querySelectorAll('.source-item.active-source').forEach(el => el.classList.remove('active-source'));
+              itemEl.classList.add('active-source');
+              currentTitle.textContent = chName;
+              routeBadge.style.display = 'inline-block';
+              routeBadge.textContent = `线 ${idx + 1}`;
+              currentStreamUrl = url;
+              currentPlayingMeta = { title: chName, epName: '直播', siteName: `线路 ${idx + 1}` };
+              updateFavIconState();
+              manualPlayOnly(url);
+            };
+            panelEl.appendChild(itemEl);
+          });
+
+          const mainEl = document.createElement('div');
+          mainEl.className = 'channel-main';
+          mainEl.innerHTML = `
+            <div class="channel-title"><span class="channel-arrow">▶</span><span>${escapeHtml(chName)}</span></div>
+            <div class="channel-right-tools"><span class="badge-lines">${urls.length} 路线</span></div>
+          `;
+
+          mainEl.onclick = () => {
+            const isExpanded = rowEl.classList.contains('expanded');
+            document.querySelectorAll('.channel-row.expanded').forEach(el => el !== rowEl && el.classList.remove('expanded'));
+            if (!isExpanded) {
+              rowEl.classList.add('expanded');
+              panelEl.querySelector('.source-item')?.click();
+            } else {
+              rowEl.classList.remove('expanded');
+            }
+          };
+
+          rowEl.appendChild(mainEl);
+          rowEl.appendChild(panelEl);
+          subList.appendChild(rowEl);
+        }
+        container.appendChild(groupEl);
+        container.appendChild(subList);
+      }
+    }
+
+    function handleSearchTv() {
+      const kw = document.getElementById('filter').value.trim().toLowerCase();
+      if (!kw) { renderList(groups, false); return; }
+      const filtered = {};
+      for (let g in groups) {
+        for (let ch in groups[g]) {
+          if (ch.toLowerCase().includes(kw) || g.toLowerCase().includes(kw)) {
+            if (!filtered[g]) filtered[g] = {};
+            filtered[g][ch] = groups[g][ch];
+          }
+        }
+      }
+      renderList(filtered, true);
+    }
+
+    video.addEventListener('playing', () => { 
+      clearPlayWatchdog();
+      setStatus("", false); 
+      updatePlayBtn(true); 
+      showControls(); 
+    });
+    video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
+      document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
+
+      renderGateEyeIcon(false);
+
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('vod_cache_')) {
+            sessionStorage.removeItem(k);
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
+        if (localAuth) authConfig = JSON.parse(localAuth);
+        const localAdmin = localStorage.getItem(KEY_ADMIN_INFO);
+        if (localAdmin) adminAccount = JSON.parse(localAdmin);
+        const localUsers = localStorage.getItem(KEY_USERS_LIST);
+        if (localUsers) userList = JSON.parse(localUsers);
+        const localGroups = localStorage.getItem(KEY_SOURCE_GROUPS);
+        if (localGroups) sourceGroups = JSON.parse(localGroups);
+        const localSites = localStorage.getItem(KEY_SITES);
+        if (localSites) parsedSites = JSON.parse(localSites);
+        const localDis = localStorage.getItem(KEY_DISABLED_SITES);
+        if (localDis) disabledSites = JSON.parse(localDis);
+        const localFails = localStorage.getItem(KEY_SOURCE_FAILURES);
+        if (localFails) sourceFailures = JSON.parse(localFails);
+        const localThreshold = localStorage.getItem(KEY_FAIL_THRESHOLD);
+        if (localThreshold) failThreshold = parseInt(localThreshold, 10) || 5;
+        const localTheme = localStorage.getItem(KEY_THEME_PREF);
+        if (localTheme) currentThemeSetting = localTheme;
+
+        // 本地立即提取持久化电视频道，避免刷新白屏
+        const localTv = localStorage.getItem(KEY_TV_CHANNELS);
+        if (localTv) {
+          try {
+            const parsedTv = JSON.parse(localTv);
+            if (parsedTv && typeof parsedTv === 'object') {
+              groups = parsedTv.groups || parsedTv;
+              totalChannelsCount = parsedTv.totalChannelsCount || 0;
+              totalStreamsCount = parsedTv.totalStreamsCount || 0;
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      applyGlobalTheme(currentThemeSetting);
+
+      if (!sourceGroups || sourceGroups.length === 0) {
+        sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
+      }
+
+      const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
+      if (savedCredsStr) {
+        try {
+          const { u, passHash } = JSON.parse(savedCredsStr);
+          if (adminAccount && u === adminAccount.username && passHash === adminAccount.passHash) {
+            currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
+          } else {
+            const found = userList.find(item => item.username === u && item.passHash === passHash);
+            if (found) currentUser = { username: found.username, role: 'user', groupId: found.groupId || 'def', groupName: found.groupName || '默认分组' };
+          }
+        } catch (_) {}
+      } else {
+        const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
+        if (localUserStr) {
+          try { currentUser = JSON.parse(localUserStr); } catch (_) {}
+        }
+      }
+
+      updateMainRoleButton();
+
+      const gateScreen = document.getElementById('auth-gate-screen');
+      if (authConfig.requireLogin && !currentUser) {
+        gateScreen.style.display = 'flex';
+      } else {
+        gateScreen.style.display = 'none';
+      }
+
+      Promise.allSettled([
+        getD1Data(KEY_SITES, null),
+        getD1Data(KEY_DISABLED_SITES, '[]'),
+        getD1Data(KEY_SOURCE_FAILURES, '{}'),
+        getD1Data(KEY_FAIL_THRESHOLD, '5'),
+        getD1Data(KEY_AUTH_CONFIG, ''),
+        getD1Data(KEY_ADMIN_INFO, ''),
+        getD1Data(KEY_USERS_LIST, ''),
+        getD1Data(KEY_SOURCE_GROUPS, ''),
+        getD1Data(KEY_THEME_PREF, ''),
+        getD1Data(KEY_SUB, ''),
+        getD1Data(KEY_M3U, ''),
+        getD1Data(KEY_TV_CHANNELS, '') // 从 D1 异步核验最新电视频道持久化数据
+      ]).then(results => {
+        if (results[0].status === 'fulfilled' && results[0].value) {
+          try { const p = JSON.parse(results[0].value); if (Array.isArray(p)) parsedSites = p; } catch (_) {}
+        }
+        if (results[1].status === 'fulfilled' && results[1].value) {
+          try { disabledSites = JSON.parse(results[1].value) || []; } catch (_) {}
+        }
+        if (results[2].status === 'fulfilled' && results[2].value) {
+          try { sourceFailures = JSON.parse(results[2].value) || {}; } catch (_) {}
+        }
+        if (results[3].status === 'fulfilled' && results[3].value) {
+          failThreshold = parseInt(results[3].value, 10) || failThreshold || 5;
+        }
+        if (results[4].status === 'fulfilled' && results[4].value) {
+          try {
+            authConfig = JSON.parse(results[4].value);
+            if (authConfig.requireLogin && !currentUser) {
+              gateScreen.style.display = 'flex';
+            } else {
+              gateScreen.style.display = 'none';
+            }
+          } catch (_) {}
+        }
+        if (results[5].status === 'fulfilled' && results[5].value) {
+          try { adminAccount = JSON.parse(results[5].value); } catch (_) {}
+        }
+        if (results[6].status === 'fulfilled' && results[6].value) {
+          try { userList = JSON.parse(results[6].value); } catch (_) {}
+        }
+        if (results[7].status === 'fulfilled' && results[7].value) {
+          try { const p = JSON.parse(results[7].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
+        }
+        if (results[8].status === 'fulfilled' && results[8].value) {
+          currentThemeSetting = results[8].value;
+          applyGlobalTheme(currentThemeSetting);
+        }
+        if (results[9].status === 'fulfilled' && results[9].value) {
+          localStorage.setItem(KEY_SUB, results[9].value);
+        }
+        if (results[10].status === 'fulfilled' && results[10].value) {
+          localStorage.setItem(KEY_M3U, results[10].value);
+        }
+        // D1 回源校验电视频道数据
+        if (results[11]?.status === 'fulfilled' && results[11].value) {
+          try {
+            const parsedTv = JSON.parse(results[11].value);
+            if (parsedTv && typeof parsedTv === 'object') {
+              groups = parsedTv.groups || parsedTv;
+              totalChannelsCount = parsedTv.totalChannelsCount || 0;
+              totalStreamsCount = parsedTv.totalStreamsCount || 0;
+              if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
+            }
+          } catch (_) {}
+        }
+      });
+
+      // 初始化 TV
+      initTv();
+
+      const hasRestored = restoreVodSessionState();
+      if (hasRestored) {
+        currentMode = 'vod';
+        currentView = 'normal';
+        document.getElementById('tab-tv').className = 'mode-tab';
+        document.getElementById('tab-vod').className = 'mode-tab active';
+        document.getElementById('filter').placeholder = "搜索片名、视频、电视频道...";
+        renderGroupedVodSources();
+      } else {
+        switchMode('vod');
+      }
+      checkAutoSyncSchedule();
+    });
   </script>
 </body>
 </html>
