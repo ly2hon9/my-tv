@@ -270,7 +270,7 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 单排常驻吸顶工具栏：手机端一排完整排下 */
+    /* 单排常驻吸顶工具栏：手机端一排完整排下，不换行不滑动 */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between;
       gap: 3px; padding: 6px 8px; background: var(--bg-search-box);
@@ -480,6 +480,7 @@
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
+    /* 采集源列表内部独立视窗 */
     #sites-items-container {
       max-height: 320px;
       overflow-y: auto;
@@ -764,7 +765,7 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧文字已去掉，替换为极简 ↕ 箭头图标) -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (极简 ↕ 箭头图标) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
@@ -1064,8 +1065,39 @@
       } catch (_) {}
     }
 
+    /* === 智能网络代理引擎（彻底解决 Can't find variable: fetchWithSmartProxy） === */
+    async function fetchWithSmartProxy(targetUrl, timeout = 5000, signal = null) {
+      const fetchWithTimer = (url) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
+        if (signal) signal.addEventListener('abort', () => controller.abort());
+        return fetch(url, { signal: controller.signal })
+          .then(res => { clearTimeout(timer); if (!res.ok) throw new Error(); return res.text(); })
+          .catch(e => { clearTimeout(timer); throw e; });
+      };
+
+      try { return await fetchWithTimer(targetUrl); } catch (_) {}
+      try { return await fetchWithTimer(`/api/data?action=proxy&proxy_url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
+      throw new Error("网络超时或请求失败");
+    }
+
+    async function asyncPool(poolLimit, array, iteratorFn) {
+      const ret = [];
+      const executing = [];
+      for (const item of array) {
+        const p = Promise.resolve().then(() => iteratorFn(item));
+        ret.push(p);
+        if (poolLimit <= array.length) {
+          const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+          executing.push(e);
+          if (executing.length >= poolLimit) await Promise.race(executing);
+        }
+      }
+      return Promise.all(ret);
+    }
+
     const KEY_M3U = "custom_tv_m3u_url";
-    const KEY_TV_CHANNELS = "cached_tv_channels_v2"; // 实时持久化储存已解析的电视频道列表
+    const KEY_TV_CHANNELS = "cached_tv_channels_v2";
     const KEY_SUB = "custom_vod_sub_url";
     const KEY_SITES = "cached_parsed_sites";
     const KEY_DISABLED_SITES = "disabled_sites_list";
@@ -1181,7 +1213,6 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
-    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1402,7 +1433,6 @@
       }
     }
 
-    /* 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 */
     function exitPictureInPictureMode() {
       try {
         if (document.pictureInPictureElement) {
@@ -2845,27 +2875,22 @@
     function findMatchedEpisode(episodes, targetEpName, targetEpIdx) {
       if (!Array.isArray(episodes) || episodes.length === 0) return null;
 
-      // 1. 若有明确集名，优先精准字符串匹配
       if (targetEpName) {
         const exactMatch = episodes.find(e => e.name.trim() === String(targetEpName).trim());
         if (exactMatch) return exactMatch;
 
-        // 2. 提取剧集编号比对 (如 "第214集" 与 "214", "214集")
         const targetNum = extractEpNumber(targetEpName);
         if (targetNum !== null) {
           const numMatch = episodes.find(e => extractEpNumber(e.name) === targetNum);
           if (numMatch) return numMatch;
-          // 若有明确数字，而在目标源中找不到对应编号，直接判定为未更新
           return null;
         }
       }
 
-      // 3. 单集/电影直接匹配 (如 "HD", "正片")
       if (episodes.length === 1) {
         return episodes[0];
       }
 
-      // 4. 合法索引安全核验
       if (typeof targetEpIdx === 'number' && targetEpIdx >= 0 && targetEpIdx < episodes.length) {
         return episodes[targetEpIdx];
       }
@@ -2873,7 +2898,6 @@
       return null;
     }
 
-    /* === 选集区域自适应重绘引擎 === */
     function renderEpisodesSection(bodyPanel, item, group, matchedEp, expectEpName) {
       let wrap = bodyPanel.querySelector('.episodes-collapse-box-wrap');
       if (!wrap) {
@@ -2932,7 +2956,6 @@
       };
     }
 
-    /* === 智能切源与播放：若未更新立即停止播放并提示，绝不回退第1集 === */
     function playCurrentVodSource(item, targetEpOrIdx, isExplicitSelect = false) {
       if (!item?.vod) return;
       isLiveMode = false;
@@ -2962,7 +2985,6 @@
         matchedEp = findMatchedEpisode(episodes, expectEpName, typeof targetEpOrIdx === 'number' ? targetEpOrIdx : currentActiveEp);
       }
 
-      // 同步刷新当前已展开的选集面板为当前线路实际集数
       const activeGroupCard = domNodeCache.get(activeGroupTitle);
       if (activeGroupCard) {
         const bodyPanel = activeGroupCard.querySelector('.group-body-panel');
@@ -2972,7 +2994,6 @@
         }
       }
 
-      // 目标源未更新该集：立即停止播放、清空直链并提示
       if (!matchedEp) {
         clearPlayWatchdog();
         destroyHlsInstance();
@@ -3000,7 +3021,6 @@
         return;
       }
 
-      // 匹配成功：正常起播
       currentActiveEp = matchedEp.originalIdx;
       let rawUrl = matchedEp.url;
       if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
@@ -3039,7 +3059,6 @@
       const matchedEp = findMatchedEpisode(episodes, expectEpName, currentActiveEp);
       renderEpisodesSection(bodyPanel, currentSubItem, group, matchedEp, expectEpName);
 
-      // 多版本/多线路子卡片列表
       if (group.items.length > 1) {
         group.items.forEach((item) => {
           const isSubActive = (item.id === activeSubItemId);
@@ -3073,7 +3092,6 @@
             bodyPanel.querySelectorAll('.source-sub-card').forEach(c => c.classList.remove('active-sub'));
             subCard.classList.add('active-sub');
 
-            // 换源时按当前正在观看的集数进行智能匹配
             const expectName = currentPlayingMeta?.title === group.title && currentPlayingMeta?.epName
               ? currentPlayingMeta.epName
               : `第${currentActiveEp + 1}集`;
@@ -3128,7 +3146,7 @@
       let singlePingHtml = '';
       if (group.items.length === 1 && firstItem.ping >= 0) {
         const isErr = firstItem.ping >= 9999;
-        const pClass = isErr ? "metric-ping-err" : (firstItem.ping < 500 ? "metric-ping-ok" : firstItem.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        const pClass = isErr ? "metric-ping-err" : (firstItem.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
         singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
