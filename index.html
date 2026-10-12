@@ -270,25 +270,31 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 单排常驻吸顶工具栏 */
+    /* ===================================================================
+       单排常驻吸顶工具栏：手机端一排完整排下，绝不左右滑动
+       =================================================================== */
     .top-unified-bar {
-      display: flex; align-items: center; justify-content: space-between; gap: 6px;
-      padding: 7px 10px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 3px; padding: 6px 6px; background: var(--bg-search-box);
+      border-bottom: 1px solid var(--border-color);
       position: sticky; top: 0; z-index: 20;
-      overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-      white-space: nowrap;
+      width: 100%; box-sizing: border-box; overflow: hidden;
     }
-    .top-unified-bar::-webkit-scrollbar { display: none; }
 
-    .bar-left-group, .bar-right-group {
-      display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    .bar-left-group {
+      display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0;
+    }
+
+    .bar-right-group {
+      display: flex; align-items: center; gap: 2px; flex-shrink: 0;
     }
 
     .filter-pill-btn {
       background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub);
-      padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;
+      padding: 3px 5px; border-radius: 6px; font-size: 10.5px; font-weight: 500;
       cursor: pointer; white-space: nowrap; transition: all 0.15s ease;
-      display: inline-flex; align-items: center; outline: none;
+      display: inline-flex; align-items: center; justify-content: center; outline: none;
+      line-height: 1.2;
     }
     .filter-pill-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
     .filter-pill-btn.active {
@@ -297,12 +303,24 @@
     }
 
     .btn-sort-action { 
-      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; 
-      padding: 3px 6px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 6px; 
+      padding: 3px 5px; font-size: 10.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
       white-space: nowrap; font-weight: 500; transition: background 0.15s, color 0.15s, border-color 0.15s; outline: none;
+      line-height: 1.2;
     }
     .btn-sort-action:hover { background: var(--bg-card-hover); }
     .btn-sort-action.active-sort { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+    @media (max-width: 400px) {
+      .filter-pill-btn, .btn-sort-action {
+        padding: 2.5px 3.5px;
+        font-size: 10px;
+      }
+      .top-unified-bar {
+        padding: 5px 3px;
+        gap: 2px;
+      }
+    }
 
     .title-group-box { border-bottom: 1px solid var(--border-color); background: var(--bg-card); transition: background 0.2s; }
     .title-group-header {
@@ -532,7 +550,7 @@
       .external-group { max-width: none; }
     }
 
-    /* 电脑 / 平板端 全新剧场沉浸双视窗布局 (Theatre Workspace) */
+    /* 电脑 / 平板端 剧场沉浸双视窗布局 (Theatre Workspace) */
     @media (min-width: 900px) {
       body {
         flex-direction: row;
@@ -704,7 +722,7 @@
         <button class="btn-tool-mid" id="btn-open-settings" onclick="handleMainSettingsButtonClick()">⚙ 设置</button>
       </div>
 
-      <!-- 修复后的模式切换按钮，绑定标准点击事件与高亮逻辑 -->
+      <!-- 修复后的模式切换按钮：双向稳定切换 -->
       <div class="mode-tab-group">
         <button type="button" class="mode-tab" id="tab-tv" onclick="switchMode('tv')">📺 电视直播</button>
         <button type="button" class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
@@ -752,15 +770,15 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 (已更新为 ⇅ 符号) -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧去掉文字，更换为原生选择框风格双箭头) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
-        <span style="color:var(--accent); font-family: system-ui, sans-serif; font-size:12px;">打开管理 ⇅</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
       </button>
 
       <button type="button" class="glass-nav-card-btn" onclick="openAccountsModal()">
         <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
-        <span style="color:var(--accent); font-family: system-ui, sans-serif; font-size:12px;">打开配置 ⇅</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
       </button>
 
       <label class="input-label">影视订阅地址：</label>
@@ -1388,7 +1406,7 @@
       }
     }
 
-    /* === 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 === */
+    /* 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 */
     function exitPictureInPictureMode() {
       try {
         if (document.pictureInPictureElement) {
@@ -2062,7 +2080,6 @@
       logoutCurrentUser();
     }
 
-    /* === 独立毛玻璃弹窗打开/关闭 === */
     function openSitesModal() {
       if (!currentUser || currentUser.role !== 'admin') {
         alert("仅主管理员有权访问此设置！");
@@ -2314,7 +2331,6 @@
       showGestureTip(checked ? "✓ 门禁已开启" : "✓ 门禁已关闭");
     }
 
-    /* === 自定义禁用阈值设置（仅主管理员生效） === */
     async function promptCustomFailureThreshold() {
       if (!currentUser || currentUser.role !== 'admin') {
         alert("仅主管理员有权修改此设置！");
@@ -2342,7 +2358,6 @@
       showGestureTip(`✓ 禁用阈值已同步设置为 ${failThreshold} 次`);
     }
 
-    /* === 失效源统计与沉底逻辑（严格仅对主管理员生效） === */
     async function recordSourceFailure(siteName, videoKey) {
       if (!currentUser || currentUser.role !== 'admin') return;
       if (!siteName) return;
@@ -2371,7 +2386,6 @@
       }
     }
 
-    /* === 一键重置所有失效源并清除失败统计（仅主管理员生效） === */
     async function resetAllFailedSites() {
       if (!currentUser || currentUser.role !== 'admin') {
         alert("仅主管理员有权执行此操作！");
@@ -2749,48 +2763,6 @@
     window.addEventListener('beforeunload', saveVodSessionState);
     window.addEventListener('pagehide', saveVodSessionState);
 
-    /* === 修复后的模式切换：彻底解决按钮失效、高亮异常与无数据黑屏问题 === */
-    function switchMode(mode) {
-      currentMode = mode;
-      currentView = 'normal';
-
-      const btnFav = document.getElementById('btn-show-fav');
-      const btnHist = document.getElementById('btn-show-history');
-      if (btnFav) btnFav.classList.remove('active');
-      if (btnHist) btnHist.classList.remove('active');
-
-      const tabTv = document.getElementById('tab-tv');
-      const tabVod = document.getElementById('tab-vod');
-      if (tabTv) tabTv.className = 'mode-tab ' + (mode === 'tv' ? 'active' : '');
-      if (tabVod) tabVod.className = 'mode-tab ' + (mode === 'vod' ? 'active' : '');
-
-      const filterInput = document.getElementById('filter');
-      const container = document.getElementById('channel-list');
-
-      if (mode === 'tv') {
-        if (filterInput) filterInput.placeholder = "搜索电视频道...";
-        if (Object.keys(groups).length > 0) {
-          renderList(groups, false);
-        } else {
-          container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
-          initTv().then(() => {
-            if (Object.keys(groups).length > 0) {
-              renderList(groups, false);
-            } else {
-              container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">暂无电视直播数据，请在设置中配置直播源地址 📺</div>`;
-            }
-          });
-        }
-      } else {
-        if (filterInput) filterInput.placeholder = "搜索片名、视频、电视频道...";
-        if (groupedVodList && groupedVodList.length > 0) {
-          renderGroupedVodSources();
-        } else {
-          container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
-        }
-      }
-    }
-
     function handleEnterSearch(e) {
       if (e.isComposing || e.keyCode === 229) return;
       if (e.key === 'Enter') triggerSearch();
@@ -2848,6 +2820,9 @@
       if (!isSafeUrl(testUrl)) {
         const site = parsedSites.find(s => s.name === item.siteName);
         testUrl = site?.api || '';
+      }
+      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
+        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
       }
       return testUrl;
     }
