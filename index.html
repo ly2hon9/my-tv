@@ -12,6 +12,7 @@
   <style>
     :root {
       --bg-base: #0f0f0f;
+      --bg-workspace: #08080a;
       --bg-sidebar: #161616;
       --bg-search-box: #1f1f1f;
       --bg-input: #111111;
@@ -19,7 +20,6 @@
       --bg-card-hover: #222222;
       --bg-tag: #2a2a2a;
       --bg-sub-panel: #111111;
-      --bg-modal: #1c1c1c;
       --border-color: #282828;
       --border-light: #383838;
       --text-main: #eeeeee;
@@ -28,10 +28,17 @@
       --accent: #0070f3;
       --accent-soft: rgba(0, 112, 243, 0.15);
       --card-shadow: 0 4px 12px rgba(0,0,0,0.5);
+
+      /* 高级毛玻璃系统变量 (暗色) */
+      --glass-bg: rgba(28, 28, 32, 0.78);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      --glass-mask: rgba(0, 0, 0, 0.65);
     }
 
     body.theme-light {
       --bg-base: #f1f5f9;
+      --bg-workspace: #e2e8f0;
       --bg-sidebar: #f8fafc;
       --bg-search-box: #ffffff;
       --bg-input: #f1f5f9;
@@ -39,7 +46,6 @@
       --bg-card-hover: #f1f5f9;
       --bg-tag: #e2e8f0;
       --bg-sub-panel: #f8fafc;
-      --bg-modal: #ffffff;
       --border-color: #e2e8f0;
       --border-light: #cbd5e1;
       --text-main: #0f172a;
@@ -48,6 +54,12 @@
       --accent: #0070f3;
       --accent-soft: rgba(0, 112, 243, 0.08);
       --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
+
+      /* 高级毛玻璃系统变量 (亮色) */
+      --glass-bg: rgba(255, 255, 255, 0.84);
+      --glass-border: rgba(255, 255, 255, 0.75);
+      --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
+      --glass-mask: rgba(15, 23, 42, 0.35);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -374,128 +386,106 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
 
-    /* === 类似图2的高级通透 iOS 毛玻璃视窗体系 === */
-    #modal-mask, #user-perm-modal-mask, #user-account-modal-mask, #user-group-assign-modal-mask { 
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-      background: rgba(0, 0, 0, 0.42); 
-      backdrop-filter: blur(14px) saturate(160%); 
-      -webkit-backdrop-filter: blur(14px) saturate(160%); 
-      z-index: 10000; display: none; align-items: center; justify-content: center; padding: 16px; 
+    /* ===================================================================
+       高级全套毛玻璃系统 (Glassmorphism Modal System)
+       =================================================================== */
+    .glass-modal-mask {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--glass-mask);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      z-index: 10000;
+      display: none; align-items: center; justify-content: center;
+      padding: 16px; box-sizing: border-box;
+      animation: glassFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    
-    .custom-modal-content { 
-      background: rgba(26, 28, 33, 0.76); 
-      backdrop-filter: blur(32px) saturate(190%); 
-      -webkit-backdrop-filter: blur(32px) saturate(190%); 
-      color: var(--text-main); 
-      border: 1px solid rgba(255, 255, 255, 0.14); 
-      border-radius: 24px; 
-      width: 100%; max-width: 520px; padding: 22px; 
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(255, 255, 255, 0.08); 
-      max-height: 90vh; overflow-y: auto; 
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
-    }
-    body.theme-light .custom-modal-content {
-      background: rgba(255, 255, 255, 0.82); 
-      backdrop-filter: blur(32px) saturate(190%); 
-      -webkit-backdrop-filter: blur(32px) saturate(190%); 
-      border: 1px solid rgba(255, 255, 255, 0.85); 
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04); 
+    @keyframes glassFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
     }
 
-    .custom-modal-content h3 { font-size: 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; color: var(--text-main); font-weight: 600; }
+    .glass-modal-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(35px) saturate(190%);
+      -webkit-backdrop-filter: blur(35px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: var(--glass-shadow);
+      color: var(--text-main);
+      width: 100%; max-width: 480px;
+      padding: 22px 20px 20px 20px;
+      box-sizing: border-box;
+      max-height: 88vh; overflow-y: auto;
+      scrollbar-width: thin;
+      transition: all 0.25s ease;
+    }
+    .glass-modal-card h3 {
+      font-size: 16px; font-weight: 700;
+      margin-bottom: 14px;
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--text-main);
+    }
+
+    .glass-nav-card-btn {
+      width: 100%; height: 46px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px; margin-bottom: 10px;
+      color: var(--text-main); font-size: 13px; font-weight: 600;
+      cursor: pointer; outline: none; transition: all 0.15s ease;
+    }
+    body.theme-light .glass-nav-card-btn { background: rgba(0, 0, 0, 0.03); }
+    .glass-nav-card-btn:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
     .input-label { font-size: 12px; color: var(--text-sub); margin-top: 10px; margin-bottom: 4px; display: block; }
-    .custom-modal-content input, .custom-modal-content select { 
-      width: 100%; padding: 9px 12px; border-radius: 8px; 
-      border: 1px solid rgba(255, 255, 255, 0.12); 
-      background: rgba(0, 0, 0, 0.25); 
-      color: var(--text-main); font-size: 13px; outline: none; 
-      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    .glass-modal-card input, .glass-modal-card select {
+      width: 100%; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-input); color: var(--text-main);
+      font-size: 13px; outline: none; transition: border-color 0.2s;
     }
-    body.theme-light .custom-modal-content input, body.theme-light .custom-modal-content select {
-      background: rgba(255, 255, 255, 0.65);
-      border-color: rgba(0, 0, 0, 0.1);
+    .glass-modal-card input:focus, .glass-modal-card select:focus {
+      border-color: var(--accent);
     }
-
     .sub-stats { font-size: 12px; color: var(--accent); margin-top: 6px; }
     .last-sync-time { font-size: 12px; color: var(--text-sub); margin-top: 4px; font-family: monospace; }
 
     .settings-user-header-box {
       display: flex; justify-content: space-between; align-items: center;
-      background: rgba(255, 255, 255, 0.06); 
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.12); 
-      border-radius: 14px;
-      padding: 10px 14px; margin-bottom: 12px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 10px 14px; margin-bottom: 14px;
     }
-    body.theme-light .settings-user-header-box {
-      background: rgba(255, 255, 255, 0.65);
-      border-color: rgba(0, 0, 0, 0.08);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
-    }
+    body.theme-light .settings-user-header-box { background: rgba(0, 0, 0, 0.03); }
 
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
-    /* === 类似图2的高级毛玻璃折叠栏 === */
-    .collapsible-setting-box { 
-      background: rgba(255, 255, 255, 0.05); 
-      backdrop-filter: blur(24px) saturate(180%); 
-      -webkit-backdrop-filter: blur(24px) saturate(180%); 
-      border: 1px solid rgba(255, 255, 255, 0.12); 
-      border-radius: 16px; 
-      overflow: hidden; 
-      transition: all 0.25s ease;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-    body.theme-light .collapsible-setting-box {
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
-    }
-
-    .collapsible-setting-header { 
-      padding: 12px 14px; font-size: 13px; font-weight: 500; color: var(--text-main); 
-      display: flex; justify-content: space-between; align-items: center; 
-      cursor: pointer; background: transparent; user-select: none; 
-      transition: background 0.2s; 
-    }
-    .collapsible-setting-header:hover { 
-      background: rgba(255, 255, 255, 0.05); 
-    }
-    body.theme-light .collapsible-setting-header:hover {
-      background: rgba(0, 0, 0, 0.03);
-    }
-    .collapsible-setting-body { padding: 10px; display: none; }
-
-    /* 采集源列表内部独立视窗化平滑滑动容器 */
+    /* 采集源列表内部独立视窗 */
     #sites-items-container {
-      max-height: 280px;
+      max-height: 320px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-sub-panel);
       padding: 4px 6px;
       scrollbar-width: thin;
-    }
-    body.theme-light #sites-items-container {
-      border-color: rgba(0, 0, 0, 0.06);
-      background: rgba(240, 244, 248, 0.7);
     }
 
     /* 采集源列表行布局：源名(左) - 统计与自定义(正中间完全居中) - 按钮(右) */
     .site-toggle-row { 
       display: flex; 
       align-items: center; 
-      padding: 8px 6px; 
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06); 
+      padding: 8px 4px; 
+      border-bottom: 1px solid var(--border-color); 
       font-size: 12px; 
-    }
-    body.theme-light .site-toggle-row {
-      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     }
     .site-toggle-row:last-child { border-bottom: none; }
     .btn-site-toggle { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
@@ -513,26 +503,18 @@
 
     .perm-sites-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 8px; max-height: 240px; overflow-y: auto; margin-top: 10px; padding: 6px 0;
+      gap: 8px; max-height: 260px; overflow-y: auto; margin-top: 10px; padding: 6px 0;
     }
     .perm-site-chip {
-      display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 6px 8px; border-radius: 8px; font-size: 11px; cursor: pointer; user-select: none; color: var(--text-main);
-    }
-    body.theme-light .perm-site-chip {
-      background: rgba(255, 255, 255, 0.7);
-      border-color: rgba(0, 0, 0, 0.08);
+      display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border-light);
+      padding: 6px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; user-select: none; color: var(--text-main);
     }
     .perm-site-chip input { width: 14px; height: 14px; accent-color: var(--accent); }
 
     .group-card-item {
       display: flex; justify-content: space-between; align-items: center;
-      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;
+      background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px;
       padding: 8px 10px; margin-bottom: 6px; font-size: 12px;
-    }
-    body.theme-light .group-card-item {
-      background: rgba(255, 255, 255, 0.6);
-      border-color: rgba(0, 0, 0, 0.06);
     }
 
     .scroll-loading-indicator {
@@ -551,10 +533,37 @@
       .external-group { max-width: none; }
     }
 
-    @media (min-width: 768px) {
-      body { flex-direction: row; }
-      #sidebar { width: 420px; border-top: none; border-right: 1px solid var(--border-color); height: 100%; }
-      #player-wrap { flex: 1; height: 100%; min-height: auto; }
+    /* ===================================================================
+       电脑 / 平板端 全新剧场沉浸双视窗布局 (Theatre Workspace)
+       彻底解决生硬五五分死板粗笨的问题，打造高级悬浮视窗
+       =================================================================== */
+    @media (min-width: 900px) {
+      body {
+        flex-direction: row;
+        background-color: var(--bg-workspace);
+        padding: 18px 24px;
+        gap: 20px;
+        align-items: stretch;
+      }
+      #player-wrap {
+        flex: 1;
+        height: 100%;
+        min-height: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+      }
+      #sidebar {
+        width: 420px;
+        max-width: 450px;
+        height: 100%;
+        border-top: none;
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+      }
     }
   </style>
 </head>
@@ -709,31 +718,33 @@
     </div>
   </div>
 
-  <div id="user-account-modal-mask">
-    <div class="custom-modal-content" style="max-width: 320px; text-align: center;">
+  <!-- 普通成员个人账户弹窗 (高级毛玻璃) -->
+  <div id="user-account-modal-mask" class="glass-modal-mask">
+    <div class="glass-modal-card" style="max-width: 320px; text-align: center;">
       <h3>
         <span>👤 个人账户</span>
-        <span style="font-size:14px;color:var(--text-sub);cursor:pointer;" onclick="closeUserAccountModal()">✕</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeUserAccountModal()">✕</span>
       </h3>
       <div style="margin: 20px 0 16px 0;">
-        <div style="font-size: 16px; font-weight: bold; color: #54a56a;" id="ua-username-display">用户名</div>
+        <div style="font-size: 17px; font-weight: bold; color: #54a56a;" id="ua-username-display">用户名</div>
         <div style="font-size: 11px; color: var(--text-sub); margin-top: 6px;">普通注册成员 (观影权限)</div>
       </div>
       <button type="button" class="btn-action" style="width: 100%; background: #cf222e; color: #fff; padding: 10px; font-size: 13px;" onclick="logoutCurrentUserFromAccountModal()">退出登录</button>
     </div>
   </div>
 
-  <div id="modal-mask">
-    <div id="source-modal" class="custom-modal-content">
+  <!-- 主设置弹窗 (高级毛玻璃) -->
+  <div id="modal-mask" class="glass-modal-mask">
+    <div id="source-modal" class="glass-modal-card">
       <h3>
         <span>⚙ 系统设置与数据管理</span>
-        <span style="font-size:14px;color:var(--text-sub);cursor:pointer;" onclick="closeSourceModal()">✕</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeSourceModal()">✕</span>
       </h3>
 
-      <!-- 1. 顶部管理员栏：左为主管理员，中为门禁开关，右为退出登录 -->
+      <!-- 1. 顶部管理员栏：主管理员 | 门禁开关 | 退出登录 -->
       <div class="settings-user-header-box">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 16px;">👤</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 15px;">👤</span>
           <span id="settings-username-label" style="font-size: 13px; font-weight: bold;">管理员</span>
           <span class="user-badge-role role-admin">主管理员</span>
         </div>
@@ -744,62 +755,16 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 🎬 视频采集源管理（对调到上层，应用高级毛玻璃悬浮材质） -->
-      <div class="collapsible-setting-box" style="margin-top: 0; margin-bottom: 12px;">
-        <div class="collapsible-setting-header" onclick="toggleCollapseSection('sites-manager-body', 'sites-toggle-arrow')">
-          <span>🎬 视频采集源管理 (共 <span id="sites-count-badge">0</span> 个)</span>
-          <span id="sites-toggle-arrow">▼ 展开</span>
-        </div>
-        <div id="sites-manager-body" class="collapsible-setting-body">
-          <div style="display:flex; gap:6px; margin-bottom:10px;">
-            <input type="text" id="new-site-name" placeholder="源站名称 (如: 极速资源)" style="flex:1.2; padding:6px !important; font-size:11px !important;">
-            <input type="text" id="new-site-api" placeholder="接口 API (https://...)" style="flex:2; padding:6px !important; font-size:11px !important;">
-            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="addNewCustomSite()">+ 添加</button>
-          </div>
+      <!-- 2. 独立毛玻璃弹窗导航入口 -->
+      <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
+        <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
+        <span style="color:var(--accent);">打开管理 ➔</span>
+      </button>
 
-          <!-- 精准居中对齐表头 -->
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:6px 8px; background:rgba(255,255,255,0.06); border-radius:8px; border:1px solid rgba(255,255,255,0.08); font-size:11px;">
-            <div style="flex:1.2; min-width:0; color:var(--text-sub); font-weight:600;">源站名称</div>
-            <div style="flex:1.5; display:flex; align-items:center; justify-content:center; gap:8px;">
-              <span style="width:40px; text-align:center; color:var(--text-sub); font-weight:600;">统计</span>
-              <button type="button" class="btn-action" style="padding:2px 7px; font-size:10px; background:var(--bg-tag); color:var(--accent); border:1px solid var(--border-light); border-radius:4px;" onclick="promptCustomFailureThreshold()" title="点击自定义失效禁用次数">⚙️ 自定义: <span id="custom-threshold-badge">5</span>次</button>
-            </div>
-            <div style="flex:1; display:flex; justify-content:flex-end;">
-              <button type="button" class="btn-action" style="padding:3px 9px; font-size:11px; background:var(--accent); color:#fff;" onclick="resetAllFailedSites()">🔄 重置</button>
-            </div>
-          </div>
-
-          <!-- 紧凑视窗化独立滚动容器，彻底避免展开过长撑爆屏幕 -->
-          <div id="sites-items-container"></div>
-        </div>
-      </div>
-
-      <!-- 3. 👥 账号与权限管理（放在视频采集源管理下面，应用高级毛玻璃悬浮材质） -->
-      <div class="collapsible-setting-box" style="margin-top: 0; margin-bottom: 12px;">
-        <div class="collapsible-setting-header" onclick="toggleCollapseSection('accounts-manager-body', 'accounts-toggle-arrow')">
-          <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
-          <span id="accounts-toggle-arrow">▼ 展开</span>
-        </div>
-        <div id="accounts-manager-body" class="collapsible-setting-body">
-          <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <div>
-                <div style="font-size: 12px; font-weight: 600;">📦 视频源分组权限</div>
-                <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">给不同用户分配不同视频源，新用户默认继承标有 [默认] 的分组</div>
-              </div>
-              <button type="button" class="btn-small-perm" style="font-size: 12px; font-weight: bold; padding: 3px 10px;" onclick="promptAddSourceGroup()" title="添加新分组">＋ 添加分组</button>
-            </div>
-            <div id="source-groups-list-container"></div>
-          </div>
-
-          <div style="display:flex; gap:6px; margin-bottom:8px;">
-            <input type="text" id="new-user-name" placeholder="账号名" style="flex:1; padding:6px !important; font-size:11px !important;">
-            <input type="password" id="new-user-pass" placeholder="密码" style="flex:1; padding:6px !important; font-size:11px !important;">
-            <button type="button" class="btn-action btn-sync" style="padding:4px 10px; font-size:11px;" onclick="adminAddNewUser()">+ 添加用户</button>
-          </div>
-          <div id="users-items-container"></div>
-        </div>
-      </div>
+      <button type="button" class="glass-nav-card-btn" onclick="openAccountsModal()">
+        <span>👥 账号与权限管理 (<span id="user-count-badge">0</span> 人)</span>
+        <span style="color:var(--accent);">打开配置 ➔</span>
+      </button>
 
       <label class="input-label">影视订阅地址：</label>
       <input type="text" id="sub-url-input" placeholder="输入影视订阅地址">
@@ -818,7 +783,6 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <!-- 4. 系统主题外观（对调到下方） -->
       <label class="input-label" style="margin-top: 12px;">系统主题外观：</label>
       <select id="sys-theme-select" onchange="changeSystemTheme(this.value)">
         <option value="auto">自动调节 (跟随系统时间)</option>
@@ -834,11 +798,79 @@
     </div>
   </div>
 
-  <div id="user-perm-modal-mask">
-    <div class="custom-modal-content" style="max-width: 440px;">
+  <!-- 🎬 视频采集源管理 (独立高级毛玻璃弹窗) -->
+  <div id="sites-modal-mask" class="glass-modal-mask">
+    <div class="glass-modal-card" style="max-width: 500px;">
+      <h3>
+        <span>🎬 视频采集源管理 (<span id="sites-count-badge-sub">0</span> 个)</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeSitesModal()">✕</span>
+      </h3>
+
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <input type="text" id="new-site-name" placeholder="源站名称 (如: 极速资源)" style="flex:1.2; padding:7px 10px !important; font-size:12px !important;">
+        <input type="text" id="new-site-api" placeholder="接口 API (https://...)" style="flex:2; padding:7px 10px !important; font-size:12px !important;">
+        <button type="button" class="btn-action btn-sync" style="padding:4px 12px; font-size:11px;" onclick="addNewCustomSite()">+ 添加</button>
+      </div>
+
+      <!-- 精准居中对齐表头 -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding:7px 10px; background:rgba(255,255,255,0.06); border-radius:8px; border:1px solid var(--border-color); font-size:11px;">
+        <div style="flex:1.2; min-width:0; color:var(--text-sub); font-weight:600;">源站名称</div>
+        <div style="flex:1.5; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span style="width:40px; text-align:center; color:var(--text-sub); font-weight:600;">统计</span>
+          <button type="button" class="btn-action" style="padding:2px 7px; font-size:10px; background:var(--bg-tag); color:var(--accent); border:1px solid var(--border-light); border-radius:4px;" onclick="promptCustomFailureThreshold()" title="点击自定义失效禁用次数">⚙️ 自定义: <span id="custom-threshold-badge">5</span>次</button>
+        </div>
+        <div style="flex:1; display:flex; justify-content:flex-end;">
+          <button type="button" class="btn-action" style="padding:3px 9px; font-size:11px; background:var(--accent); color:#fff;" onclick="resetAllFailedSites()">🔄 重置</button>
+        </div>
+      </div>
+
+      <!-- 紧凑视窗化独立滚动容器 -->
+      <div id="sites-items-container"></div>
+
+      <div class="modal-actions" style="margin-top: 14px;">
+        <button class="btn-action btn-cancel" onclick="closeSitesModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 👥 账号与权限管理 (独立高级毛玻璃弹窗) -->
+  <div id="accounts-modal-mask" class="glass-modal-mask">
+    <div class="glass-modal-card" style="max-width: 500px;">
+      <h3>
+        <span>👥 账号与权限管理 (<span id="user-count-badge-sub">0</span> 人)</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeAccountsModal()">✕</span>
+      </h3>
+
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-light); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div>
+            <div style="font-size: 12px; font-weight: 600;">📦 视频源分组权限</div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-top: 2px;">给不同用户分配不同视频源，新用户继承 [默认] 组</div>
+          </div>
+          <button type="button" class="btn-small-perm" style="font-size: 11px; font-weight: bold; padding: 3px 10px;" onclick="promptAddSourceGroup()" title="添加新分组">＋ 添加分组</button>
+        </div>
+        <div id="source-groups-list-container"></div>
+      </div>
+
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <input type="text" id="new-user-name" placeholder="账号名" style="flex:1; padding:7px 10px !important; font-size:12px !important;">
+        <input type="password" id="new-user-pass" placeholder="密码" style="flex:1; padding:7px 10px !important; font-size:12px !important;">
+        <button type="button" class="btn-action btn-sync" style="padding:4px 12px; font-size:11px;" onclick="adminAddNewUser()">+ 添加用户</button>
+      </div>
+      <div id="users-items-container" style="max-height: 220px; overflow-y: auto;"></div>
+
+      <div class="modal-actions" style="margin-top: 14px;">
+        <button class="btn-action btn-cancel" onclick="closeAccountsModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分配视频源弹窗 (高级毛玻璃) -->
+  <div id="user-perm-modal-mask" class="glass-modal-mask">
+    <div class="custom-modal-content glass-modal-card" style="max-width: 440px;">
       <h3>
         <span id="perm-user-title">🔑 分配视频源</span>
-        <span style="font-size:14px;color:var(--text-sub);cursor:pointer;" onclick="closeUserPermModal()">✕</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeUserPermModal()">✕</span>
       </h3>
       <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">勾选属于该分组的采集源：</div>
       
@@ -856,11 +888,12 @@
     </div>
   </div>
 
-  <div id="user-group-assign-modal-mask">
-    <div class="custom-modal-content" style="max-width: 360px;">
+  <!-- 分配视频源分组弹窗 (高级毛玻璃) -->
+  <div id="user-group-assign-modal-mask" class="glass-modal-mask">
+    <div class="custom-modal-content glass-modal-card" style="max-width: 360px;">
       <h3>
         <span id="assign-group-modal-title">👤 分配视频源分组</span>
-        <span style="font-size:14px;color:var(--text-sub);cursor:pointer;" onclick="closeUserGroupAssignModal()">✕</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeUserGroupAssignModal()">✕</span>
       </h3>
       <div style="font-size:12px; color:var(--text-sub); margin: 8px 0;">点击选择该用户所属的视频源分组：</div>
       <div id="assign-groups-list" style="display:flex; flex-direction:column; gap:8px; margin: 12px 0;"></div>
@@ -1027,8 +1060,8 @@
     const KEY_SUB = "custom_vod_sub_url";
     const KEY_SITES = "cached_parsed_sites";
     const KEY_DISABLED_SITES = "disabled_sites_list";
-    const KEY_SOURCE_FAILURES = "sys_source_failure_stats_v2"; // 永久统计失效源
-    const KEY_FAIL_THRESHOLD = "sys_source_fail_threshold_v1"; // 自定义禁用阈值
+    const KEY_SOURCE_FAILURES = "sys_source_failure_stats_v2";
+    const KEY_FAIL_THRESHOLD = "sys_source_fail_threshold_v1";
     const KEY_HISTORY = "history_list_v2";
     const KEY_FAVS = "favorites_list_v2";
     const KEY_LAST_SYNC = "last_subscription_sync_time";
@@ -1050,7 +1083,6 @@
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
     }
 
-    /* === 搜索内存缓存管理器（纯内存 LRU，绝不污染 sessionStorage 避免 5MB 溢出） === */
     const VodSearchCache = {
       maxMemEntries: 20,
       ttl: 15 * 60 * 1000,
@@ -1140,11 +1172,9 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
-    /* === 排序状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早倒序) / speed (网络低延迟优先) === */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
-    /* === 虚拟分块增量渲染状态 === */
     let activeDisplayCardList = [];
     let currentlyRenderedCount = 0;
     const CHUNK_PAGE_SIZE = 25;
@@ -1231,7 +1261,6 @@
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('pointerdown', showControls);
 
-    /* === 连续点击累计快进/后退手势引擎 === */
     let seekChainTimer = null;
     let seekAccumSec = 0;
     let seekActiveDir = null;
@@ -1555,7 +1584,6 @@
       container.replaceChildren(frag);
     }
 
-    /* === 收藏项局部无感平滑移除 === */
     async function removeFavoriteItem(matchKey, cardEl) {
       if (cardEl) {
         cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -1647,7 +1675,6 @@
       container.replaceChildren(frag);
     }
 
-    /* === 播放历史单条无感平滑移除 === */
     async function removeHistoryItem(key, cardEl) {
       if (cardEl) {
         cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -1977,6 +2004,8 @@
       localStorage.removeItem(KEY_SAVED_CREDS);
       updateMainRoleButton();
       closeSourceModal();
+      closeSitesModal();
+      closeAccountsModal();
       closeUserAccountModal();
       document.getElementById('gate-username').value = '';
       document.getElementById('gate-password').value = '';
@@ -2023,12 +2052,29 @@
       logoutCurrentUser();
     }
 
-    function toggleCollapseSection(bodyId, arrowId) {
-      const el = document.getElementById(bodyId);
-      const arrow = document.getElementById(arrowId);
-      const isHide = el.style.display === 'none' || el.style.display === '';
-      el.style.display = isHide ? 'block' : 'none';
-      arrow.textContent = isHide ? '▲ 收起' : '▼ 展开';
+    /* === 独立毛玻璃弹窗打开/关闭 === */
+    function openSitesModal() {
+      if (!currentUser || currentUser.role !== 'admin') {
+        alert("仅主管理员有权访问此设置！");
+        return;
+      }
+      renderSitesManagerList();
+      document.getElementById('sites-modal-mask').style.display = 'flex';
+    }
+    function closeSitesModal() {
+      document.getElementById('sites-modal-mask').style.display = 'none';
+    }
+
+    function openAccountsModal() {
+      if (!currentUser || currentUser.role !== 'admin') {
+        alert("仅主管理员有权访问此设置！");
+        return;
+      }
+      renderUsersManagerList();
+      document.getElementById('accounts-modal-mask').style.display = 'flex';
+    }
+    function closeAccountsModal() {
+      document.getElementById('accounts-modal-mask').style.display = 'none';
     }
 
     function renderSourceGroupsList() {
@@ -2056,7 +2102,10 @@
 
     function renderUsersManagerList() {
       const container = document.getElementById('users-items-container');
-      document.getElementById('user-count-badge').textContent = userList.length;
+      const badge = document.getElementById('user-count-badge');
+      const badgeSub = document.getElementById('user-count-badge-sub');
+      if (badge) badge.textContent = userList.length;
+      if (badgeSub) badgeSub.textContent = userList.length;
 
       renderSourceGroupsList();
 
@@ -2255,7 +2304,7 @@
       showGestureTip(checked ? "✓ 门禁已开启" : "✓ 门禁已关闭");
     }
 
-    /* === 自定义禁用阈值设置（仅主管理员可修改） === */
+    /* === 自定义禁用阈值设置（仅主管理员生效） === */
     async function promptCustomFailureThreshold() {
       if (!currentUser || currentUser.role !== 'admin') {
         alert("仅主管理员有权修改此设置！");
@@ -2272,7 +2321,6 @@
       localStorage.setItem(KEY_FAIL_THRESHOLD, String(failThreshold));
       setD1Data(KEY_FAIL_THRESHOLD, String(failThreshold));
 
-      // 实时检测是否有源达到新阈值
       for (const siteName in sourceFailures) {
         const count = sourceFailures[siteName]?.count || 0;
         if (count >= failThreshold && !disabledSites.includes(siteName)) {
@@ -2286,7 +2334,6 @@
 
     /* === 失效源统计与沉底逻辑（严格仅对主管理员生效） === */
     async function recordSourceFailure(siteName, videoKey) {
-      // 普通注册账号仅有观影功能，不记录失败统计，也不触发禁用
       if (!currentUser || currentUser.role !== 'admin') return;
       if (!siteName) return;
 
@@ -2297,12 +2344,10 @@
       const rec = sourceFailures[siteName];
       if (!rec.failedVideos) rec.failedVideos = [];
 
-      // 同一影片重复点击报错去重，仅计算 1 次
       if (!rec.failedVideos.includes(vKey)) {
         rec.failedVideos.push(vKey);
         rec.count = rec.failedVideos.length;
 
-        // 累计达到自定义阈值时自动熔断禁用
         if (rec.count >= failThreshold && !disabledSites.includes(siteName)) {
           disabledSites.push(siteName);
           await setD1Data(KEY_DISABLED_SITES, disabledSites);
@@ -2310,13 +2355,13 @@
         }
         await setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
 
-        if (document.getElementById('modal-mask').style.display === 'flex') {
+        if (document.getElementById('sites-modal-mask').style.display === 'flex') {
           renderSitesManagerList();
         }
       }
     }
 
-    /* === 一键重置所有失效源并清除失败统计（仅主管理员可操作） === */
+    /* === 一键重置所有失效源并清除失败统计（仅主管理员生效） === */
     async function resetAllFailedSites() {
       if (!currentUser || currentUser.role !== 'admin') {
         alert("仅主管理员有权执行此操作！");
@@ -2333,16 +2378,19 @@
 
     function renderSitesManagerList() {
       const container = document.getElementById('sites-items-container');
-      document.getElementById('sites-count-badge').textContent = parsedSites.length;
-      const badge = document.getElementById('custom-threshold-badge');
-      if (badge) badge.textContent = failThreshold;
+      const badge = document.getElementById('sites-count-badge');
+      const badgeSub = document.getElementById('sites-count-badge-sub');
+      if (badge) badge.textContent = parsedSites.length;
+      if (badgeSub) badgeSub.textContent = parsedSites.length;
+      const thBadge = document.getElementById('custom-threshold-badge');
+      if (thBadge) thBadge.textContent = failThreshold;
 
       if (!parsedSites || parsedSites.length === 0) {
         container.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text-sub);font-size:12px;">暂无解析到的视频源，请先同步订阅或手动添加</div>';
         return;
       }
 
-      // 禁用的源强制沉底排布（启用在上，禁用在下，且各自内部按失效次数从高到低排列）
+      // 禁用的源强制沉底排布
       const sortedSites = parsedSites.slice().sort((a, b) => {
         const isDisA = disabledSites.includes(a.name) ? 1 : 0;
         const isDisB = disabledSites.includes(b.name) ? 1 : 0;
@@ -2456,7 +2504,6 @@
       }
 
       document.getElementById('settings-username-label').textContent = currentUser.username;
-      
       document.getElementById('sub-url-input').value = localStorage.getItem(KEY_SUB) || '';
       document.getElementById('source-m3u-input').value = localStorage.getItem(KEY_M3U) || '';
       document.getElementById('auto-sync-interval').value = localStorage.getItem(KEY_SYNC_INTERVAL) || '0';
@@ -2473,8 +2520,9 @@
       const lastTime = localStorage.getItem(KEY_LAST_SYNC) || '';
       document.getElementById('last-sync-time-label').textContent = lastTime ? `最后更新时间：${lastTime}` : '最后更新时间：从未更新';
       
-      renderUsersManagerList();
-      renderSitesManagerList();
+      document.getElementById('sites-count-badge').textContent = parsedSites.length;
+      document.getElementById('user-count-badge').textContent = userList.length;
+
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
@@ -2762,7 +2810,6 @@
       return Promise.all(ret);
     }
 
-    /* === 视频流探测地址安全获取 === */
     function getItemTestUrl(item) {
       if (!item) return '';
       const episodes = getEpisodesList(item);
@@ -2778,7 +2825,6 @@
       return testUrl;
     }
 
-    /* === 极速测速探针：轻量 HEAD 并发探测，1500ms 超时无重试阻塞 === */
     async function probeStreamLatency(testUrl) {
       if (!isSafeUrl(testUrl)) return 9999;
       const controller = new AbortController();
@@ -2794,7 +2840,6 @@
       }
     }
 
-    /* === 性能优化：基于 rAF 的合并调度渲染 === */
     let lastRenderTimestamp = 0;
     function scheduleRenderVodSources() {
       if (renderFrameTimer) return;
@@ -2865,7 +2910,6 @@
       return tested ? best : -1;
     }
 
-    /* === 提取群组最新更新时间戳（毫秒数） === */
     function getGroupLatestTime(group) {
       if (group._latestTimestamp !== undefined) return group._latestTimestamp;
       let maxTime = 0;
@@ -2885,7 +2929,6 @@
       return maxTime;
     }
 
-    /* === 综合得分计算器 === */
     function calcGroupScore(group, kw, starClassics) {
       let score = 0;
       const aName = group.title.toLowerCase();
@@ -2900,7 +2943,6 @@
       return score;
     }
 
-    /* === 综合排序、最新降序、最旧倒序、延迟排序执行器（多源在前，单源在后，各段分别按按钮规则排） === */
     function sortGroupedVodList() {
       if (!groupedVodList || groupedVodList.length === 0) return;
 
@@ -2913,7 +2955,6 @@
         }
       }
 
-      // 组内多线路自动按照延迟由快到慢重排
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
           const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
@@ -2926,17 +2967,14 @@
       });
 
       groupedVodList.sort((a, b) => {
-        // 1. 常规与其它专区物理隔开
         const nsfwA = isGroupNSFW(a) ? 1 : 0;
         const nsfwB = isGroupNSFW(b) ? 1 : 0;
         if (nsfwA !== nsfwB) return nsfwA - nsfwB;
 
-        // 2. 核心逻辑：多源折叠优先排在前，单源排在后（3大类均统一遵循）
         const isMultiA = a.items.length > 1 ? 1 : 0;
         const isMultiB = b.items.length > 1 ? 1 : 0;
         if (isMultiA !== isMultiB) return isMultiB - isMultiA;
 
-        // 3. 在各自组段内部，根据当前按钮激活的排序条件进行同等深度排序
         if (currentVodSortType === 'speed') {
           const pa = getGroupBestPing(a);
           const pb = getGroupBestPing(b);
@@ -2963,7 +3001,6 @@
       });
     }
 
-    /* === 平铺4个独立按钮专属调用调度：点击测速按钮每次重新探测当前分组并排序 === */
     async function setSortType(type) {
       if (type === 'speed') {
         if (isSpeedTesting) return;
@@ -3138,7 +3175,6 @@
       saveVodSessionState();
     }
 
-    /* === 单独对某个展开的多源小分组进行定向极速测速 === */
     async function testGroupSources(group, panel) {
       if (!group || !group.items || group.items.length <= 1) return;
 
@@ -3181,7 +3217,6 @@
       saveVodSessionState();
     }
 
-    /* === 测速引擎：各大专区完全独立测速，全部测完后再进行重排 === */
     async function startSpeedTest() {
       if (!groupedVodList?.length) return;
       if (isSpeedTesting) return;
@@ -3195,7 +3230,6 @@
 
       const targetItemsToTest = [];
 
-      // 3大组测速独立隔离，仅收集当前选定分类下的测速对象
       if (currentCategoryFilter === 'multi') {
         const normalMulti = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1);
         normalMulti.forEach(group => {
@@ -3227,7 +3261,6 @@
         }
       });
 
-      // 并发探测
       await asyncPool(16, targetItemsToTest, async ({ item }) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
@@ -3260,7 +3293,6 @@
       saveVodSessionState();
     }
 
-    /* === 纯局部展开面板构建函数（绝不重绘外层列表，保证滚动条 0 跳动） === */
     function buildGroupBodyPanel(group) {
       const bodyPanel = document.createElement('div');
       bodyPanel.className = 'group-body-panel';
@@ -3268,7 +3300,6 @@
       const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
       const episodes = getEpisodesList(currentSubItem);
 
-      // 如果有大于1集的剧集，渲染选集折叠框
       if (episodes.length > 1) {
         const collapseBox = document.createElement('div');
         collapseBox.className = 'episodes-collapse-box';
@@ -3313,7 +3344,6 @@
         bodyPanel.appendChild(collapseBox);
       }
 
-      // 如果存在多个版本/源，才渲染多线路子卡片列表
       if (group.items.length > 1) {
         group.items.forEach((item) => {
           const isSubActive = (item.id === activeSubItemId);
@@ -3357,7 +3387,6 @@
       return bodyPanel;
     }
 
-    /* === 3大专区完全统一卡片构建与局部无感折叠渲染 === */
     function renderCardNode(group) {
       let groupCard = domNodeCache.get(group.title);
 
@@ -3379,26 +3408,21 @@
       const isSingleSourceSingleEp = (group.items.length === 1 && episodes.length <= 1);
       const isSingle = (group.items.length === 1);
 
-      // 单源项目（单源专区及专区内的单源）：在卡片头部明确标注来源站
-      // 专区折叠多源片源：不在卡片头部标注，与聚合专区保持一致，在点击展开后的折叠栏中逐一显示各来源站
       let sourceTagHtml = '';
       if (isSingle) {
         sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(firstItem.siteName)}</span>`;
       }
 
-      // 角标优化：单集电影显示单集正片，多集显示总集数，多源显示版本数量
       const countBadgeHtml = isSingleSourceSingleEp 
         ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
         : (group.items.length === 1 
             ? `<span class="group-badge-count">${episodes.length} 集全</span>` 
             : `<span class="group-badge-count">${group.items.length} 个版本/源</span>`);
 
-      // 右侧动作图标：单源单集显示极简播放三角 ▶；有多集或多版本显示折叠箭头
       const arrowIconHtml = isSingleSourceSingleEp
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
-      // 仅在单源卡片且实际手动测过速时才在单源右侧显示延迟，多源折叠卡片头部一律不显示测速/超时文本
       let singlePingHtml = '';
       if (group.items.length === 1 && firstItem.ping >= 0) {
         const isErr = firstItem.ping >= 9999;
@@ -3451,7 +3475,6 @@
 
       const headerEl = groupCard.querySelector('.title-group-header');
 
-      // 核心点击处理：单源单集秒播无面板；多集/多源纯局部展开，绝对不重绘全列表，滚动条 0 跳动！
       headerEl.onclick = () => {
         if (isSingleSourceSingleEp) {
           document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('active-group'));
@@ -3490,7 +3513,6 @@
           const panel = buildGroupBodyPanel(group);
           groupCard.appendChild(panel);
 
-          // 仅在手动展开多源小分组时，自动对其内部线路极速测速
           testGroupSources(group, panel);
 
           setTimeout(() => {
@@ -3568,7 +3590,6 @@
         else currentCategoryFilter = 'multi';
       }
 
-      // 单排吸顶工具栏：分类药丸与4个排序按钮平铺同排展示，滑动时牢牢吸顶不滚走
       const unifiedBar = document.createElement('div');
       unifiedBar.className = 'top-unified-bar';
       unifiedBar.innerHTML = `
@@ -3592,7 +3613,6 @@
       } else if (currentCategoryFilter === 'single') {
         normalSingle.forEach(g => activeDisplayCardList.push(g));
       } else if (currentCategoryFilter === 'nsfw') {
-        // 专区：多源折叠优先在前，单源紧随其后，且已按选中规则排序
         nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
 
@@ -3704,7 +3724,6 @@
       const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
       setStatus(tipText, true);
 
-      // 仅主管理员在播放格式不支持时记录失效
       if (tipText.includes("编码格式不支持")) {
         if (currentPlayingMeta?.siteName) {
           recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
