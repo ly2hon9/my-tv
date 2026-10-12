@@ -484,7 +484,6 @@
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
-    /* 采集源列表内部独立视窗 */
     #sites-items-container {
       max-height: 320px;
       overflow-y: auto;
@@ -1156,7 +1155,7 @@
       }
 
       const result = new Uint8Array(leadingOnes + bytes.length);
-      for (let i = leadingOnes; i < leadingOnes; i++) result[i] = 0;
+      for (let i = 0; i < leadingOnes; i++) result[i] = 0;
       for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
@@ -1186,7 +1185,6 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
-    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1407,6 +1405,7 @@
       }
     }
 
+    /* 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 */
     function exitPictureInPictureMode() {
       try {
         if (document.pictureInPictureElement) {
@@ -1418,6 +1417,34 @@
           video.webkitSetPresentationMode('inline');
         }
       } catch (_) {}
+    }
+
+    /* 播放器重置为默认闲置状态（啥也不播放） */
+    function resetPlayerToDefault(msg = "") {
+      clearPlayWatchdog();
+      exitPictureInPictureMode();
+      destroyHlsInstance();
+      try {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      } catch (_) {}
+      currentStreamUrl = "";
+      currentVodUniqueKey = "";
+      currentPlayingMeta = null;
+      currentTitle.textContent = "请在下方选择视频起播";
+      routeBadge.style.display = 'none';
+      routeBadge.textContent = '';
+      streamTimeEl.textContent = "00:00 / 00:00";
+      progressBar.style.width = "0%";
+      updatePlayBtn(false);
+      updateFavIconState();
+      if (msg) {
+        setStatus(msg, true);
+        setTimeout(() => setStatus("", false), 2500);
+      } else {
+        setStatus("", false);
+      }
     }
 
     video.addEventListener('ended', () => {
@@ -2820,603 +2847,78 @@
       }
     }
 
-    function handleEnterSearch(e) {
-      if (e.isComposing || e.keyCode === 229) return;
-      if (e.key === 'Enter') triggerSearch();
-    }
+    /* 选集面板动态重构：确保多源切换时剧集与集数实时同步 */
+    function refreshGroupEpisodesPanel(group, bodyPanel) {
+      let collapseBox = bodyPanel.querySelector('.episodes-collapse-box');
+      const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+      const episodes = getEpisodesList(currentSubItem);
 
-    function triggerSearch() {
-      const kw = document.getElementById('filter').value.trim();
-      currentView = 'normal';
-      document.getElementById('btn-show-fav').classList.remove('active');
-      document.getElementById('btn-show-history').classList.remove('active');
-
-      if (currentMode === 'vod') {
-        if (!kw) return;
-        fastStreamSearchVod(kw);
-      } else {
-        handleSearchTv();
+      if (episodes.length <= 1) {
+        if (collapseBox) collapseBox.remove();
+        return;
       }
-    }
 
-    async function fetchWithSmartProxy(targetUrl, timeout = 2500, signal = null) {
-      const fetchWithTimer = (url) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeout);
-        if (signal) signal.addEventListener('abort', () => controller.abort());
-        return fetch(url, { signal: controller.signal })
-          .then(res => { clearTimeout(timer); if (!res.ok) throw new Error(); return res.text(); })
-          .catch(e => { clearTimeout(timer); throw e; });
+      if (!collapseBox) {
+        collapseBox = document.createElement('div');
+        collapseBox.className = 'episodes-collapse-box';
+        bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
+      }
+
+      const hasEp = (currentActiveEp >= 0 && currentActiveEp < episodes.length && episodes[currentActiveEp]);
+      const epHeaderTitle = hasEp 
+        ? `📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集`
+        : `📺 选集 (${episodes.length} 集) - 该源未更新当前集`;
+
+      collapseBox.innerHTML = `
+        <div class="episodes-header">
+          <span class="ep-header-text">${escapeHtml(epHeaderTitle)}</span>
+          <div class="episodes-actions">
+            <button type="button" class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+            <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
+          </div>
+        </div>
+        <div class="episodes-grid" id="episodes-grid-list"></div>
+      `;
+
+      const epGrid = collapseBox.querySelector('#episodes-grid-list');
+      const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+
+      displayEps.forEach((ep) => {
+        const epIdx = ep.originalIdx;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ep-item ' + (epIdx === currentActiveEp && hasEp ? 'active' : '');
+        btn.textContent = ep.name;
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          currentActiveEp = epIdx;
+          bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+          btn.classList.add('active');
+          const activeSub = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+          playCurrentVodSource(activeSub, epIdx);
+          refreshGroupEpisodesPanel(group, bodyPanel);
+          saveVodSessionState();
+        };
+        epGrid.appendChild(btn);
+      });
+
+      collapseBox.querySelector('.episodes-header').onclick = (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        e.stopPropagation();
+        const isHide = epGrid.style.display === 'none';
+        epGrid.style.display = isHide ? 'grid' : 'none';
+        collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
       };
-
-      try { return await fetchWithTimer(targetUrl); } catch (_) {}
-      try { return await fetchWithTimer(`/api/data?action=proxy&proxy_url=${encodeURIComponent(targetUrl)}`); } catch (_) {}
-      throw new Error("网络超时");
-    }
-
-    async function asyncPool(poolLimit, array, iteratorFn) {
-      const ret = [];
-      const executing = [];
-      for (const item of array) {
-        const p = Promise.resolve().then(() => iteratorFn(item));
-        ret.push(p);
-        if (poolLimit <= array.length) {
-          const e = p.then(() => executing.splice(executing.indexOf(e), 1));
-          executing.push(e);
-          if (executing.length >= poolLimit) await Promise.race(executing);
-        }
-      }
-      return Promise.all(ret);
-    }
-
-    function getItemTestUrl(item) {
-      if (!item) return '';
-      const episodes = getEpisodesList(item);
-      const targetEp = episodes[0];
-      let testUrl = targetEp?.url || item.vod?.vod_play_url || '';
-      if (!isSafeUrl(testUrl)) {
-        const site = parsedSites.find(s => s.name === item.siteName);
-        testUrl = site?.api || '';
-      }
-      if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
-        testUrl = testUrl.replace(/^http:\/\//i, 'https://');
-      }
-      return testUrl;
-    }
-
-    async function probeStreamLatency(testUrl) {
-      if (!isSafeUrl(testUrl)) return 9999;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 1500);
-      const t0 = performance.now();
-      try {
-        await fetch(testUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
-        clearTimeout(timer);
-        return Math.max(1, Math.round(performance.now() - t0));
-      } catch (_) {
-        clearTimeout(timer);
-        return 9999;
-      }
-    }
-
-    let lastRenderTimestamp = 0;
-    function scheduleRenderVodSources() {
-      if (renderFrameTimer) return;
-      const now = performance.now();
-      const waitTime = Math.max(0, 220 - (now - lastRenderTimestamp));
-      renderFrameTimer = setTimeout(() => {
-        requestAnimationFrame(() => {
-          renderFrameTimer = null;
-          lastRenderTimestamp = performance.now();
-          if (currentView === 'normal' && currentMode === 'vod') {
-            renderGroupedVodSources();
-          }
-        });
-      }, waitTime);
-    }
-
-    const STAR_WORKS_MAP = {
-      '成龙': ['警察故事', '醉拳', 'A计划', '神话', '十二生肖', '宝贝计划', '新警察故事', '尖峰时刻', '飞鹰计划', '快餐车', '红番区'],
-      '周星驰': ['功夫', '大话西游', '少林足球', '喜剧之王', '唐伯虎点秋香', '九品芝麻官', '国产凌凌漆', '逃学威龙', '食神', '大内密探零零发'],
-      '李连杰': ['黄飞鸿', '精武英雄', '方世玉', '太极张三丰', '中南海保镖', '霍元甲', '英雄', '龙门飞甲'],
-      '刘德华': ['无间道', '天下无贼', '暗战', '拆弹专家', '投名状', '门徒', '天若有情', '赌侠'],
-      '周润发': ['英雄本色', '赌神', '纵横四海', '监狱风云', '喋血双雄', '让子弹飞', '无双'],
-      '甄子丹': ['叶问', '杀破狼', '导火线', '武侠', '追龙', '怒火·重案'],
-      '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
-    };
-
-    function isNSFWSource(siteName) {
-      if (!siteName) return false;
-      const lower = siteName.toLowerCase();
-      const nsfwKeywords = [
-        '🔞', '麻豆', '番号', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花',
-        'souav', 'souv', '黄色', '成人', '福利', '色情', 'jkun', '森林', '辣椒',
-        '鲨鱼', '滴滴', '精品资源', '155-', '玉兔', '小鸡', '乐播'
-      ];
-      return nsfwKeywords.some(kw => lower.includes(kw));
-    }
-
-    function isGroupNSFW(group) {
-      if (!group) return false;
-      const typeStr = (group.type || '').toLowerCase();
-      const titleStr = (group.title || '').toLowerCase();
-      const adultTypeWords = ['自拍', '真人自拍', 'cosplay', '写真', '伦理', '成人', '福利', '三级', '情色', '色情', '偷拍', '无码', '有码', 'av', '女优', '同人'];
-
-      if (adultTypeWords.some(w => typeStr.includes(w))) return true;
-      if (['自拍', '真人自拍', 'cosplay', '无码', '有码', 'h版', '18+'].some(w => titleStr.includes(w))) return true;
-
-      if (group.items && group.items.length > 0) {
-        const nsfwItemCount = group.items.filter(i => {
-          const iSite = isNSFWSource(i.siteName);
-          const iType = (i.vod?.type_name || '').toLowerCase();
-          return iSite || adultTypeWords.some(w => iType.includes(w));
-        }).length;
-        if (nsfwItemCount >= Math.ceil(group.items.length / 2)) return true;
-      }
-      return false;
-    }
-
-    function getGroupBestPing(group) {
-      if (!group.items || group.items.length === 0) return -1;
-      let best = 99999;
-      let tested = false;
-      group.items.forEach(i => {
-        if (i.ping !== undefined && i.ping >= 0) {
-          tested = true;
-          if (i.ping < best) best = i.ping;
-        }
-      });
-      return tested ? best : -1;
-    }
-
-    function getGroupLatestTime(group) {
-      if (group._latestTimestamp !== undefined) return group._latestTimestamp;
-      let maxTime = 0;
-      let maxTimeStr = '';
-      (group.items || []).forEach(it => {
-        const rawTime = it.vod?.vod_time || it.vod?.vod_pubdate || '';
-        if (rawTime) {
-          const t = new Date(String(rawTime).replace(/-/g, '/')).getTime();
-          if (!isNaN(t) && t > maxTime) {
-            maxTime = t;
-            maxTimeStr = String(rawTime).split(' ')[0] || rawTime;
-          }
-        }
-      });
-      group._latestTimestamp = maxTime;
-      group._displayDate = maxTimeStr;
-      return maxTime;
-    }
-
-    function calcGroupScore(group, kw, starClassics) {
-      let score = 0;
-      const aName = group.title.toLowerCase();
-      const aActor = (group.actor || '').toLowerCase();
-      const aType = (group.type || '').toLowerCase();
-
-      if (starClassics.some(c => aName === c.toLowerCase())) score += 180;
-      if (aActor.includes(kw)) score += 120;
-      if (aType.includes('电影') || aType.includes('动作')) score += 40;
-      if (aName === kw) score += 80;
-      score += (group.items ? group.items.length : 0) * 2;
-      return score;
-    }
-
-    function sortGroupedVodList() {
-      if (!groupedVodList || groupedVodList.length === 0) return;
-
-      const kw = currentSearchingWord.toLowerCase().trim();
-      let starClassics = [];
-      for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
-        if (kw === star.toLowerCase() || kw.includes(star.toLowerCase())) {
-          starClassics = works;
-          break;
-        }
-      }
-
-      groupedVodList.forEach(group => {
-        group.items.sort((a, b) => {
-          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
-          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
-          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
-          const pa = (a.ping === undefined || a.ping < 0) ? 9999 : a.ping;
-          const pb = (b.ping === undefined || b.ping < 0) ? 9999 : b.ping;
-          return pa - pb;
-        });
-      });
-
-      groupedVodList.sort((a, b) => {
-        const nsfwA = isGroupNSFW(a) ? 1 : 0;
-        const nsfwB = isGroupNSFW(b) ? 1 : 0;
-        if (nsfwA !== nsfwB) return nsfwA - nsfwB;
-
-        const isMultiA = a.items.length > 1 ? 1 : 0;
-        const isMultiB = b.items.length > 1 ? 1 : 0;
-        if (isMultiA !== isMultiB) return isMultiB - isMultiA;
-
-        if (currentVodSortType === 'speed') {
-          const pa = getGroupBestPing(a);
-          const pb = getGroupBestPing(b);
-          const va = pa < 0 ? 99999 : pa;
-          const vb = pb < 0 ? 99999 : pb;
-          return va - vb;
-        } else if (currentVodSortType === 'time_desc') {
-          const timeA = getGroupLatestTime(a);
-          const timeB = getGroupLatestTime(b);
-          if (!timeA && !timeB) return 0;
-          if (!timeA) return 1;
-          if (!timeB) return -1;
-          return timeB - timeA;
-        } else if (currentVodSortType === 'time_asc') {
-          const timeA = getGroupLatestTime(a);
-          const timeB = getGroupLatestTime(b);
-          if (!timeA && !timeB) return 0;
-          if (!timeA) return 1;
-          if (!timeB) return -1;
-          return timeA - timeB;
-        } else {
-          return calcGroupScore(b, kw, starClassics) - calcGroupScore(a, kw, starClassics);
-        }
-      });
-    }
-
-    /* 综合/最新/最早 3 合 1 循环极简按钮调度 */
-    function cycleSortMode() {
-      if (currentVodSortType === 'score') {
-        currentVodSortType = 'time_desc';
-        showGestureTip("已切换为：最新时间 (降序 ↓)");
-      } else if (currentVodSortType === 'time_desc') {
-        currentVodSortType = 'time_asc';
-        showGestureTip("已切换为：早期时间 (升序 ↑)");
-      } else {
-        currentVodSortType = 'score';
-        showGestureTip("已切换为：智能综合排序");
-      }
-      sortGroupedVodList();
-      renderGroupedVodSources();
-      saveVodSessionState();
-    }
-
-    async function setSortType(type) {
-      if (type === 'speed') {
-        if (isSpeedTesting) return;
-        showGestureTip("⚡ 正在测速并按响应速度排序...");
-        await startSpeedTest();
-      } else {
-        currentVodSortType = type;
-        sortGroupedVodList();
-        renderGroupedVodSources();
-        saveVodSessionState();
-      }
-    }
-
-    async function fastStreamSearchVod(keyword) {
-      if (currentSearchAbortController) currentSearchAbortController.abort();
-      currentSearchAbortController = new AbortController();
-      const currentSignal = currentSearchAbortController.signal;
-
-      isSearchingActive = true;
-      currentSearchingWord = keyword;
-      currentCategoryFilter = 'auto';
-
-      const container = document.getElementById('channel-list');
-      
-      const userGroupId = currentUser?.groupId || 'def';
-      const cachedResults = VodSearchCache.get(keyword, userGroupId);
-      if (cachedResults && cachedResults.length > 0) {
-        groupedVodList = cachedResults;
-        domNodeCache.clear();
-        isSearchingActive = false;
-        sortGroupedVodList();
-        renderGroupedVodSources();
-        saveVodSessionState();
-        showGestureTip("⚡ 已从极速缓存秒开");
-        return;
-      }
-
-      container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
-      
-      groupedVodList = [];
-      domNodeCache.clear();
-      const kw = keyword.toLowerCase().trim();
-
-      let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
-      if (currentUser && currentUser.role !== 'admin') {
-        const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
-        if (userGroup && userGroup.sites && userGroup.sites[0] !== '*') {
-          availableSites = availableSites.filter(s => userGroup.sites.includes(s.name));
-        }
-      }
-
-      if (availableSites.length === 0) {
-        isSearchingActive = false;
-        container.innerHTML = `<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">当前分组未开放可用的视频源，请联系主管理员</div>`;
-        return;
-      }
-
-      let starClassics = [];
-      for (const [star, works] of Object.entries(STAR_WORKS_MAP)) {
-        if (kw === star.toLowerCase() || kw.includes(star.toLowerCase())) {
-          starClassics = works;
-          break;
-        }
-      }
-
-      const searchTasks = [];
-      availableSites.forEach(site => {
-        searchTasks.push({ site, term: keyword });
-      });
-
-      if (starClassics.length > 0) {
-        starClassics.slice(0, 4).forEach(film => {
-          availableSites.slice(0, 16).forEach(site => {
-            searchTasks.push({ site, term: film });
-          });
-        });
-      }
-
-      const processList = (dataList, site) => {
-        if (!Array.isArray(dataList)) return;
-        dataList.forEach((item, itemIdx) => {
-          const rawVodName = (item.vod_name || '').trim();
-          const vodType = (item.type_name || '').trim();
-          const vodActor = (item.vod_actor || '').trim();
-          if (!rawVodName) return;
-
-          const lowerName = rawVodName.toLowerCase();
-          const lowerActor = vodActor.toLowerCase();
-
-          const parsed = parseTitleAndVersion(rawVodName);
-          const canonicalTitle = parsed.canonical;
-          const versionTag = parsed.version;
-
-          const isExactClassic = starClassics.some(c => {
-            const cleanC = c.toLowerCase();
-            const cleanCanonical = canonicalTitle.toLowerCase();
-            return cleanCanonical === cleanC || cleanCanonical === (cleanC + '电影') || cleanCanonical === ('电影' + cleanC);
-          });
-
-          const isRelevant = lowerName.includes(kw) || 
-                             lowerActor.includes(kw) || 
-                             isExactClassic;
-          
-          if (!isRelevant) return;
-
-          const rawUniqueKey = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
-          let hash = 0;
-          for (let c = 0; c < rawUniqueKey.length; c++) {
-            hash = ((hash << 5) - hash) + rawUniqueKey.charCodeAt(c);
-            hash |= 0;
-          }
-          const safeId = 'src_' + Math.abs(hash).toString(36) + '_' + itemIdx;
-
-          const itemResult = {
-            id: safeId,
-            rawKey: rawUniqueKey,
-            siteName: site.name,
-            versionTag: versionTag,
-            vod: item,
-            ping: -1
-          };
-
-          const cleanKey = normalizeCleanKey(canonicalTitle);
-          let group = groupedVodList.find(g => {
-            return g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey;
-          });
-
-          if (!group) {
-            group = {
-              title: canonicalTitle,
-              poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
-              type: vodType,
-              actor: vodActor,
-              items: []
-            };
-            groupedVodList.push(group);
-          } else {
-            if (!group.poster && isSafeUrl(item.vod_pic)) group.poster = item.vod_pic;
-            if (!group.actor && vodActor) group.actor = vodActor;
-          }
-
-          if (!group.items.some(i => i.rawKey === rawUniqueKey)) {
-            group.items.push(itemResult);
-          }
-        });
-      };
-
-      await asyncPool(16, searchTasks, async ({ site, term }) => {
-        if (currentSignal.aborted) return;
-        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
-        try {
-          const res = await fetchWithSmartProxy(urlWd, 2500, currentSignal);
-          processList(JSON.parse(res).list, site);
-          scheduleRenderVodSources();
-        } catch (_) {}
-      });
-
-      if (currentSignal.aborted) return;
-      isSearchingActive = false;
-
-      if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = `<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
-        return;
-      }
-
-      sortGroupedVodList();
-      VodSearchCache.set(keyword, userGroupId, groupedVodList);
-      renderGroupedVodSources();
-      saveVodSessionState();
-    }
-
-    async function testGroupSources(group, panel) {
-      if (!group || !group.items || group.items.length <= 1) return;
-
-      group.items.forEach(item => {
-        const el = document.getElementById(`ping-badge-${item.id}`);
-        if (el) {
-          el.textContent = "测速中...";
-          el.className = "metric-ping-wait";
-        }
-      });
-
-      await asyncPool(16, group.items, async (item) => {
-        const testUrl = getItemTestUrl(item);
-        item.ping = await probeStreamLatency(testUrl);
-        const el = document.getElementById(`ping-badge-${item.id}`);
-        if (el) {
-          const isErr = item.ping >= 9999 || item.ping < 0;
-          el.textContent = isErr ? "超时" : `${item.ping}ms`;
-          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        }
-      });
-
-      group.items.sort((a, b) => {
-        const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
-        const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
-        if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
-        const pa = (a.ping === undefined || a.ping < 0) ? 9999 : a.ping;
-        const pb = (b.ping === undefined || b.ping < 0) ? 9999 : b.ping;
-        return pa - pb;
-      });
-
-      const subCards = Array.from(panel.querySelectorAll('.source-sub-card'));
-      if (subCards.length > 0) {
-        group.items.forEach(item => {
-          const card = subCards.find(c => c.querySelector(`#ping-badge-${item.id}`));
-          if (card) panel.appendChild(card);
-        });
-      }
-
-      saveVodSessionState();
-    }
-
-    async function startSpeedTest() {
-      if (!groupedVodList?.length) return;
-      if (isSpeedTesting) return;
-
-      isSpeedTesting = true;
-      const speedNavBtn = document.getElementById('btn-sort-speed-nav');
-      if (speedNavBtn) {
-        speedNavBtn.textContent = "⚡ 测速中";
-        speedNavBtn.classList.add('active-sort');
-      }
-
-      const targetItemsToTest = [];
-
-      if (currentCategoryFilter === 'multi') {
-        const normalMulti = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1);
-        normalMulti.forEach(group => {
-          group.items.forEach(item => {
-            targetItemsToTest.push({ group, item });
-          });
-        });
-      } else if (currentCategoryFilter === 'single') {
-        const normalSingle = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1);
-        normalSingle.forEach(group => {
-          if (group.items[0]) {
-            targetItemsToTest.push({ group, item: group.items[0] });
-          }
-        });
-      } else if (currentCategoryFilter === 'nsfw') {
-        const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
-        nsfwGroups.forEach(group => {
-          group.items.forEach(item => {
-            targetItemsToTest.push({ group, item });
-          });
-        });
-      }
-
-      targetItemsToTest.forEach(({ item }) => {
-        const el = document.getElementById(`ping-badge-${item.id}`);
-        if (el) {
-          el.textContent = "测速中...";
-          el.className = "metric-ping-wait";
-        }
-      });
-
-      await asyncPool(16, targetItemsToTest, async ({ item }) => {
-        const testUrl = getItemTestUrl(item);
-        item.ping = await probeStreamLatency(testUrl);
-
-        const el = document.getElementById(`ping-badge-${item.id}`);
-        if (el) {
-          const isErr = item.ping >= 9999 || item.ping < 0;
-          el.textContent = isErr ? "超时" : `${item.ping}ms`;
-          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        }
-      });
-
-      isSpeedTesting = false;
-      currentVodSortType = 'speed';
-      sortGroupedVodList();
-      renderGroupedVodSources();
-      saveVodSessionState();
-      showGestureTip("⚡ 测速完毕，已按速度从快到慢排序");
-    }
-
-    function toggleEpisodesOrder() {
-      isEpisodeReversed = !isEpisodeReversed;
-      renderGroupedVodSources();
-      showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
-    }
-
-    function setCategoryFilter(filterKey) {
-      currentCategoryFilter = filterKey;
-      renderGroupedVodSources();
-      saveVodSessionState();
     }
 
     function buildGroupBodyPanel(group) {
       const bodyPanel = document.createElement('div');
       bodyPanel.className = 'group-body-panel';
 
-      const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
-      const episodes = getEpisodesList(currentSubItem);
+      // 选集列表实时同步
+      refreshGroupEpisodesPanel(group, bodyPanel);
 
-      if (episodes.length > 1) {
-        const collapseBox = document.createElement('div');
-        collapseBox.className = 'episodes-collapse-box';
-        collapseBox.innerHTML = `
-          <div class="episodes-header">
-            <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
-            <div class="episodes-actions">
-              <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-              <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
-            </div>
-          </div>
-          <div class="episodes-grid" id="episodes-grid-list"></div>
-        `;
-
-        const epGrid = collapseBox.querySelector('#episodes-grid-list');
-        const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
-
-        displayEps.forEach((ep) => {
-          const epIdx = ep.originalIdx;
-          const btn = document.createElement('button');
-          btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-          btn.textContent = ep.name;
-          btn.onclick = (e) => {
-            e.stopPropagation();
-            currentActiveEp = epIdx;
-            bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
-            btn.classList.add('active');
-            playCurrentVodSource(currentSubItem, epIdx);
-            saveVodSessionState();
-          };
-          epGrid.appendChild(btn);
-        });
-
-        collapseBox.querySelector('.episodes-header').onclick = (e) => {
-          if (e.target.tagName === 'BUTTON') return;
-          e.stopPropagation();
-          const isHide = epGrid.style.display === 'none';
-          epGrid.style.display = isHide ? 'grid' : 'none';
-          collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-        };
-
-        bodyPanel.appendChild(collapseBox);
-      }
-
+      // 如果存在多个版本/源，才渲染多线路子卡片列表
       if (group.items.length > 1) {
         group.items.forEach((item) => {
           const isSubActive = (item.id === activeSubItemId);
@@ -3433,10 +2935,21 @@
           let pingText = item.ping >= 0 ? (item.ping >= 9999 ? "超时" : `${item.ping}ms`) : "待测速";
           let pingClass = item.ping < 0 ? "metric-ping-wait" : (item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
 
+          // 搜到的片源集数实时显示
+          const itemEpisodes = getEpisodesList(item);
+          let epStatusText = '';
+          if (itemEpisodes.length > 1) {
+            epStatusText = item.vod?.vod_remarks && /(集|话|期|全|更新)/.test(item.vod.vod_remarks)
+              ? item.vod.vod_remarks
+              : `更新至${itemEpisodes.length}集`;
+          } else {
+            epStatusText = q.text;
+          }
+
           subCard.innerHTML = `
             <div class="source-sub-left">
               <span class="card-sitename-tag">🎬 ${escapeHtml(displayTag)}</span>
-              <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
+              <span class="card-quality ${q.cls}">${escapeHtml(epStatusText)}</span>
               ${subCensorHtml}
             </div>
             <div class="card-status-bar">
@@ -3449,6 +2962,11 @@
             activeSubItemId = item.id;
             bodyPanel.querySelectorAll('.source-sub-card').forEach(c => c.classList.remove('active-sub'));
             subCard.classList.add('active-sub');
+
+            // 切换子源时：选集列表实时同步为该源的实际集数
+            refreshGroupEpisodesPanel(group, bodyPanel);
+
+            // 播放对应集数；若该源没有当前集数（如正在看214集，此源只有213集），则播放器回到默认初始状态啥也不播放
             playCurrentVodSource(item, currentActiveEp);
             saveVodSessionState();
           };
@@ -3486,11 +3004,24 @@
         sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(firstItem.siteName)}</span>`;
       }
 
+      // 实时获取多源组内的最高更新进度
+      let maxEps = 0;
+      let latestEpRemark = '';
+      (group.items || []).forEach(it => {
+        const eps = getEpisodesList(it);
+        if (eps.length > maxEps) {
+          maxEps = eps.length;
+          if (it.vod?.vod_remarks && /(集|话|期|全|更新)/.test(it.vod.vod_remarks)) {
+            latestEpRemark = it.vod.vod_remarks;
+          }
+        }
+      });
+
       const countBadgeHtml = isSingleSourceSingleEp 
         ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
         : (group.items.length === 1 
-            ? `<span class="group-badge-count">${episodes.length} 集全</span>` 
-            : `<span class="group-badge-count">${group.items.length} 个版本/源</span>`);
+            ? `<span class="group-badge-count">${latestEpRemark || `${episodes.length} 集全`}</span>` 
+            : `<span class="group-badge-count">${latestEpRemark || (maxEps > 1 ? `更新至${maxEps}集` : `${group.items.length} 个源`)} · ${group.items.length} 个源</span>`);
 
       const arrowIconHtml = isSingleSourceSingleEp
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
@@ -3604,149 +3135,22 @@
       return groupCard;
     }
 
-    function appendVodCardsChunk(targetList, startIdx, count) {
-      const container = document.getElementById('channel-list');
-      const frag = document.createDocumentFragment();
-      const endIdx = Math.min(targetList.length, startIdx + count);
-
-      for (let i = startIdx; i < endIdx; i++) {
-        const group = targetList[i];
-        frag.appendChild(renderCardNode(group));
-      }
-
-      currentlyRenderedCount = endIdx;
-
-      const loader = document.getElementById('infinite-scroll-loader');
-      if (loader) {
-        container.insertBefore(frag, loader);
-        if (currentlyRenderedCount >= targetList.length) {
-          loader.style.display = 'none';
-        } else {
-          loader.style.display = 'block';
-        }
-      } else {
-        container.appendChild(frag);
-      }
-    }
-
-    function renderGroupedVodSources() {
-      const container = document.getElementById('channel-list');
-
-      if (!groupedVodList?.length) {
-        if (isSearchingActive) {
-          container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(currentSearchingWord)}》中，请稍候...</div>`;
-        } else {
-          container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
-        }
-        return;
-      }
-
-      const frag = document.createDocumentFragment();
-
-      const normalGroups = groupedVodList.filter(g => !isGroupNSFW(g));
-      const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
-
-      let normalMulti = normalGroups.filter(g => g.items.length > 1);
-      let normalSingle = normalGroups.filter(g => g.items.length === 1);
-
-      const countMulti = normalMulti.length;
-      const countSingle = normalSingle.length;
-      const countNsfw = nsfwGroups.length;
-
-      if (currentCategoryFilter === 'auto' ||
-          (currentCategoryFilter === 'multi' && countMulti === 0) ||
-          (currentCategoryFilter === 'single' && countSingle === 0) ||
-          (currentCategoryFilter === 'nsfw' && countNsfw === 0)) {
-        if (countMulti > 0) currentCategoryFilter = 'multi';
-        else if (countSingle > 0) currentCategoryFilter = 'single';
-        else if (countNsfw > 0) currentCategoryFilter = 'nsfw';
-        else currentCategoryFilter = 'multi';
-      }
-
-      const sortLabel = currentVodSortType === 'time_desc' ? '🕒 最新' : (currentVodSortType === 'time_asc' ? '🕒 最早' : '⭐ 综合');
-      const isCustomSortActive = (currentVodSortType !== 'speed');
-
-      const unifiedBar = document.createElement('div');
-      unifiedBar.className = 'top-unified-bar';
-      unifiedBar.innerHTML = `
-        <div class="bar-left-group">
-          ${countMulti > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'multi' ? 'active' : ''}" onclick="setCategoryFilter('multi')">🎬 聚合(${countMulti})</button>` : ''}
-          ${countSingle > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'single' ? 'active' : ''}" onclick="setCategoryFilter('single')">⚡ 单源(${countSingle})</button>` : ''}
-          ${countNsfw > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'nsfw' ? 'active' : ''}" onclick="setCategoryFilter('nsfw')">🌶️ 专区(${countNsfw})</button>` : ''}
-        </div>
-        <div class="bar-right-group">
-          <button type="button" class="btn-sort-action ${isCustomSortActive ? 'active-sort' : ''}" onclick="cycleSortMode()" title="点击切换：综合 / 最新 / 最早">
-            <span>${sortLabel}</span>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-          </button>
-          <button type="button" id="btn-sort-speed-nav" class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="setSortType('speed')">${isSpeedTesting ? '⚡ 测速中' : '⚡ 测速'}</button>
-        </div>
-      `;
-      frag.appendChild(unifiedBar);
-
-      activeDisplayCardList = [];
-      if (currentCategoryFilter === 'multi') {
-        normalMulti.forEach(g => activeDisplayCardList.push(g));
-      } else if (currentCategoryFilter === 'single') {
-        normalSingle.forEach(g => activeDisplayCardList.push(g));
-      } else if (currentCategoryFilter === 'nsfw') {
-        nsfwGroups.forEach(g => activeDisplayCardList.push(g));
-      }
-
-      currentlyRenderedCount = 0;
-      const initialChunkSize = Math.min(activeDisplayCardList.length, CHUNK_PAGE_SIZE);
-
-      for (let i = 0; i < initialChunkSize; i++) {
-        const group = activeDisplayCardList[i];
-        frag.appendChild(renderCardNode(group));
-      }
-      currentlyRenderedCount = initialChunkSize;
-
-      const loaderEl = document.createElement('div');
-      loaderEl.id = 'infinite-scroll-loader';
-      loaderEl.className = 'scroll-loading-indicator';
-      loaderEl.textContent = '滚动加载更多...';
-      loaderEl.style.display = (currentlyRenderedCount < activeDisplayCardList.length) ? 'block' : 'none';
-      frag.appendChild(loaderEl);
-
-      container.replaceChildren(frag);
-    }
-
-    const channelListEl = document.getElementById('channel-list');
-    channelListEl.addEventListener('scroll', () => {
-      if (currentView !== 'normal' || currentMode !== 'vod') return;
-      if (currentlyRenderedCount >= activeDisplayCardList.length) return;
-
-      if (channelListEl.scrollTop + channelListEl.clientHeight >= channelListEl.scrollHeight - 160) {
-        appendVodCardsChunk(activeDisplayCardList, currentlyRenderedCount, CHUNK_PAGE_SIZE);
-      }
-    }, { passive: true });
-
-    function getEpisodesList(item) {
-      if (!item?.vod) return [];
-      const playUrlStr = item.vod.vod_play_url || '';
-      const playGroups = playUrlStr.split('$$$');
-      const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
-      const rawEps = m3u8Group.split('#').filter(Boolean);
-
-      return rawEps.map((ep, idx) => {
-        const parts = ep.split('$');
-        const urlCandidate = (parts[1] || parts[0]).trim();
-        return { 
-          originalIdx: idx,
-          name: parts[0] || `第${idx+1}集`, 
-          url: isSafeUrl(urlCandidate) ? urlCandidate : '' 
-        };
-      }).filter(ep => ep.url !== '');
-    }
-
     function playCurrentVodSource(item, epIdx = 0) {
       if (!item?.vod) return;
       isLiveMode = false;
 
       const episodes = getEpisodesList(item);
-      const targetEp = episodes[epIdx] || episodes[0];
-      if (!targetEp?.url) return;
+      // 如果当前切换到的源没有该集数（如正在看214集，该源只有213集） -> 播放页默认状态 啥也不播放
+      if (!episodes || episodes.length === 0 || epIdx >= episodes.length || !episodes[epIdx]) {
+        resetPlayerToDefault(episodes.length > 0 ? `该源仅更新至第 ${episodes.length} 集，暂无当前集` : "该源暂无播放线路");
+        return;
+      }
+
+      const targetEp = episodes[epIdx];
+      if (!targetEp?.url) {
+        resetPlayerToDefault("当前集数播放地址无效");
+        return;
+      }
 
       let rawUrl = targetEp.url;
       if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
@@ -3772,440 +3176,6 @@
       updateFavIconState();
       manualPlayOnly(rawUrl);
     }
-
-    function destroyHlsInstance() {
-      clearPlayWatchdog();
-      exitPictureInPictureMode();
-      if (hls) {
-        hls.stopLoad();
-        hls.detachMedia();
-        hls.destroy();
-        hls = null;
-      }
-    }
-
-    function clearPlayWatchdog() {
-      if (playWatchdogTimer) {
-        clearTimeout(playWatchdogTimer);
-        playWatchdogTimer = null;
-      }
-    }
-
-    function showFailTip(msg) {
-      clearPlayWatchdog();
-      destroyHlsInstance();
-      updatePlayBtn(false);
-      try { video.pause(); } catch(_) {}
-      const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
-      setStatus(tipText, true);
-
-      if (tipText.includes("编码格式不支持")) {
-        if (currentPlayingMeta?.siteName) {
-          recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
-        }
-      }
-    }
-
-    function manualPlayOnly(url) {
-      clearPlayWatchdog();
-      exitPictureInPictureMode();
-      destroyHlsInstance();
-      setStatus("正在建立连接，请稍候...");
-
-      let hasStarted = false;
-      const markPlaySuccess = () => {
-        if (hasStarted) return;
-        hasStarted = true;
-        clearPlayWatchdog();
-        setStatus("", false);
-        updatePlayBtn(true);
-        restorePlaybackProgress();
-        showControls();
-      };
-
-      playWatchdogTimer = setTimeout(() => {
-        if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
-          showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
-        }
-      }, 6000);
-
-      video.onplaying = markPlaySuccess;
-      video.onloadeddata = markPlaySuccess;
-      video.onerror = () => {
-        showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
-      };
-
-      const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
-
-      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.load();
-        video.play().then(() => {}).catch(err => {
-          if (err && err.name === 'NotSupportedError') {
-            showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
-          }
-        });
-        return;
-      }
-
-      if (Hls.isSupported()) {
-        hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          backBufferLength: 60,
-          manifestLoadingTimeOut: 5000,
-          manifestLoadingMaxRetry: 1,
-          fragLoadingTimeOut: 5000,
-          fragLoadingMaxRetry: 1,
-          xhrSetup: (xhr) => { xhr.withCredentials = false; }
-        });
-        hls.loadSource(url);
-        hls.attachMedia(video);
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(() => {});
-        });
-
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                showFailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
-                break;
-              default:
-                showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
-                break;
-            }
-          }
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.load();
-        video.play().catch(() => {});
-      }
-    }
-
-    /* === 电视直播模块：持久化拉取与增量更新逻辑 === */
-    async function initTv(force = false) {
-      if (!force && Object.keys(groups).length > 0) {
-        if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
-        return;
-      }
-      const targetUrl = await getD1Data(KEY_M3U, '');
-      if (!targetUrl) return;
-      try {
-        const text = await fetchWithSmartProxy(targetUrl, 5000);
-        if (text && text.includes('#EXTINF')) {
-          parseM3U(text, true);
-          if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
-        }
-      } catch (_) {}
-    }
-
-    function parseM3U(content, saveToStorage = true) {
-      groups = {};
-      totalChannelsCount = 0;
-      totalStreamsCount = 0;
-      const lines = content.split('\n');
-      let temp = null;
-      for (let line of lines) {
-        line = line.trim();
-        if (line.startsWith('#EXTINF:')) {
-          const rawName = (line.split(',')[1] || '').trim();
-          const tvgMatch = line.match(/tvg-name="([^"]+)"/);
-          const name = tvgMatch ? tvgMatch[1] : (rawName || '未命名频道');
-          const groupMatch = line.match(/group-title="([^"]+)"/);
-          const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
-          temp = { name, group };
-        } else if (line && !line.startsWith('#') && temp) {
-          if (isSafeUrl(line)) {
-            if (!groups[temp.group]) groups[temp.group] = {};
-            if (!groups[temp.group][temp.name]) {
-              groups[temp.group][temp.name] = [];
-              totalChannelsCount++;
-            }
-            if (!groups[temp.group][temp.name].includes(line)) {
-              groups[temp.group][temp.name].push(line);
-              totalStreamsCount++;
-            }
-          }
-          temp = null;
-        }
-      }
-      // 实时全量持久化储存至 D1 和 localStorage，保证刷新/重启网页数据不丢
-      if (saveToStorage && totalChannelsCount > 0) {
-        const payload = { groups, totalChannelsCount, totalStreamsCount };
-        setD1Data(KEY_TV_CHANNELS, payload);
-      }
-    }
-
-    function renderList(targetGroups, isSearchMode = false) {
-      const container = document.getElementById('channel-list');
-      container.innerHTML = '';
-      for (let groupName in targetGroups) {
-        const channels = targetGroups[groupName];
-        if (Object.keys(channels).length === 0) continue;
-        const groupEl = document.createElement('div');
-        groupEl.className = 'group-header';
-        groupEl.innerHTML = `<span>${escapeHtml(groupName)}</span><span>▼</span>`;
-        const subList = document.createElement('div');
-        subList.className = 'group-channels';
-        if (isSearchMode) subList.style.display = 'block';
-
-        groupEl.onclick = () => {
-          const isHide = subList.style.display === 'none';
-          subList.style.display = isHide ? 'block' : 'none';
-          groupEl.querySelector('span:last-child').textContent = isHide ? '▼' : '▶';
-        };
-
-        for (let chName in channels) {
-          const urls = channels[chName];
-          const rowEl = document.createElement('div');
-          rowEl.className = 'channel-row';
-          const panelEl = document.createElement('div');
-          panelEl.className = 'sources-panel';
-
-          urls.forEach((url, idx) => {
-            const itemEl = document.createElement('div');
-            itemEl.className = 'source-item';
-            itemEl.innerHTML = `<span class="source-name">线路 ${idx + 1}</span>`;
-            itemEl.onclick = (e) => {
-              e.stopPropagation();
-              isLiveMode = true;
-              currentVodUniqueKey = "";
-              document.querySelectorAll('.source-item.active-source').forEach(el => el.classList.remove('active-source'));
-              itemEl.classList.add('active-source');
-              currentTitle.textContent = chName;
-              routeBadge.style.display = 'inline-block';
-              routeBadge.textContent = `线 ${idx + 1}`;
-              currentStreamUrl = url;
-              currentPlayingMeta = { title: chName, epName: '直播', siteName: `线路 ${idx + 1}` };
-              updateFavIconState();
-              manualPlayOnly(url);
-            };
-            panelEl.appendChild(itemEl);
-          });
-
-          const mainEl = document.createElement('div');
-          mainEl.className = 'channel-main';
-          mainEl.innerHTML = `
-            <div class="channel-title"><span class="channel-arrow">▶</span><span>${escapeHtml(chName)}</span></div>
-            <div class="channel-right-tools"><span class="badge-lines">${urls.length} 路线</span></div>
-          `;
-
-          mainEl.onclick = () => {
-            const isExpanded = rowEl.classList.contains('expanded');
-            document.querySelectorAll('.channel-row.expanded').forEach(el => el !== rowEl && el.classList.remove('expanded'));
-            if (!isExpanded) {
-              rowEl.classList.add('expanded');
-              panelEl.querySelector('.source-item')?.click();
-            } else {
-              rowEl.classList.remove('expanded');
-            }
-          };
-
-          rowEl.appendChild(mainEl);
-          rowEl.appendChild(panelEl);
-          subList.appendChild(rowEl);
-        }
-        container.appendChild(groupEl);
-        container.appendChild(subList);
-      }
-    }
-
-    function handleSearchTv() {
-      const kw = document.getElementById('filter').value.trim().toLowerCase();
-      if (!kw) { renderList(groups, false); return; }
-      const filtered = {};
-      for (let g in groups) {
-        for (let ch in groups[g]) {
-          if (ch.toLowerCase().includes(kw) || g.toLowerCase().includes(kw)) {
-            if (!filtered[g]) filtered[g] = {};
-            filtered[g][ch] = groups[g][ch];
-          }
-        }
-      }
-      renderList(filtered, true);
-    }
-
-    video.addEventListener('playing', () => { 
-      clearPlayWatchdog();
-      setStatus("", false); 
-      updatePlayBtn(true); 
-      showControls(); 
-    });
-    video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
-      document.getElementById('gate-password').addEventListener('input', checkGateInputsReady);
-
-      renderGateEyeIcon(false);
-
-      try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const k = sessionStorage.key(i);
-          if (k && k.startsWith('vod_cache_')) {
-            sessionStorage.removeItem(k);
-          }
-        }
-      } catch (_) {}
-
-      try {
-        const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
-        if (localAuth) authConfig = JSON.parse(localAuth);
-        const localAdmin = localStorage.getItem(KEY_ADMIN_INFO);
-        if (localAdmin) adminAccount = JSON.parse(localAdmin);
-        const localUsers = localStorage.getItem(KEY_USERS_LIST);
-        if (localUsers) userList = JSON.parse(localUsers);
-        const localGroups = localStorage.getItem(KEY_SOURCE_GROUPS);
-        if (localGroups) sourceGroups = JSON.parse(localGroups);
-        const localSites = localStorage.getItem(KEY_SITES);
-        if (localSites) parsedSites = JSON.parse(localSites);
-        const localDis = localStorage.getItem(KEY_DISABLED_SITES);
-        if (localDis) disabledSites = JSON.parse(localDis);
-        const localFails = localStorage.getItem(KEY_SOURCE_FAILURES);
-        if (localFails) sourceFailures = JSON.parse(localFails);
-        const localThreshold = localStorage.getItem(KEY_FAIL_THRESHOLD);
-        if (localThreshold) failThreshold = parseInt(localThreshold, 10) || 5;
-        const localTheme = localStorage.getItem(KEY_THEME_PREF);
-        if (localTheme) currentThemeSetting = localTheme;
-
-        // 本地立即提取持久化电视频道，避免刷新白屏
-        const localTv = localStorage.getItem(KEY_TV_CHANNELS);
-        if (localTv) {
-          try {
-            const parsedTv = JSON.parse(localTv);
-            if (parsedTv && typeof parsedTv === 'object') {
-              groups = parsedTv.groups || parsedTv;
-              totalChannelsCount = parsedTv.totalChannelsCount || 0;
-              totalStreamsCount = parsedTv.totalStreamsCount || 0;
-            }
-          } catch (_) {}
-        }
-      } catch (_) {}
-
-      applyGlobalTheme(currentThemeSetting);
-
-      if (!sourceGroups || sourceGroups.length === 0) {
-        sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
-      }
-
-      const savedCredsStr = localStorage.getItem(KEY_SAVED_CREDS);
-      if (savedCredsStr) {
-        try {
-          const { u, passHash } = JSON.parse(savedCredsStr);
-          if (adminAccount && u === adminAccount.username && passHash === adminAccount.passHash) {
-            currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
-          } else {
-            const found = userList.find(item => item.username === u && item.passHash === passHash);
-            if (found) currentUser = { username: found.username, role: 'user', groupId: found.groupId || 'def', groupName: found.groupName || '默认分组' };
-          }
-        } catch (_) {}
-      } else {
-        const localUserStr = localStorage.getItem(KEY_CURRENT_USER);
-        if (localUserStr) {
-          try { currentUser = JSON.parse(localUserStr); } catch (_) {}
-        }
-      }
-
-      updateMainRoleButton();
-
-      const gateScreen = document.getElementById('auth-gate-screen');
-      if (authConfig.requireLogin && !currentUser) {
-        gateScreen.style.display = 'flex';
-      } else {
-        gateScreen.style.display = 'none';
-      }
-
-      Promise.allSettled([
-        getD1Data(KEY_SITES, null),
-        getD1Data(KEY_DISABLED_SITES, '[]'),
-        getD1Data(KEY_SOURCE_FAILURES, '{}'),
-        getD1Data(KEY_FAIL_THRESHOLD, '5'),
-        getD1Data(KEY_AUTH_CONFIG, ''),
-        getD1Data(KEY_ADMIN_INFO, ''),
-        getD1Data(KEY_USERS_LIST, ''),
-        getD1Data(KEY_SOURCE_GROUPS, ''),
-        getD1Data(KEY_THEME_PREF, ''),
-        getD1Data(KEY_SUB, ''),
-        getD1Data(KEY_M3U, ''),
-        getD1Data(KEY_TV_CHANNELS, '') // 从 D1 异步核验最新电视频道持久化数据
-      ]).then(results => {
-        if (results[0].status === 'fulfilled' && results[0].value) {
-          try { const p = JSON.parse(results[0].value); if (Array.isArray(p)) parsedSites = p; } catch (_) {}
-        }
-        if (results[1].status === 'fulfilled' && results[1].value) {
-          try { disabledSites = JSON.parse(results[1].value) || []; } catch (_) {}
-        }
-        if (results[2].status === 'fulfilled' && results[2].value) {
-          try { sourceFailures = JSON.parse(results[2].value) || {}; } catch (_) {}
-        }
-        if (results[3].status === 'fulfilled' && results[3].value) {
-          failThreshold = parseInt(results[3].value, 10) || failThreshold || 5;
-        }
-        if (results[4].status === 'fulfilled' && results[4].value) {
-          try {
-            authConfig = JSON.parse(results[4].value);
-            if (authConfig.requireLogin && !currentUser) {
-              gateScreen.style.display = 'flex';
-            } else {
-              gateScreen.style.display = 'none';
-            }
-          } catch (_) {}
-        }
-        if (results[5].status === 'fulfilled' && results[5].value) {
-          try { adminAccount = JSON.parse(results[5].value); } catch (_) {}
-        }
-        if (results[6].status === 'fulfilled' && results[6].value) {
-          try { userList = JSON.parse(results[6].value); } catch (_) {}
-        }
-        if (results[7].status === 'fulfilled' && results[7].value) {
-          try { const p = JSON.parse(results[7].value); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
-        }
-        if (results[8].status === 'fulfilled' && results[8].value) {
-          currentThemeSetting = results[8].value;
-          applyGlobalTheme(currentThemeSetting);
-        }
-        if (results[9].status === 'fulfilled' && results[9].value) {
-          localStorage.setItem(KEY_SUB, results[9].value);
-        }
-        if (results[10].status === 'fulfilled' && results[10].value) {
-          localStorage.setItem(KEY_M3U, results[10].value);
-        }
-        // D1 回源校验电视频道数据
-        if (results[11]?.status === 'fulfilled' && results[11].value) {
-          try {
-            const parsedTv = JSON.parse(results[11].value);
-            if (parsedTv && typeof parsedTv === 'object') {
-              groups = parsedTv.groups || parsedTv;
-              totalChannelsCount = parsedTv.totalChannelsCount || 0;
-              totalStreamsCount = parsedTv.totalStreamsCount || 0;
-              if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
-            }
-          } catch (_) {}
-        }
-      });
-
-      // 初始化 TV
-      initTv();
-
-      const hasRestored = restoreVodSessionState();
-      if (hasRestored) {
-        currentMode = 'vod';
-        currentView = 'normal';
-        document.getElementById('tab-tv').className = 'mode-tab';
-        document.getElementById('tab-vod').className = 'mode-tab active';
-        document.getElementById('filter').placeholder = "搜索片名、视频、电视频道...";
-        renderGroupedVodSources();
-      } else {
-        switchMode('vod');
-      }
-      checkAutoSyncSchedule();
-    });
   </script>
 </body>
 </html>
