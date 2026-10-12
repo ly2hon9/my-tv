@@ -270,7 +270,9 @@
 
     #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-    /* 单排常驻吸顶工具栏：手机端一排完整排下 */
+    /* ===================================================================
+       单排常驻吸顶工具栏：手机端一排完整排下，绝不左右滑动
+       ================================================================== */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between;
       gap: 3px; padding: 6px 8px; background: var(--bg-search-box);
@@ -401,7 +403,9 @@
     .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
 
-    /* 高级全套毛玻璃系统 */
+    /* ===================================================================
+       高级全套毛玻璃系统 (Glassmorphism Modal System)
+       =================================================================== */
     .glass-modal-mask {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: var(--glass-mask);
@@ -480,6 +484,7 @@
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
+    /* 采集源列表内部独立视窗 */
     #sites-items-container {
       max-height: 320px;
       overflow-y: auto;
@@ -544,7 +549,7 @@
       .external-group { max-width: none; }
     }
 
-    /* 电脑 / 平板端 剧场沉浸双视窗布局 */
+    /* 电脑 / 平板端 剧场沉浸双视窗布局 (Theatre Workspace) */
     @media (min-width: 900px) {
       body {
         flex-direction: row;
@@ -764,7 +769,7 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧文字已去掉，替换为极简 ↕ 箭头图标) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
@@ -1151,7 +1156,7 @@
       }
 
       const result = new Uint8Array(leadingOnes + bytes.length);
-      for (let i = 0; i < leadingOnes; i++) result[i] = 0;
+      for (let i = leadingOnes; i < leadingOnes; i++) result[i] = 0;
       for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
       return new TextDecoder('utf-8').decode(result);
     }
@@ -1181,6 +1186,7 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
+    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1401,7 +1407,6 @@
       }
     }
 
-    /* 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 */
     function exitPictureInPictureMode() {
       try {
         if (document.pictureInPictureElement) {
@@ -3361,34 +3366,19 @@
       saveVodSessionState();
     }
 
-    /* === 纯局部展开面板构建函数（选集列表随源实时自适应重绘，滚动条 0 跳动） === */
     function buildGroupBodyPanel(group) {
       const bodyPanel = document.createElement('div');
       bodyPanel.className = 'group-body-panel';
 
       const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+      const episodes = getEpisodesList(currentSubItem);
 
-      // 独立选集渲染器：切换线路时实时自适应重绘为当前源实际集数
-      function renderEpisodesSection(subItem) {
-        let box = bodyPanel.querySelector('.episodes-collapse-box');
-        const episodes = getEpisodesList(subItem);
-        if (episodes.length <= 1) {
-          if (box) box.remove();
-          return;
-        }
-        if (!box) {
-          box = document.createElement('div');
-          box.className = 'episodes-collapse-box';
-          bodyPanel.prepend(box);
-        }
-
-        const activeEpObj = matchVodEpisode(episodes, currentActiveEp, currentPlayingMeta?.epName);
-        const activeIdx = activeEpObj ? activeEpObj.originalIdx : -1;
-        const statusText = activeEpObj ? `当前${escapeHtml(activeEpObj.name)}` : `<span style="color:#ef4444;">当前集未更新</span>`;
-
-        box.innerHTML = `
+      if (episodes.length > 1) {
+        const collapseBox = document.createElement('div');
+        collapseBox.className = 'episodes-collapse-box';
+        collapseBox.innerHTML = `
           <div class="episodes-header">
-            <span>📺 选集 (${episodes.length} 集) - ${statusText}</span>
+            <span>📺 选集 (${episodes.length} 集) - 当前第 ${currentActiveEp + 1} 集</span>
             <div class="episodes-actions">
               <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
               <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
@@ -3397,38 +3387,36 @@
           <div class="episodes-grid" id="episodes-grid-list"></div>
         `;
 
-        const epGrid = box.querySelector('#episodes-grid-list');
+        const epGrid = collapseBox.querySelector('#episodes-grid-list');
         const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
         displayEps.forEach((ep) => {
           const epIdx = ep.originalIdx;
           const btn = document.createElement('button');
-          btn.className = 'ep-item ' + (epIdx === activeIdx ? 'active' : '');
+          btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
           btn.textContent = ep.name;
           btn.onclick = (e) => {
             e.stopPropagation();
             currentActiveEp = epIdx;
-            box.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+            bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
             btn.classList.add('active');
-            playCurrentVodSource(subItem, epIdx, ep.name);
+            playCurrentVodSource(currentSubItem, epIdx);
             saveVodSessionState();
           };
           epGrid.appendChild(btn);
         });
 
-        box.querySelector('.episodes-header').onclick = (e) => {
+        collapseBox.querySelector('.episodes-header').onclick = (e) => {
           if (e.target.tagName === 'BUTTON') return;
           e.stopPropagation();
           const isHide = epGrid.style.display === 'none';
           epGrid.style.display = isHide ? 'grid' : 'none';
-          box.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+          collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
         };
+
+        bodyPanel.appendChild(collapseBox);
       }
 
-      // 初始渲染当前源的选集框
-      renderEpisodesSection(currentSubItem);
-
-      // 如果存在多个版本/源，渲染线路子卡片列表
       if (group.items.length > 1) {
         group.items.forEach((item) => {
           const isSubActive = (item.id === activeSubItemId);
@@ -3461,7 +3449,6 @@
             activeSubItemId = item.id;
             bodyPanel.querySelectorAll('.source-sub-card').forEach(c => c.classList.remove('active-sub'));
             subCard.classList.add('active-sub');
-            renderEpisodesSection(item);
             playCurrentVodSource(item, currentActiveEp);
             saveVodSessionState();
           };
@@ -3512,7 +3499,7 @@
       let singlePingHtml = '';
       if (group.items.length === 1 && firstItem.ping >= 0) {
         const isErr = firstItem.ping >= 9999;
-        const pClass = isErr ? "metric-ping-err" : (firstItem.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        const pClass = isErr ? "metric-ping-err" : (firstItem.ping < 500 ? "metric-ping-ok" : firstItem.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
         singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
@@ -3753,64 +3740,13 @@
       }).filter(ep => ep.url !== '');
     }
 
-    /* === 精准集数智能匹配器（优先匹配集数编号/名称，绝不错误回退起播第1集） === */
-    function matchVodEpisode(episodes, epIdx, preferredName) {
-      if (!episodes || episodes.length === 0) return null;
-
-      // 1. 优先根据目标集数名称/编号精准识别
-      const targetName = preferredName || (currentPlayingMeta?.epName ? currentPlayingMeta.epName : '');
-      if (targetName) {
-        // 1.1 完全字符串名称匹配
-        const exact = episodes.find(e => e.name.trim() === targetName.trim());
-        if (exact) return exact;
-
-        // 1.2 提取数字编号匹配（例如“第214集”匹配“214”）
-        const numMatch = targetName.match(/\d+/);
-        if (numMatch) {
-          const targetNum = parseInt(numMatch[0], 10);
-          const byNum = episodes.find(e => {
-            const m = e.name.match(/\d+/);
-            return m && parseInt(m[0], 10) === targetNum;
-          });
-          if (byNum) return byNum;
-
-          // 核心保护：当前集数带有明确集数编号而在目标源未找到时，直接判定未更新，绝不按索引乱跳
-          return null;
-        }
-      }
-
-      // 2. 无明确集数数字时（如单片、电影“正片”），核验索引范围
-      if (typeof epIdx === 'number' && epIdx >= 0 && epIdx < episodes.length) {
-        return episodes[epIdx];
-      }
-
-      return null;
-    }
-
-    function playCurrentVodSource(item, epIdx = 0, directEpName = '') {
+    function playCurrentVodSource(item, epIdx = 0) {
       if (!item?.vod) return;
       isLiveMode = false;
 
       const episodes = getEpisodesList(item);
-      const targetEp = matchVodEpisode(episodes, epIdx, directEpName);
-
-      // 核心判定：若目标源未更新当前集，立刻停止播放、清空播放流地址并提示
-      if (!targetEp || !targetEp.url) {
-        try { video.pause(); } catch(_) {}
-        destroyHlsInstance();
-        updatePlayBtn(false);
-        currentStreamUrl = "";
-        
-        const wantedName = directEpName || currentPlayingMeta?.epName || (epIdx >= 0 ? `第${epIdx + 1}集` : '当前集');
-        currentTitle.textContent = `${item.vod.vod_name} - ${wantedName} (未更新)`;
-        routeBadge.style.display = 'inline-block';
-        routeBadge.textContent = item.siteName;
-        setStatus(`该线路暂未更新【${escapeHtml(wantedName)}】<br><span style='color:var(--text-sub);font-size:12px;'>请在下方选择其他源观看此集</span>`, true);
-        return;
-      }
-
-      // 匹配成功时更新当前活动集索引
-      currentActiveEp = targetEp.originalIdx;
+      const targetEp = episodes[epIdx] || episodes[0];
+      if (!targetEp?.url) return;
 
       let rawUrl = targetEp.url;
       if (window.location.protocol === 'https:' && rawUrl.startsWith('http://')) {
