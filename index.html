@@ -272,7 +272,7 @@
 
     /* ===================================================================
        单排常驻吸顶工具栏：手机端一排完整排下，绝不左右滑动
-       =================================================================== */
+       ================================================================== */
     .top-unified-bar {
       display: flex; align-items: center; justify-content: space-between;
       gap: 3px; padding: 6px 8px; background: var(--bg-search-box);
@@ -484,6 +484,7 @@
     .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .role-admin { background: #3b2d11; color: #facc15; }
 
+    /* 采集源列表内部独立视窗 */
     #sites-items-container {
       max-height: 320px;
       overflow-y: auto;
@@ -768,7 +769,7 @@
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
 
-      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧替换为极简 ↕ 箭头图标) -->
+      <!-- 2. 独立毛玻璃弹窗导航入口 (右侧文字已去掉，替换为极简 ↕ 箭头图标) -->
       <button type="button" class="glass-nav-card-btn" onclick="openSitesModal()">
         <span>🎬 视频采集源管理 (<span id="sites-count-badge">0</span> 个)</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
@@ -1185,6 +1186,7 @@
     let currentSearchingWord = "";
     let currentCategoryFilter = 'auto';
 
+    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
     let currentVodSortType = 'score';
     let isSpeedTesting = false;
 
@@ -1405,7 +1407,6 @@
       }
     }
 
-    /* 退出画中画辅助：切换源时彻底清除 Safari/WebKit 的 PiP 占位屏提示 */
     function exitPictureInPictureMode() {
       try {
         if (document.pictureInPictureElement) {
@@ -1883,7 +1884,7 @@
       renderGateEyeIcon(!isVisible);
     }
 
-    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    const SVG_SUN = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="12" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     const SVG_MOON = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
     function applyGlobalTheme(themeMode) {
@@ -2767,10 +2768,17 @@
     window.addEventListener('beforeunload', saveVodSessionState);
     window.addEventListener('pagehide', saveVodSessionState);
 
-    /* 模式切换：彻底解决按钮失效、高亮异常与无数据黑屏问题 */
+    /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
     function switchMode(mode) {
       currentMode = mode;
       currentView = 'normal';
+
+      // 切换板块时彻底清空上方搜索框文字并重置清除按钮
+      const filterInput = document.getElementById('filter');
+      if (filterInput) {
+        filterInput.value = '';
+        toggleClearBtn('');
+      }
 
       const btnFav = document.getElementById('btn-show-fav');
       const btnHist = document.getElementById('btn-show-history');
@@ -2786,22 +2794,17 @@
         tabVod.classList.toggle('active', mode === 'vod');
       }
 
-      const filterInput = document.getElementById('filter');
       const container = document.getElementById('channel-list');
 
       if (mode === 'tv') {
         if (filterInput) filterInput.placeholder = "搜索电视频道...";
         if (Object.keys(groups).length > 0) {
-          const kw = filterInput ? filterInput.value.trim() : '';
-          if (kw) handleSearchTv();
-          else renderList(groups, false);
+          renderList(groups, false);
         } else {
           container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
           initTv(true).then(() => {
             if (Object.keys(groups).length > 0) {
-              const kw = filterInput ? filterInput.value.trim() : '';
-              if (kw) handleSearchTv();
-              else renderList(groups, false);
+              renderList(groups, false);
             } else {
               container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">暂无电视直播数据，请在设置中配置直播源（M3U）地址 📺</div>`;
             }
@@ -2812,12 +2815,7 @@
         if (groupedVodList && groupedVodList.length > 0) {
           renderGroupedVodSources();
         } else {
-          const kw = filterInput ? filterInput.value.trim() : '';
-          if (kw) {
-            fastStreamSearchVod(kw);
-          } else {
-            container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
-          }
+          container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
         }
       }
     }
