@@ -3565,6 +3565,7 @@
     }
 
     /* === 面板构建：切换线路时选集列表同步自适应重绘 === */
+/* === 面板构建：切换线路选集自适应 + 片源小卡片独立收藏与集数锁定 === */
 function buildGroupBodyPanel(group) {
   const bodyPanel = document.createElement('div');
   bodyPanel.className = 'group-body-panel';
@@ -3608,6 +3609,7 @@ function buildGroupBodyPanel(group) {
         btn.classList.add('active');
         playCurrentVodSource(sourceItem, epIdx, false);
         saveVodSessionState();
+        refreshSubCardsFavStatus();
       };
       epGrid.appendChild(btn);
     });
@@ -3621,6 +3623,28 @@ function buildGroupBodyPanel(group) {
     };
 
     bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
+  }
+
+  // 实时刷新各个片源卡片上的收藏高亮与锁定的集数状态
+  function refreshSubCardsFavStatus() {
+    getFavoritesList().then(favs => {
+      group.items.forEach(it => {
+        const btn = bodyPanel.querySelector(`#fav-btn-${it.id}`);
+        if (!btn) return;
+        const favRecord = favs.find(f => f.type !== 'tv' && f.title === group.title && f.siteName === it.siteName);
+        if (favRecord) {
+          btn.textContent = `★ 已收藏 (${favRecord.epName || '正片'})`;
+          btn.style.color = '#facc15';
+          btn.style.borderColor = '#facc15';
+          btn.style.background = 'rgba(250, 204, 21, 0.12)';
+        } else {
+          btn.textContent = '☆ 收藏';
+          btn.style.color = 'var(--text-sub)';
+          btn.style.borderColor = 'var(--border-light)';
+          btn.style.background = 'transparent';
+        }
+      });
+    });
   }
 
   const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
@@ -3647,27 +3671,67 @@ function buildGroupBodyPanel(group) {
           <span class="card-quality ${q.cls}">${escapeHtml(q.text)}</span>
           ${subCensorHtml}
         </div>
-        <div class="card-status-bar">
+        <div class="card-status-bar" style="display:flex; align-items:center; gap:6px;">
           <span id="ping-badge-${item.id}" class="${pingClass}">${pingText}</span>
+          <button type="button" id="fav-btn-${item.id}" style="font-size:11px; padding:2px 7px; border-radius:4px; border:1px solid var(--border-light); background:transparent; color:var(--text-sub); cursor:pointer; white-space:nowrap; outline:none; transition:all 0.15s ease;">☆ 收藏</button>
         </div>
       `;
 
+      // 点击卡片本体：切换线路并起播
       subCard.onclick = (e) => {
         e.stopPropagation();
         activeSubItemId = item.id;
         bodyPanel.querySelectorAll('.source-sub-card').forEach(c => c.classList.remove('active-sub'));
         subCard.classList.add('active-sub');
 
-        // 切换源时，标记 isSourceSwitch=true 校验同集对齐并自适应重绘选集
         playCurrentVodSource(item, currentActiveEp, true);
         refreshEpisodesBox(item);
         saveVodSessionState();
+        refreshSubCardsFavStatus();
+      };
+
+      // 核心第二点：点击片源小卡片上的专属【☆ 收藏】按钮，独立收藏该线路并锁定当前集数
+      const favBtn = subCard.querySelector(`#fav-btn-${item.id}`);
+      favBtn.onclick = async (e) => {
+        e.stopPropagation();
+        let favs = await getFavoritesList();
+        const existingIdx = favs.findIndex(f => f.type !== 'tv' && f.title === group.title && f.siteName === item.siteName);
+
+        // 获取该源当前观看或选中的集数
+        const episodes = getEpisodesList(item);
+        const lockEpIdx = (item.id === activeSubItemId && currentActiveEp >= 0) ? currentActiveEp : 0;
+        const lockEp = episodes[lockEpIdx] || episodes[0] || { name: '正片', url: '' };
+
+        if (existingIdx >= 0) {
+          favs.splice(existingIdx, 1);
+          setStatus(`已取消收藏【${escapeHtml(item.siteName)}】`, true);
+        } else {
+          // 精准独立收藏：绑定该线路、片源对象与当时锁定的集数
+          favs.unshift({
+            title: group.title,
+            siteName: item.siteName || '',
+            epName: lockEp.name,
+            epIdx: lockEpIdx,
+            url: lockEp.url,
+            type: 'vod',
+            thumb: group.poster || item.vod?.vod_pic || '',
+            censorTag: subCensorTag || '',
+            vod: item.vod || null,
+            savedAt: new Date().toLocaleDateString()
+          });
+          setStatus(`⭐ 已收藏【${escapeHtml(item.siteName)} · ${escapeHtml(lockEp.name)}】`, true);
+        }
+        setTimeout(() => setStatus("", false), 1500);
+        await setD1Data(getCurrentFavKey(), favs);
+        updateFavIconState();
+        refreshSubCardsFavStatus();
       };
 
       bodyPanel.appendChild(subCard);
     });
   }
 
+  refreshSubCardsFavStatus();
   return bodyPanel;
 }
 
