@@ -1458,38 +1458,75 @@
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
+    /* === 实时更新收藏图标高亮状态（按 片名 + 线路 精确判断） === */
     function updateFavIconState() {
       if (!currentPlayingMeta) {
         favToggleBtn.classList.remove('active');
         return;
       }
       getFavoritesList().then(favs => {
-        const isFav = favs.some(f => f.title === currentPlayingMeta.title && f.epName === (currentPlayingMeta.epName || '正片'));
+        let isFav = false;
+        if (isLiveMode) {
+          isFav = favs.some(f => f.type === 'tv' && (f.url === currentStreamUrl || f.title === currentPlayingMeta.title));
+        } else {
+          isFav = favs.some(f => f.type !== 'tv' && f.title === currentPlayingMeta.title && f.siteName === currentPlayingMeta.siteName);
+        }
         favToggleBtn.classList.toggle('active', isFav);
       });
     }
 
+    /* === 点击收藏：按片源独立收藏并固定正在观看的集数 === */
     async function toggleCurrentFavorite() {
       if (!currentPlayingMeta) { alert("请先选择播放项目！"); return; }
       let favs = await getFavoritesList();
       const currentEpName = currentPlayingMeta.epName || '正片';
-      const idx = favs.findIndex(f => f.title === currentPlayingMeta.title && f.epName === currentEpName);
       
-      if (idx >= 0) {
-        favs.splice(idx, 1);
-        setStatus("已取消收藏", true);
+      if (isLiveMode) {
+        const idx = favs.findIndex(f => f.type === 'tv' && (f.url === currentStreamUrl || f.title === currentPlayingMeta.title));
+        if (idx >= 0) {
+          favs.splice(idx, 1);
+          setStatus("已取消收藏电视频道", true);
+        } else {
+          favs.unshift({
+            title: currentPlayingMeta.title,
+            epName: '直播',
+            url: currentStreamUrl,
+            type: 'tv',
+            siteName: currentPlayingMeta.siteName || '直播',
+            savedAt: new Date().toLocaleDateString()
+          });
+          setStatus("⭐ 已加入电视收藏", true);
+        }
       } else {
-        favs.unshift({
-          title: currentPlayingMeta.title,
-          epName: currentEpName,
-          url: currentStreamUrl,
-          type: isLiveMode ? 'tv' : 'vod',
-          siteName: currentPlayingMeta.siteName || '',
-          thumb: currentPlayingMeta.thumb || '',
-          censorTag: currentPlayingMeta.censorTag || '',
-          savedAt: new Date().toLocaleDateString()
-        });
-        setStatus("⭐ 已加入收藏", true);
+        // 影视剧场：精确区分 A 资源、B 资源
+        const idx = favs.findIndex(f => f.type !== 'tv' && f.title === currentPlayingMeta.title && f.siteName === currentPlayingMeta.siteName);
+        if (idx >= 0) {
+          if (favs[idx].epName !== currentEpName) {
+            favs[idx].epName = currentEpName;
+            favs[idx].epIdx = (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp;
+            favs[idx].url = currentStreamUrl;
+            favs[idx].savedAt = new Date().toLocaleDateString();
+            setStatus(`⭐ 已更新【${escapeHtml(currentPlayingMeta.siteName)}】锁定至【${escapeHtml(currentEpName)}】`, true);
+          } else {
+            favs.splice(idx, 1);
+            setStatus(`已取消收藏【${escapeHtml(currentPlayingMeta.siteName)}】`, true);
+          }
+        } else {
+          // 新增收藏：保存线路、集数索引与完整源数据，确保秒播
+          favs.unshift({
+            title: currentPlayingMeta.title,
+            siteName: currentPlayingMeta.siteName || '',
+            epName: currentEpName,
+            epIdx: (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp,
+            url: currentStreamUrl,
+            type: 'vod',
+            thumb: currentPlayingMeta.thumb || '',
+            censorTag: currentPlayingMeta.censorTag || '',
+            vod: currentPlayingMeta.vod || null,
+            savedAt: new Date().toLocaleDateString()
+          });
+          setStatus(`⭐ 已收藏【${escapeHtml(currentPlayingMeta.siteName)} · ${escapeHtml(currentEpName)}】`, true);
+        }
       }
       setTimeout(() => setStatus("", false), 1500);
       await setD1Data(getCurrentFavKey(), favs);
@@ -1549,12 +1586,30 @@
       }
     }
 
+    /* === 收藏项直接秒播驱动（直接拉起源，免去二次检索） === */
+    function playFavoriteVodItem(fav) {
+      isLiveMode = false;
+      const playItem = {
+        id: 'fav_' + (fav.siteName || '') + '_' + Date.now(),
+        siteName: fav.siteName || '收藏源',
+        versionTag: '',
+        vod: fav.vod || {
+          vod_name: fav.title,
+          vod_play_url: fav.url ? `${fav.epName || '正片'}$${fav.url}` : '',
+          vod_pic: fav.thumb || '',
+          vod_remarks: fav.epName || ''
+        }
+      };
+      playCurrentVodSource(playItem, (fav.epIdx !== undefined && fav.epIdx >= 0) ? fav.epIdx : (fav.epName || 0), false);
+    }
+
+    /* === 我的收藏：多源聚合折叠 + 调取完整选集列表 + 切源自适应 === */
     async function renderFavoritesView() {
       const container = document.getElementById('channel-list');
       const favs = await getFavoritesList();
 
       if (favs.length === 0) {
-        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放时轻触顶部的 ★ 即可收藏</span></div>`;
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
         return;
       }
 
@@ -1567,74 +1622,217 @@
       `;
       frag.appendChild(headerBar);
 
-      favs.forEach((item) => {
-        const tag = item.censorTag || (isNSFWSource(item.siteName) ? detectCensorshipTag({ vod_name: item.title }, item.siteName) : '');
-        const censorHtml = tag ? `<span class="card-censor ${tag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(tag)}</span>` : '';
-        const matchKey = item.url || `${item.title}_${item.epName}`;
+      // 分离电视直播与影视剧集
+      const tvFavs = favs.filter(f => f.type === 'tv');
+      const vodFavs = favs.filter(f => f.type !== 'tv');
 
+      // 1. 渲染电视直播收藏项
+      tvFavs.forEach(item => {
         const card = document.createElement('div');
         card.className = 'history-card';
         card.innerHTML = `
           <div class="history-info">
-            <div class="history-title">
-              <span>${escapeHtml(item.title)}</span>
-              <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName || '正片')})</span>
-              ${censorHtml}
-            </div>
+            <div class="history-title">📺 ${escapeHtml(item.title)}</div>
             <div class="history-meta">
-              <span>${item.type === 'tv' ? '📺 电视' : '🎬 影视'}</span>
-              <span>${escapeHtml(item.siteName)}</span>
-              <span>${escapeHtml(item.savedAt)}</span>
+              <span>直播线路</span>
+              <span>${escapeHtml(item.siteName || '电视')}</span>
+              <span>${escapeHtml(item.savedAt || '')}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeFavoriteItem('${escapeHtml(matchKey)}', this.closest('.history-card'))">✕</button>
+          <button class="btn-del-item" title="取消收藏" onclick="event.stopPropagation(); removeFavoriteItem('${escapeHtml(item.url || item.title)}', this.closest('.history-card'))">✕</button>
         `;
-
         card.onclick = () => {
-          if (item.type === 'tv') {
-            isLiveMode = true;
-            currentStreamUrl = item.url;
-            currentTitle.textContent = item.title;
-            routeBadge.style.display = 'inline-block';
-            routeBadge.textContent = '直播';
-            currentPlayingMeta = { title: item.title, epName: '直播', siteName: '直播' };
-            manualPlayOnly(item.url);
-          } else {
-            document.getElementById('filter').value = item.title;
-            toggleClearBtn(item.title);
-            switchMode('vod');
-            triggerSearch();
-          }
+          isLiveMode = true;
+          currentStreamUrl = item.url;
+          currentTitle.textContent = item.title;
+          routeBadge.style.display = 'inline-block';
+          routeBadge.textContent = '直播';
+          currentPlayingMeta = { title: item.title, epName: '直播', siteName: item.siteName || '直播' };
+          updateFavIconState();
+          manualPlayOnly(item.url);
         };
         frag.appendChild(card);
+      });
+
+      // 2. 影视剧集按片名聚合为折叠大卡片（同剧不同源归入同一个卡片）
+      const groupMap = new Map();
+      vodFavs.forEach(f => {
+        const titleKey = f.title || '未知影视';
+        if (!groupMap.has(titleKey)) groupMap.set(titleKey, []);
+        groupMap.get(titleKey).push(f);
+      });
+
+      groupMap.forEach((favItems, title) => {
+        const firstFav = favItems[0];
+        const posterSrc = firstFav.thumb ? escapeHtml(firstFav.thumb) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+
+        const sourceItemList = favItems.map((fav, sIdx) => ({
+          id: `fav_src_${sIdx}_${Date.now()}`,
+          siteName: fav.siteName || '收藏源',
+          versionTag: '',
+          vod: fav.vod || {
+            vod_name: fav.title,
+            vod_play_url: fav.url ? `${fav.epName || '正片'}$${fav.url}` : '',
+            vod_pic: fav.thumb || '',
+            vod_remarks: fav.epName || ''
+          },
+          savedFavRef: fav
+        }));
+
+        let activeSourceItem = sourceItemList[0];
+
+        const groupCard = document.createElement('div');
+        groupCard.className = 'title-group-box expanded';
+
+        groupCard.innerHTML = `
+          <div class="title-group-header">
+            <div class="group-header-left">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap">
+                <div class="group-main-title">${escapeHtml(title)}</div>
+                <div class="group-meta-tag">
+                  <span class="group-badge-count">${favItems.length} 个收藏源</span>
+                  <span>看到: ${escapeHtml(firstFav.epName || '第1集')}</span>
+                </div>
+              </div>
+            </div>
+            <div class="group-arrow" style="transform: rotate(180deg);">▼</div>
+          </div>
+          <div class="group-body-panel" style="display: block;"></div>
+        `;
+
+        const headerEl = groupCard.querySelector('.title-group-header');
+        const bodyEl = groupCard.querySelector('.group-body-panel');
+        const arrowEl = groupCard.querySelector('.group-arrow');
+
+        headerEl.onclick = () => {
+          const isExp = groupCard.classList.contains('expanded');
+          groupCard.classList.toggle('expanded', !isExp);
+          bodyEl.style.display = isExp ? 'none' : 'block';
+          arrowEl.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)';
+        };
+
+        // 局部刷新该剧在所选源下的完整选集列表
+        function refreshFavEpisodesBox(curSource) {
+          const oldBox = bodyEl.querySelector('.episodes-collapse-box');
+          if (oldBox) oldBox.remove();
+
+          const episodes = getEpisodesList(curSource);
+          if (episodes.length <= 1) return;
+
+          const activeIdx = (currentPlayingMeta?.title === title && currentPlayingMeta?.siteName === curSource.siteName)
+            ? currentActiveEp
+            : (curSource.savedFavRef?.epIdx ?? 0);
+
+          const collapseBox = document.createElement('div');
+          collapseBox.className = 'episodes-collapse-box';
+          const epStatusText = activeIdx >= 0
+            ? `锁定第 ${activeIdx + 1} 集`
+            : '<span style="color:#ef4444;font-weight:bold;">当前集未更新</span>';
+
+          collapseBox.innerHTML = `
+            <div class="episodes-header">
+              <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
+              <div class="episodes-actions">
+                <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
+              </div>
+            </div>
+            <div class="episodes-grid" id="episodes-grid-list"></div>
+          `;
+
+          const epGrid = collapseBox.querySelector('#episodes-grid-list');
+          const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+
+          displayEps.forEach((ep) => {
+            const epIdx = ep.originalIdx;
+            const btn = document.createElement('button');
+            btn.className = 'ep-item ' + (epIdx === activeIdx ? 'active' : '');
+            btn.textContent = ep.name;
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              bodyEl.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+              btn.classList.add('active');
+
+              playCurrentVodSource(curSource, epIdx, false);
+              curSource.savedFavRef.epName = ep.name;
+              curSource.savedFavRef.epIdx = epIdx;
+              curSource.savedFavRef.url = ep.url;
+              setD1Data(getCurrentFavKey(), favs);
+
+              refreshFavEpisodesBox(curSource);
+            };
+            epGrid.appendChild(btn);
+          });
+
+          collapseBox.querySelector('.episodes-header').onclick = (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.stopPropagation();
+            const isHide = epGrid.style.display === 'none';
+            epGrid.style.display = isHide ? 'grid' : 'none';
+            collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+          };
+
+          bodyEl.insertBefore(collapseBox, bodyEl.firstChild);
+        }
+
+        refreshFavEpisodesBox(activeSourceItem);
+
+        // 渲染收藏的各个源线路卡片
+        sourceItemList.forEach((sItem, idx) => {
+          const favRef = sItem.savedFavRef;
+          const subCard = document.createElement('div');
+          subCard.className = 'source-sub-card ' + (idx === 0 ? 'active-sub' : '');
+          const cTag = favRef.censorTag || '';
+          const censorHtml = cTag ? `<span class="card-censor ${cTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(cTag)}</span>` : '';
+
+          subCard.innerHTML = `
+            <div class="source-sub-left">
+              <span class="card-sitename-tag">🎬 ${escapeHtml(favRef.siteName)}</span>
+              <span class="card-quality q-1080">看到: ${escapeHtml(favRef.epName || '正片')}</span>
+              ${censorHtml}
+            </div>
+            <div class="card-status-bar">
+              <button class="btn-del-item" title="取消该源收藏" onclick="event.stopPropagation(); removeSingleFavSource('${escapeHtml(favRef.title)}', '${escapeHtml(favRef.siteName)}')">✕</button>
+            </div>
+          `;
+
+          // 点击切换源：同步更新播放与选集
+          subCard.onclick = (e) => {
+            e.stopPropagation();
+            bodyEl.querySelectorAll('.source-sub-card').forEach(el => el.classList.remove('active-sub'));
+            subCard.classList.add('active-sub');
+            activeSourceItem = sItem;
+
+            playCurrentVodSource(sItem, favRef.epIdx ?? currentActiveEp, true);
+            refreshFavEpisodesBox(sItem);
+          };
+
+          bodyEl.appendChild(subCard);
+        });
+
+        frag.appendChild(groupCard);
       });
 
       container.replaceChildren(frag);
     }
 
-    async function removeFavoriteItem(matchKey, cardEl) {
-      if (cardEl) {
-        cardEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
-        cardEl.style.opacity = '0';
-        cardEl.style.maxHeight = '0';
-        cardEl.style.paddingTop = '0';
-        cardEl.style.paddingBottom = '0';
-        cardEl.style.overflow = 'hidden';
-        setTimeout(() => {
-          cardEl.remove();
-          const container = document.getElementById('channel-list');
-          const cards = container.querySelectorAll('.history-card');
-          const titleEl = container.querySelector('.sources-header-title');
-          if (titleEl) titleEl.textContent = `⭐ 我的收藏 (${cards.length})`;
-          if (cards.length === 0) {
-            container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放时轻触顶部的 ★ 即可收藏</span></div>`;
-          }
-        }, 200);
-      }
+    /* === 独立移除某一线路收藏并刷新 === */
+    async function removeSingleFavSource(title, siteName) {
       let favs = await getFavoritesList();
-      favs = favs.filter(f => (f.url || `${f.title}_${f.epName}`) !== matchKey);
+      favs = favs.filter(f => !(f.title === title && f.siteName === siteName));
       await setD1Data(getCurrentFavKey(), favs);
       updateFavIconState();
+      renderFavoritesView();
+    }
+
+    async function removeFavoriteItem(matchKey, cardEl) {
+      if (cardEl) cardEl.remove();
+      let favs = await getFavoritesList();
+      favs = favs.filter(f => (f.url || f.title) !== matchKey);
+      await setD1Data(getCurrentFavKey(), favs);
+      updateFavIconState();
+      if (favs.length === 0) renderFavoritesView();
     }
 
     async function renderHistoryView() {
@@ -3789,6 +3987,7 @@ function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex =
 }
 
 /* === 升级版播放驱动：精准匹配集数，未更新时停止播放并提示 === */
+/* === 升级版播放驱动：精准匹配集数 + 实时同步最新追剧进度至收藏夹 === */
 function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   if (!item?.vod) return;
   isLiveMode = false;
@@ -3847,8 +4046,27 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     epName: targetEp.name,
     siteName: item.siteName,
     thumb: item.vod.vod_pic || '',
-    censorTag: cTag
+    censorTag: cTag,
+    vod: item.vod,           // 保留完整片源数据供收藏秒调全集
+    epIdx: targetEpIdx,      // 锁定当前集数索引
+    url: rawUrl
   };
+
+  // 【核心功能】：只要播放或自动连播下一集，后台自动将最新集数实时同步回收藏夹，实现自动追剧！
+  getFavoritesList().then(favs => {
+    let updated = false;
+    favs.forEach(f => {
+      if (f.type !== 'tv' && f.title === item.vod.vod_name && f.siteName === item.siteName) {
+        f.epName = targetEp.name;
+        f.epIdx = targetEpIdx;
+        f.url = rawUrl;
+        if (!f.vod) f.vod = item.vod;
+        updated = true;
+      }
+    });
+    if (updated) setD1Data(getCurrentFavKey(), favs);
+  });
+
   updateFavIconState();
   manualPlayOnly(rawUrl);
 }
