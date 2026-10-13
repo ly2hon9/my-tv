@@ -1612,6 +1612,7 @@
     }
 
     /* === 我的收藏：多源聚合折叠 + 调取完整选集列表 + 切源自适应 === */
+    /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     async function renderFavoritesView() {
       const container = document.getElementById('channel-list');
       const favs = await getFavoritesList();
@@ -1630,11 +1631,10 @@
       `;
       frag.appendChild(headerBar);
 
-      // 分离电视直播与影视剧集
       const tvFavs = favs.filter(f => f.type === 'tv');
       const vodFavs = favs.filter(f => f.type !== 'tv');
 
-      // 1. 渲染电视直播收藏项
+      // 1. 电视直播收藏
       tvFavs.forEach(item => {
         const card = document.createElement('div');
         card.className = 'history-card';
@@ -1662,19 +1662,43 @@
         frag.appendChild(card);
       });
 
-      // 2. 影视剧集按片名聚合为折叠大卡片（同剧不同源归入同一个卡片）
+      // 2. 影视剧集：按归一化片名强行合并（解决图1中分成两个斗破苍穹卡片的问题）
       const groupMap = new Map();
       vodFavs.forEach(f => {
-        const titleKey = f.title || '未知影视';
-        if (!groupMap.has(titleKey)) groupMap.set(titleKey, []);
-        groupMap.get(titleKey).push(f);
+        const normKey = normalizeCleanKey(f.title) || (f.title || '未知影视').trim().toLowerCase();
+        if (!groupMap.has(normKey)) {
+          groupMap.set(normKey, {
+            title: f.title,
+            poster: f.thumb,
+            items: []
+          });
+        }
+        const entry = groupMap.get(normKey);
+        if (!entry.poster && f.thumb) entry.poster = f.thumb;
+        entry.items.push(f);
       });
 
-      groupMap.forEach((favItems, title) => {
-        const firstFav = favItems[0];
-        const posterSrc = firstFav.thumb ? escapeHtml(firstFav.thumb) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+      groupMap.forEach((entry, normKey) => {
+        // 对同一线路去重，保留最新看的集数
+        const uniqueSourcesMap = new Map();
+        entry.items.forEach(item => {
+          const sKey = item.siteName || '默认源';
+          if (!uniqueSourcesMap.has(sKey)) {
+            uniqueSourcesMap.set(sKey, item);
+          } else {
+            const existing = uniqueSourcesMap.get(sKey);
+            if ((item.epIdx ?? 0) >= (existing.epIdx ?? 0)) {
+              uniqueSourcesMap.set(sKey, item);
+            }
+          }
+        });
+        const uniqueFavItems = Array.from(uniqueSourcesMap.values());
+        const firstFav = uniqueFavItems[0];
+        const title = entry.title;
+        const posterSrc = entry.poster ? escapeHtml(entry.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
 
-        const sourceItemList = favItems.map((fav, sIdx) => ({
+        // 构造标准可播放的源对象列表
+        const sourceItemList = uniqueFavItems.map((fav, sIdx) => ({
           id: `fav_src_${sIdx}_${Date.now()}`,
           siteName: fav.siteName || '收藏源',
           versionTag: '',
@@ -1690,7 +1714,7 @@
         let activeSourceItem = sourceItemList[0];
 
         const groupCard = document.createElement('div');
-        groupCard.className = 'title-group-box expanded';
+        groupCard.className = 'title-group-box expanded'; // 默认展开
 
         groupCard.innerHTML = `
           <div class="title-group-header">
@@ -1699,8 +1723,9 @@
               <div class="group-info-wrap">
                 <div class="group-main-title">${escapeHtml(title)}</div>
                 <div class="group-meta-tag">
-                  <span class="group-badge-count">${favItems.length} 个收藏源</span>
-                  <span>看到: ${escapeHtml(firstFav.epName || '第1集')}</span>
+                  <span class="group-badge-count">${uniqueFavItems.length} 个收藏源</span>
+                  <span id="fav-meta-track-${normKey}" style="color:var(--accent);font-weight:600;">看到: ${escapeHtml(firstFav.epName || '第1集')}</span>
+                  <span>${escapeHtml(firstFav.savedAt || '')}</span>
                 </div>
               </div>
             </div>
@@ -1720,14 +1745,12 @@
           arrowEl.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)';
         };
 
-        // 局部刷新该剧在所选源下的完整选集列表
+        // 局部刷新函数：生成如 图2 般的选集完整网格
         function refreshFavEpisodesBox(curSource) {
           const oldBox = bodyEl.querySelector('.episodes-collapse-box');
           if (oldBox) oldBox.remove();
 
           const episodes = getEpisodesList(curSource);
-          if (episodes.length <= 1) return;
-
           const activeIdx = (currentPlayingMeta?.title === title && currentPlayingMeta?.siteName === curSource.siteName)
             ? currentActiveEp
             : (curSource.savedFavRef?.epIdx ?? 0);
@@ -1735,8 +1758,8 @@
           const collapseBox = document.createElement('div');
           collapseBox.className = 'episodes-collapse-box';
           const epStatusText = activeIdx >= 0
-            ? `锁定第 ${activeIdx + 1} 集`
-            : '<span style="color:#ef4444;font-weight:bold;">当前集未更新</span>';
+            ? `当前第 ${activeIdx + 1} 集`
+            : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
 
           collapseBox.innerHTML = `
             <div class="episodes-header">
@@ -1746,10 +1769,10 @@
                 <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
               </div>
             </div>
-            <div class="episodes-grid" id="episodes-grid-list"></div>
+            <div class="episodes-grid" id="episodes-grid-list-${normKey}"></div>
           `;
 
-          const epGrid = collapseBox.querySelector('#episodes-grid-list');
+          const epGrid = collapseBox.querySelector(`#episodes-grid-list-${normKey}`);
           const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
           displayEps.forEach((ep) => {
@@ -1759,15 +1782,18 @@
             btn.textContent = ep.name;
             btn.onclick = (e) => {
               e.stopPropagation();
-              bodyEl.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+              epGrid.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
               btn.classList.add('active');
 
+              // 播放所选集数，并立即更新本地/D1收藏夹实时进度
               playCurrentVodSource(curSource, epIdx, false);
               curSource.savedFavRef.epName = ep.name;
               curSource.savedFavRef.epIdx = epIdx;
               curSource.savedFavRef.url = ep.url;
               setD1Data(getCurrentFavKey(), favs);
 
+              const trackLabel = groupCard.querySelector(`#fav-meta-track-${normKey}`);
+              if (trackLabel) trackLabel.textContent = `看到: ${ep.name}`;
               refreshFavEpisodesBox(curSource);
             };
             epGrid.appendChild(btn);
@@ -1784,9 +1810,53 @@
           bodyEl.insertBefore(collapseBox, bodyEl.firstChild);
         }
 
-        refreshFavEpisodesBox(activeSourceItem);
+        // 核心：若旧收藏数据里没有全集列表，自动联网秒级拉取该源全量集数（如 216 集）
+        function tryReplenishEpisodesAndRender(sItem) {
+          const eps = getEpisodesList(sItem);
+          if (eps.length > 1) {
+            refreshFavEpisodesBox(sItem);
+            return;
+          }
 
-        // 渲染收藏的各个源线路卡片
+          // 1. 尝试从当前内存检索缓存直接补齐
+          const inMemGroup = groupedVodList.find(g => normalizeCleanKey(g.title) === normKey);
+          if (inMemGroup) {
+            const matchIt = inMemGroup.items.find(it => it.siteName === sItem.siteName) || inMemGroup.items[0];
+            if (matchIt && matchIt.vod) {
+              sItem.vod = matchIt.vod;
+              sItem.savedFavRef.vod = matchIt.vod;
+              setD1Data(getCurrentFavKey(), favs);
+              refreshFavEpisodesBox(sItem);
+              return;
+            }
+          }
+
+          // 2. 后台静默向源站请求该片完整选集并无缝重绘
+          const site = parsedSites.find(s => s.name === sItem.siteName);
+          if (site && site.api) {
+            const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(title)}&out=json&pg=1`;
+            fetchWithSmartProxy(urlWd, 3500).then(res => {
+              const json = JSON.parse(res);
+              if (json && Array.isArray(json.list) && json.list.length > 0) {
+                const matchedVod = json.list.find(v => normalizeCleanKey(v.vod_name) === normKey) || json.list[0];
+                if (matchedVod) {
+                  sItem.vod = matchedVod;
+                  sItem.savedFavRef.vod = matchedVod;
+                  setD1Data(getCurrentFavKey(), favs);
+                  refreshFavEpisodesBox(sItem);
+                }
+              }
+            }).catch(() => {
+              refreshFavEpisodesBox(sItem);
+            });
+          } else {
+            refreshFavEpisodesBox(sItem);
+          }
+        }
+
+        tryReplenishEpisodesAndRender(activeSourceItem);
+
+        // 渲染收藏的源线路子卡片
         sourceItemList.forEach((sItem, idx) => {
           const favRef = sItem.savedFavRef;
           const subCard = document.createElement('div');
@@ -1805,7 +1875,7 @@
             </div>
           `;
 
-          // 点击切换源：同步更新播放与选集
+          // 点击切换源：同步起播并自适应重绘选集网格
           subCard.onclick = (e) => {
             e.stopPropagation();
             bodyEl.querySelectorAll('.source-sub-card').forEach(el => el.classList.remove('active-sub'));
@@ -1813,7 +1883,7 @@
             activeSourceItem = sItem;
 
             playCurrentVodSource(sItem, favRef.epIdx ?? 0, false);
-            refreshFavEpisodesBox(sItem);
+            tryReplenishEpisodesAndRender(sItem);
           };
 
           bodyEl.appendChild(subCard);
@@ -1828,7 +1898,8 @@
     /* === 独立移除某一线路收藏并刷新 === */
     async function removeSingleFavSource(title, siteName) {
       let favs = await getFavoritesList();
-      favs = favs.filter(f => !(f.title === title && f.siteName === siteName));
+      const normTarget = normalizeCleanKey(title);
+      favs = favs.filter(f => !(normalizeCleanKey(f.title) === normTarget && f.siteName === siteName));
       await setD1Data(getCurrentFavKey(), favs);
       updateFavIconState();
       renderFavoritesView();
@@ -4060,6 +4131,7 @@ function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex =
 
 /* === 升级版播放驱动：精准匹配集数，未更新时停止播放并提示 === */
 /* === 升级版播放驱动：精准匹配集数 + 实时同步最新追剧进度至收藏夹 === */
+/* === 播放驱动：精准集数匹配 + 看到哪自动实时同步回收藏夹与界面 === */
 function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   if (!item?.vod) return;
   isLiveMode = false;
@@ -4124,19 +4196,33 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     url: rawUrl
   };
 
-  // 【核心功能】：只要播放或自动连播下一集，后台自动将最新集数实时同步回收藏夹，实现自动追剧！
+  // 【核心功能】：只要播放或自动连播下一集，后台自动将最新集数实时同步回 D1 收藏夹与界面！
   getFavoritesList().then(favs => {
     let updated = false;
+    const cleanCurrentTitle = normalizeCleanKey(item.vod.vod_name);
     favs.forEach(f => {
-      if (f.type !== 'tv' && f.title === item.vod.vod_name && f.siteName === item.siteName) {
+      if (f.type !== 'tv' && normalizeCleanKey(f.title) === cleanCurrentTitle && f.siteName === item.siteName) {
         f.epName = targetEp.name;
         f.epIdx = targetEpIdx;
         f.url = rawUrl;
-        if (!f.vod) f.vod = item.vod;
+        if (!f.vod || getEpisodesList({ vod: f.vod }).length <= 1) f.vod = item.vod;
         updated = true;
       }
     });
-    if (updated) setD1Data(getCurrentFavKey(), favs);
+    if (updated) {
+      setD1Data(getCurrentFavKey(), favs);
+      // 如果当前正停留在收藏夹视图，同步更新卡片上的集数高亮与文本
+      if (currentView === 'fav') {
+        const trackLabel = document.querySelector(`#fav-meta-track-${cleanCurrentTitle}`);
+        if (trackLabel) trackLabel.textContent = `看到: ${targetEp.name}`;
+        const grid = document.querySelector(`#episodes-grid-list-${cleanCurrentTitle}`);
+        if (grid) {
+          grid.querySelectorAll('.ep-item').forEach((b, idx) => {
+            b.classList.toggle('active', idx === targetEpIdx);
+          });
+        }
+      }
+    }
   });
 
   updateFavIconState();
