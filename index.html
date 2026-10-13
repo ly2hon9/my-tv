@@ -1422,16 +1422,24 @@
 
     video.addEventListener('ended', () => {
       if (isLiveMode || !currentPlayingMeta) return;
+      // 兼容：优先从搜索列表获取，若从收藏夹起播则直接读取当前播放元数据
       const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      if (!activeGroup) return;
-      const currentItem = activeGroup.items.find(r => r.id === activeSubItemId) || activeGroup.items[0];
+      const currentItem = activeGroup 
+        ? (activeGroup.items.find(r => r.id === activeSubItemId) || activeGroup.items[0])
+        : (currentPlayingMeta.vod ? { vod: currentPlayingMeta.vod, siteName: currentPlayingMeta.siteName, id: activeSubItemId } : null);
+
+      if (!currentItem) return;
       const episodes = getEpisodesList(currentItem);
-      if (episodes.length > 0 && currentActiveEp < episodes.length - 1) {
+      if (episodes.length > 0 && currentActiveEp >= 0 && currentActiveEp < episodes.length - 1) {
         const nextEpIdx = currentActiveEp + 1;
         setStatus(`🎉 本集播放完毕，自动连播第 ${nextEpIdx + 1} 集...`, true);
         setTimeout(() => {
           currentActiveEp = nextEpIdx;
-          renderGroupedVodSources();
+          if (currentView === 'normal' && currentMode === 'vod') {
+            renderGroupedVodSources();
+          } else if (currentView === 'fav') {
+            renderFavoritesView();
+          }
           playCurrentVodSource(currentItem, nextEpIdx);
         }, 1500);
       }
