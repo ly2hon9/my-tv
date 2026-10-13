@@ -1613,6 +1613,7 @@
 
     /* === 我的收藏：多源聚合折叠 + 调取完整选集列表 + 切源自适应 === */
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
+    /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     async function renderFavoritesView() {
       const container = document.getElementById('channel-list');
       const favs = await getFavoritesList();
@@ -1662,13 +1663,13 @@
         frag.appendChild(card);
       });
 
-      // 2. 影视剧集：按归一化片名强行合并（解决图1中分成两个斗破苍穹卡片的问题）
+      // 2. 影视剧集：按归一化片名强行合并（彻底消除图1分成两张卡片的问题）
       const groupMap = new Map();
       vodFavs.forEach(f => {
         const normKey = normalizeCleanKey(f.title) || (f.title || '未知影视').trim().toLowerCase();
         if (!groupMap.has(normKey)) {
           groupMap.set(normKey, {
-            title: f.title,
+            title: f.title.trim(),
             poster: f.thumb,
             items: []
           });
@@ -1679,16 +1680,16 @@
       });
 
       groupMap.forEach((entry, normKey) => {
-        // 对同一线路去重，保留最新看的集数
+        // 同源去重，自动保留最新观看的集数，并清洗掉名称里的图标
         const uniqueSourcesMap = new Map();
         entry.items.forEach(item => {
-          const sKey = item.siteName || '默认源';
-          if (!uniqueSourcesMap.has(sKey)) {
-            uniqueSourcesMap.set(sKey, item);
+          const cleanName = (item.siteName || '').replace(/^[🎬\s\:\-]+/, '').trim() || '默认源';
+          if (!uniqueSourcesMap.has(cleanName)) {
+            uniqueSourcesMap.set(cleanName, item);
           } else {
-            const existing = uniqueSourcesMap.get(sKey);
+            const existing = uniqueSourcesMap.get(cleanName);
             if ((item.epIdx ?? 0) >= (existing.epIdx ?? 0)) {
-              uniqueSourcesMap.set(sKey, item);
+              uniqueSourcesMap.set(cleanName, item);
             }
           }
         });
@@ -1698,23 +1699,26 @@
         const posterSrc = entry.poster ? escapeHtml(entry.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
 
         // 构造标准可播放的源对象列表
-        const sourceItemList = uniqueFavItems.map((fav, sIdx) => ({
-          id: `fav_src_${sIdx}_${Date.now()}`,
-          siteName: fav.siteName || '收藏源',
-          versionTag: '',
-          vod: fav.vod || {
-            vod_name: fav.title,
-            vod_play_url: fav.url ? `${fav.epName || '正片'}$${fav.url}` : '',
-            vod_pic: fav.thumb || '',
-            vod_remarks: fav.epName || ''
-          },
-          savedFavRef: fav
-        }));
+        const sourceItemList = uniqueFavItems.map((fav, sIdx) => {
+          const pureSiteName = (fav.siteName || '收藏源').replace(/^[🎬\s\:\-]+/, '').trim();
+          return {
+            id: `fav_src_${sIdx}_${Date.now()}`,
+            siteName: pureSiteName,
+            versionTag: '',
+            vod: fav.vod || {
+              vod_name: fav.title,
+              vod_play_url: fav.url ? `${fav.epName || '正片'}$${fav.url}` : '',
+              vod_pic: fav.thumb || '',
+              vod_remarks: fav.epName || ''
+            },
+            savedFavRef: fav
+          };
+        });
 
         let activeSourceItem = sourceItemList[0];
 
         const groupCard = document.createElement('div');
-        groupCard.className = 'title-group-box expanded'; // 默认展开
+        groupCard.className = 'title-group-box expanded'; // 默认展开展示
 
         groupCard.innerHTML = `
           <div class="title-group-header">
@@ -1751,14 +1755,14 @@
           if (oldBox) oldBox.remove();
 
           const episodes = getEpisodesList(curSource);
-          const activeIdx = (currentPlayingMeta?.title === title && currentPlayingMeta?.siteName === curSource.siteName)
+          const activeIdx = (currentPlayingMeta?.title && normalizeCleanKey(currentPlayingMeta.title) === normKey && currentPlayingMeta?.siteName === curSource.siteName)
             ? currentActiveEp
             : (curSource.savedFavRef?.epIdx ?? 0);
 
           const collapseBox = document.createElement('div');
           collapseBox.className = 'episodes-collapse-box';
-          const epStatusText = activeIdx >= 0
-            ? `当前第 ${activeIdx + 1} 集`
+          const epStatusText = activeIdx >= 0 
+            ? `当前第 ${activeIdx + 1} 集` 
             : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
 
           collapseBox.innerHTML = `
@@ -1785,7 +1789,7 @@
               epGrid.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
               btn.classList.add('active');
 
-              // 播放所选集数，并立即更新本地/D1收藏夹实时进度
+              // 播放所选集数，并立即同步写回 D1 收藏夹
               playCurrentVodSource(curSource, epIdx, false);
               curSource.savedFavRef.epName = ep.name;
               curSource.savedFavRef.epIdx = epIdx;
@@ -1810,7 +1814,7 @@
           bodyEl.insertBefore(collapseBox, bodyEl.firstChild);
         }
 
-        // 核心：若旧收藏数据里没有全集列表，自动联网秒级拉取该源全量集数（如 216 集）
+        // 核心：若旧收藏数据只有单集，自动联网向源站请求并补齐整套 216 集选集网格
         function tryReplenishEpisodesAndRender(sItem) {
           const eps = getEpisodesList(sItem);
           if (eps.length > 1) {
@@ -1818,11 +1822,14 @@
             return;
           }
 
+          // 先渲染已有集数兜底显示
+          refreshFavEpisodesBox(sItem);
+
           // 1. 尝试从当前内存检索缓存直接补齐
           const inMemGroup = groupedVodList.find(g => normalizeCleanKey(g.title) === normKey);
           if (inMemGroup) {
-            const matchIt = inMemGroup.items.find(it => it.siteName === sItem.siteName) || inMemGroup.items[0];
-            if (matchIt && matchIt.vod) {
+            const matchIt = inMemGroup.items.find(it => normalizeCleanKey(it.siteName) === normalizeCleanKey(sItem.siteName)) || inMemGroup.items[0];
+            if (matchIt && matchIt.vod && getEpisodesList(matchIt).length > 1) {
               sItem.vod = matchIt.vod;
               sItem.savedFavRef.vod = matchIt.vod;
               setD1Data(getCurrentFavKey(), favs);
@@ -1831,26 +1838,24 @@
             }
           }
 
-          // 2. 后台静默向源站请求该片完整选集并无缝重绘
-          const site = parsedSites.find(s => s.name === sItem.siteName);
+          // 2. 模糊匹配纯净站点名称，向源站请求该片完整选集并重绘
+          const cleanNormSite = normalizeCleanKey(sItem.siteName);
+          const site = parsedSites.find(s => normalizeCleanKey(s.name) === cleanNormSite || s.name === sItem.siteName);
+
           if (site && site.api) {
             const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(title)}&out=json&pg=1`;
-            fetchWithSmartProxy(urlWd, 3500).then(res => {
+            fetchWithSmartProxy(urlWd, 4000).then(res => {
               const json = JSON.parse(res);
               if (json && Array.isArray(json.list) && json.list.length > 0) {
                 const matchedVod = json.list.find(v => normalizeCleanKey(v.vod_name) === normKey) || json.list[0];
-                if (matchedVod) {
+                if (matchedVod && getEpisodesList({ vod: matchedVod }).length > 1) {
                   sItem.vod = matchedVod;
                   sItem.savedFavRef.vod = matchedVod;
                   setD1Data(getCurrentFavKey(), favs);
                   refreshFavEpisodesBox(sItem);
                 }
               }
-            }).catch(() => {
-              refreshFavEpisodesBox(sItem);
-            });
-          } else {
-            refreshFavEpisodesBox(sItem);
+            }).catch(() => {});
           }
         }
 
@@ -1866,7 +1871,7 @@
 
           subCard.innerHTML = `
             <div class="source-sub-left">
-              <span class="card-sitename-tag">🎬 ${escapeHtml(favRef.siteName)}</span>
+              <span class="card-sitename-tag">🎬 ${escapeHtml(sItem.siteName)}</span>
               <span class="card-quality q-1080">看到: ${escapeHtml(favRef.epName || '正片')}</span>
               ${censorHtml}
             </div>
@@ -1875,7 +1880,7 @@
             </div>
           `;
 
-          // 点击切换源：同步起播并自适应重绘选集网格
+          // 点击切换源：起播并自适应重绘选集网格
           subCard.onclick = (e) => {
             e.stopPropagation();
             bodyEl.querySelectorAll('.source-sub-card').forEach(el => el.classList.remove('active-sub'));
@@ -1899,7 +1904,12 @@
     async function removeSingleFavSource(title, siteName) {
       let favs = await getFavoritesList();
       const normTarget = normalizeCleanKey(title);
-      favs = favs.filter(f => !(normalizeCleanKey(f.title) === normTarget && f.siteName === siteName));
+      const cleanSite = (siteName || '').replace(/^[🎬\s\:\-]+/, '').trim().toLowerCase();
+      favs = favs.filter(f => {
+        const isSameTitle = normalizeCleanKey(f.title) === normTarget;
+        const isSameSite = (f.siteName || '').replace(/^[🎬\s\:\-]+/, '').trim().toLowerCase() === cleanSite;
+        return !(isSameTitle && isSameSite);
+      });
       await setD1Data(getCurrentFavKey(), favs);
       updateFavIconState();
       renderFavoritesView();
@@ -3633,7 +3643,11 @@
 
     function toggleEpisodesOrder() {
       isEpisodeReversed = !isEpisodeReversed;
-      renderGroupedVodSources();
+      if (currentView === 'fav') {
+        renderFavoritesView();
+      } else {
+        renderGroupedVodSources();
+      }
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
