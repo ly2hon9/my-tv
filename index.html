@@ -1804,7 +1804,7 @@
             subCard.classList.add('active-sub');
             activeSourceItem = sItem;
 
-            playCurrentVodSource(sItem, favRef.epIdx ?? currentActiveEp, true);
+            playCurrentVodSource(sItem, favRef.epIdx ?? 0, false);
             refreshFavEpisodesBox(sItem);
           };
 
@@ -4059,7 +4059,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   const episodes = getEpisodesList(item);
   let targetEpIdx = -1;
 
-  if (isSourceSwitch && currentPlayingMeta?.epName) {
+  if (isSourceSwitch && currentPlayingMeta?.epName && currentPlayingMeta?.title === item.vod.vod_name) {
     targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta.epName, currentActiveEp);
   } else if (typeof targetEpParam === 'number') {
     targetEpIdx = targetEpParam;
