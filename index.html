@@ -3759,9 +3759,9 @@ function parseEpisodeNumber(name) {
   const str = String(name).trim();
   const mExplicit = str.match(/(?:第|ep|e)\s*(\d+)\s*(?:集|话|期)?/i);
   if (mExplicit) return parseInt(mExplicit[1], 10);
-  const mPure = str.match(/^\s*(\d+)\s*\$/);
+  const mPure = str.match(/^\s*(\d+)\s*$/);
   if (mPure) return parseInt(mPure[1], 10);
-  const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|\$)/);
+  const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|$)/);
   if (mNum) return parseInt(mNum[1], 10);
   return null;
 }
