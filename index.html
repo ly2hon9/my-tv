@@ -4317,11 +4317,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    function manualPlayOnly(url) {
+        function manualPlayOnly(url) {
+      // 破除 iPhone Safari 混合内容拦截：在 HTTPS 环境下自动将 http 升轨为 https
+      if (window.location.protocol === 'https:' && typeof url === 'string' && url.startsWith('http://')) {
+        url = url.replace(/^http:\/\//i, 'https://');
+      }
+
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
       setStatus("正在建立连接，请稍候...");
+
 
       let hasStarted = false;
       const markPlaySuccess = () => {
