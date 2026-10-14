@@ -1783,6 +1783,7 @@
             const epIdx = ep.originalIdx;
             const btn = document.createElement('button');
             btn.className = 'ep-item ' + (epIdx === activeIdx ? 'active' : '');
+            btn.setAttribute('data-ep-idx', String(epIdx));
             btn.textContent = ep.name;
             btn.onclick = (e) => {
               e.stopPropagation();
@@ -4143,9 +4144,7 @@ function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex =
   return -1;
 }
 
-/* === 升级版播放驱动：精准匹配集数，未更新时停止播放并提示 === */
-/* === 升级版播放驱动：精准匹配集数 + 实时同步最新追剧进度至收藏夹 === */
-/* === 播放驱动：精准集数匹配 + 看到哪自动实时同步回收藏夹与界面 === */
+/* === 播放驱动：精准集数匹配 + 越界自适应兜底 + 看到哪自动实时同步回收藏夹与界面 === */
 function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   if (!item?.vod) return;
   isLiveMode = false;
@@ -4156,7 +4155,14 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   if (isSourceSwitch && currentPlayingMeta?.epName && currentPlayingMeta?.title === item.vod.vod_name) {
     targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta.epName, currentActiveEp);
   } else if (typeof targetEpParam === 'number') {
-    targetEpIdx = targetEpParam;
+    // 越界保护：如果索引在有效范围内直接读取；若历史单集缓存超出了数组长度，按名称智能匹配或兜底第0集
+    if (targetEpParam >= 0 && targetEpParam < episodes.length) {
+      targetEpIdx = targetEpParam;
+    } else if (currentPlayingMeta?.epName || item.vod?.vod_remarks) {
+      targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta?.epName || item.vod?.vod_remarks, 0);
+    } else {
+      targetEpIdx = 0;
+    }
   } else if (typeof targetEpParam === 'string') {
     targetEpIdx = findMatchingEpisodeIndex(episodes, targetEpParam, 0);
   } else {
@@ -4214,8 +4220,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   getFavoritesList().then(favs => {
     let updated = false;
     const cleanCurrentTitle = normalizeCleanKey(item.vod.vod_name);
+    const cleanCurrentSite = normalizeCleanKey(item.siteName);
+
     favs.forEach(f => {
-      if (f.type !== 'tv' && normalizeCleanKey(f.title) === cleanCurrentTitle && f.siteName === item.siteName) {
+      if (f.type !== 'tv' && normalizeCleanKey(f.title) === cleanCurrentTitle && normalizeCleanKey(f.siteName) === cleanCurrentSite) {
         f.epName = targetEp.name;
         f.epIdx = targetEpIdx;
         f.url = rawUrl;
@@ -4223,16 +4231,18 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         updated = true;
       }
     });
+
     if (updated) {
       setD1Data(getCurrentFavKey(), favs);
-      // 如果当前正停留在收藏夹视图，同步更新卡片上的集数高亮与文本
+      // 使用 getElementById 彻底避免特殊字符报错，并按真实 data-ep-idx 匹配高亮（倒序绝不错位）
       if (currentView === 'fav') {
-        const trackLabel = document.querySelector(`#fav-meta-track-${cleanCurrentTitle}`);
+        const trackLabel = document.getElementById(`fav-meta-track-${cleanCurrentTitle}`);
         if (trackLabel) trackLabel.textContent = `看到: ${targetEp.name}`;
-        const grid = document.querySelector(`#episodes-grid-list-${cleanCurrentTitle}`);
+        const grid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
         if (grid) {
-          grid.querySelectorAll('.ep-item').forEach((b, idx) => {
-            b.classList.toggle('active', idx === targetEpIdx);
+          grid.querySelectorAll('.ep-item').forEach(b => {
+            const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
+            b.classList.toggle('active', bIdx === targetEpIdx);
           });
         }
       }
