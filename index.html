@@ -978,11 +978,11 @@
     }
 
     function normalizeCleanKey(str) {
-      if (!str) return '';
-      return String(str).toLowerCase()
-        .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+]+/g, '')
-        .replace(/[（(].*?[)）]/g, '');
-    }
+  if (!str) return '';
+  return String(str).toLowerCase()
+    .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+]+/g, '')
+    .replace(/[（(【\[［\{].*?[)）】\]］\}]/g, '');
+}
 
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
@@ -3748,13 +3748,15 @@ function buildGroupBodyPanel(group) {
     bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
   }
 
-  // 实时刷新各个片源卡片上的收藏高亮与锁定的集数状态
+  // 实时刷新各个片源卡片上的收藏高亮与锁定的集数状态（归一化精确匹配）
   function refreshSubCardsFavStatus() {
     getFavoritesList().then(favs => {
+      const normGroupTitle = normalizeCleanKey(group.title);
       group.items.forEach(it => {
         const btn = bodyPanel.querySelector(`#fav-btn-${it.id}`);
         if (!btn) return;
-        const favRecord = favs.find(f => f.type !== 'tv' && f.title === group.title && f.siteName === it.siteName);
+        const normItSite = normalizeCleanKey(it.siteName);
+        const favRecord = favs.find(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
         if (favRecord) {
           btn.textContent = `★ 已收藏 (${favRecord.epName || '正片'})`;
           btn.style.color = '#facc15';
@@ -3813,14 +3815,15 @@ function buildGroupBodyPanel(group) {
         refreshSubCardsFavStatus();
       };
 
-      // 核心第二点：点击片源小卡片上的专属【☆ 收藏】按钮，独立收藏该线路并锁定当前集数
+      // 点击片源小卡片专属收藏按钮：归一化精准防重复
       const favBtn = subCard.querySelector(`#fav-btn-${item.id}`);
       favBtn.onclick = async (e) => {
         e.stopPropagation();
         let favs = await getFavoritesList();
-        const existingIdx = favs.findIndex(f => f.type !== 'tv' && f.title === group.title && f.siteName === item.siteName);
+        const normGroupTitle = normalizeCleanKey(group.title);
+        const normItemSite = normalizeCleanKey(item.siteName);
+        const existingIdx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItemSite);
 
-        // 获取该源当前观看或选中的集数
         const episodes = getEpisodesList(item);
         const lockEpIdx = (item.id === activeSubItemId && currentActiveEp >= 0) ? currentActiveEp : 0;
         const lockEp = episodes[lockEpIdx] || episodes[0] || { name: '正片', url: '' };
@@ -3829,10 +3832,9 @@ function buildGroupBodyPanel(group) {
           favs.splice(existingIdx, 1);
           setStatus(`已取消收藏【${escapeHtml(item.siteName)}】`, true);
         } else {
-          // 精准独立收藏：绑定该线路、片源对象与当时锁定的集数
           favs.unshift({
             title: group.title,
-            siteName: item.siteName || '',
+            siteName: (item.siteName || '').replace(/^[🎬\s\:\-]+/, '').trim(),
             epName: lockEp.name,
             epIdx: lockEpIdx,
             url: lockEp.url,
