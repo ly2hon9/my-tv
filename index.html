@@ -4317,7 +4317,19 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
+    const CF_STREAM_PROXY = 'https://tv-proxy.luyizhong.eu.org';
+
     function manualPlayOnly(url) {
+      // 智能分流代理：针对纯 IP 或无法支持 SSL 的纯 HTTP 直播流，交由 Cloudflare Worker 流式中转（免 Vercel 流量）
+      if (window.location.protocol === 'https:' && typeof url === 'string' && url.startsWith('http://')) {
+        const isPureIpOrPort = /:\d+/.test(url) || /http:\/\/\d+\.\d+\.\d+\.\d+/.test(url);
+        if (isPureIpOrPort && CF_STREAM_PROXY) {
+          url = `${CF_STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
+        } else {
+          url = url.replace(/^http:\/\//i, 'https://');
+        }
+      }
+
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
