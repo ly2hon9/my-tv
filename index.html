@@ -4342,7 +4342,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
-      }, 6000);
+      }, 15000);
 
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
