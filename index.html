@@ -1037,7 +1037,8 @@
 
     async function getD1Data(key, defaultVal = '') {
       try {
-        const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
+        // 关键：增加时间戳 _t 与 cache: 'no-store'，彻底杜绝 Safari 命中旧缓存
+        const res = await fetch(`/api/data?key=${encodeURIComponent(key)}&_t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data && data.value !== null && data.value !== undefined) {
@@ -1103,375 +1104,6 @@
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
     }
 
-    const VodSearchCache = {
-      maxMemEntries: 20,
-      ttl: 15 * 60 * 1000,
-      memMap: new Map(),
-
-      makeKey(kw, groupId) {
-        return `vod_cache_${normalizeCleanKey(kw)}_${groupId || 'all'}`;
-      },
-
-      get(kw, groupId) {
-        if (!kw) return null;
-        const key = this.makeKey(kw, groupId);
-        const memHit = this.memMap.get(key);
-        if (memHit && (Date.now() - memHit.time < this.ttl)) {
-          return memHit.data;
-        }
-        return null;
-      },
-
-      set(kw, groupId, data) {
-        if (!kw || !data || data.length === 0) return;
-        const key = this.makeKey(kw, groupId);
-        this.memMap.set(key, { time: Date.now(), data });
-        if (this.memMap.size > this.maxMemEntries) {
-          const oldestKey = this.memMap.keys().next().value;
-          this.memMap.delete(oldestKey);
-        }
-      }
-    };
-
-    const B58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    const B58_MAP = {};
-    for (let i = 0; i < B58_CHARS.length; i++) B58_MAP[B58_CHARS[i]] = i;
-
-    function decodeBase58(string) {
-      if (!string || typeof string !== 'string') return '';
-      const input = string.trim();
-      let leadingOnes = 0;
-      while (leadingOnes < input.length && input[leadingOnes] === '1') leadingOnes++;
-
-      const bytes = [0];
-      for (let i = leadingOnes; i < input.length; i++) {
-        const c = input[i];
-        if (!(c in B58_MAP)) throw new Error('无效字符: ' + c);
-        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
-        bytes[0] += B58_MAP[c];
-        let carry = 0;
-        for (let j = 0; j < bytes.length; ++j) {
-          bytes[j] += carry;
-          carry = bytes[j] >> 8;
-          bytes[j] &= 0xff;
-        }
-        while (carry > 0) {
-          bytes.push(carry & 0xff);
-          carry >>= 8;
-        }
-      }
-
-      const result = new Uint8Array(leadingOnes + bytes.length);
-      for (let i = leadingOnes; i < leadingOnes; i++) result[i] = 0;
-      for (let i = 0; i < bytes.length; i++) result[leadingOnes + i] = bytes[bytes.length - 1 - i];
-      return new TextDecoder('utf-8').decode(result);
-    }
-
-    let parsedSites = [];
-    let disabledSites = [];
-    let sourceFailures = {};
-    let failThreshold = 5;
-    let currentMode = 'vod';
-    let currentView = 'normal';
-    let groups = {};
-    let totalChannelsCount = 0;
-    let totalStreamsCount = 0;
-    let currentStreamUrl = "";
-    
-    let groupedVodList = [];
-    let activeGroupTitle = "";
-    let activeSubItemId = "";
-    let currentActiveEp = 0;
-    let isEpisodeReversed = false;
-    let isLiveMode = false;
-    let hls = null;
-    let currentSearchAbortController = null;
-    let renderFrameTimer = null;
-
-    let isSearchingActive = false;
-    let currentSearchingWord = "";
-    let currentCategoryFilter = 'auto';
-
-    /* 综合排序当前状态：score (综合排序) / time_desc (时间最新降序) / time_asc (时间最早升序) / speed (响应速度) */
-    let currentVodSortType = 'score';
-    let isSpeedTesting = false;
-
-    let activeDisplayCardList = [];
-    let currentlyRenderedCount = 0;
-    const CHUNK_PAGE_SIZE = 25;
-
-    let adminAccount = null;
-    let authConfig = { requireLogin: false };
-    let userList = [];
-    let sourceGroups = [];
-    let currentUser = null;
-    let currentThemeSetting = 'auto';
-    let gateAuthMode = 'login';
-    let currentEditingGroupId = null;
-    let userAssigningIdx = -1;
-
-    const domNodeCache = new Map();
-
-    let isDraggingProgress = false;
-    let dragTargetTime = 0;
-    let currentVodUniqueKey = "";
-    let currentPlayingMeta = null;
-    let controlsHideTimer = null;
-    let playWatchdogTimer = null;
-
-    const RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
-    let currentRateIdx = 0;
-
-    const RATIOS = [
-      { text: "适应", class: "" },
-      { text: "裁剪", class: "fit-cover" },
-      { text: "拉伸", class: "fit-fill" }
-    ];
-    let currentRatioIdx = 0;
-
-    const video = document.getElementById('video');
-    const wrap = document.getElementById('player-wrap');
-    const statusLayer = document.getElementById('status-layer');
-    const statusText = document.getElementById('status-text');
-    const currentTitle = document.getElementById('current-title');
-    const routeBadge = document.getElementById('current-route-badge');
-    const favToggleBtn = document.getElementById('btn-fav-toggle');
-    const playIcon = document.getElementById('play-icon');
-    const pauseIcon = document.getElementById('pause-icon');
-    const streamTimeEl = document.getElementById('stream-time');
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressTrack = document.getElementById('progress-track');
-    const speedBtn = document.getElementById('speed-btn');
-    const ratioBtn = document.getElementById('ratio-btn');
-    const gestureTip = document.getElementById('gesture-tip');
-    const volSlider = document.getElementById('vol-slider');
-
-    function setStatus(text, show = true) {
-      if (show) {
-        statusText.innerHTML = text;
-        const iconEl = statusLayer.querySelector('.icon');
-        if (iconEl) {
-          if (text.includes('★') || text.includes('收藏')) {
-            iconEl.textContent = '⭐';
-          } else if (isLiveMode) {
-            iconEl.textContent = '📺';
-          } else {
-            iconEl.textContent = '🎬';
-          }
-        }
-        statusLayer.style.display = 'block';
-      } else {
-        statusLayer.style.display = 'none';
-      }
-    }
-
-    let gestureTipTimer = null;
-    function showGestureTip(text) {
-      gestureTip.textContent = text;
-      gestureTip.style.opacity = '1';
-      clearTimeout(gestureTipTimer);
-      gestureTipTimer = setTimeout(() => { gestureTip.style.opacity = '0'; }, 1100);
-    }
-
-    function formatTime(sec) {
-      if (isNaN(sec) || sec < 0) return "00:00";
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60);
-      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-    }
-
-    function showControls() {
-      wrap.classList.remove('controls-hidden');
-      clearTimeout(controlsHideTimer);
-      if (!video.paused && !isDraggingProgress) {
-        controlsHideTimer = setTimeout(() => wrap.classList.add('controls-hidden'), 3500);
-      }
-    }
-
-    wrap.addEventListener('mousemove', showControls);
-    wrap.addEventListener('pointerdown', showControls);
-
-    let seekChainTimer = null;
-    let seekAccumSec = 0;
-    let seekActiveDir = null;
-    let lastTapTime = 0;
-    let lastTapSide = null;
-
-    wrap.addEventListener('touchend', (e) => {
-      if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
-      const touch = e.changedTouches[0];
-      if (!touch) return;
-
-      const rect = wrap.getBoundingClientRect();
-      const xRatio = (touch.clientX - rect.left) / rect.width;
-      const now = performance.now();
-      const dt = now - lastTapTime;
-
-      let side = 'center';
-      if (xRatio < 0.35) side = 'left';
-      else if (xRatio > 0.65) side = 'right';
-
-      if (isLiveMode) {
-        if (dt < 320 && side === 'center') {
-          togglePlay();
-          showGestureTip(video.paused ? "⏸ 暂停" : "▶ 播放");
-        }
-        lastTapTime = now;
-        showControls();
-        return;
-      }
-
-      if (seekActiveDir && seekActiveDir === side && dt < 750) {
-        seekAccumSec += 10;
-        if (side === 'left') {
-          video.currentTime = Math.max(0, video.currentTime - 10);
-          showGestureTip(`⏪ 快退 ${seekAccumSec} 秒`);
-        } else {
-          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-          showGestureTip(`⏩ 快进 ${seekAccumSec} 秒`);
-        }
-
-        if (video.duration && isFinite(video.duration)) {
-          streamTimeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
-          progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
-        }
-
-        lastTapTime = now;
-        clearTimeout(seekChainTimer);
-        seekChainTimer = setTimeout(() => {
-          seekActiveDir = null;
-          seekAccumSec = 0;
-        }, 750);
-
-        showControls();
-        return;
-      }
-
-      if (dt < 320 && lastTapSide === side) {
-        if (side === 'left') {
-          seekActiveDir = 'left';
-          seekAccumSec = 10;
-          video.currentTime = Math.max(0, video.currentTime - 10);
-          showGestureTip(`⏪ 快退 10 秒`);
-          clearTimeout(seekChainTimer);
-          seekChainTimer = setTimeout(() => {
-            seekActiveDir = null;
-            seekAccumSec = 0;
-          }, 750);
-        } else if (side === 'right') {
-          seekActiveDir = 'right';
-          seekAccumSec = 10;
-          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-          showGestureTip(`⏩ 快进 10 秒`);
-          clearTimeout(seekChainTimer);
-          seekChainTimer = setTimeout(() => {
-            seekActiveDir = null;
-            seekAccumSec = 0;
-          }, 750);
-        } else {
-          togglePlay();
-          showGestureTip(video.paused ? "⏸ 暂停" : "▶ 播放");
-        }
-
-        if (video.duration && isFinite(video.duration)) {
-          streamTimeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
-          progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
-        }
-      } else {
-        if (seekActiveDir && seekActiveDir !== side) {
-          seekActiveDir = null;
-          seekAccumSec = 0;
-          clearTimeout(seekChainTimer);
-        }
-      }
-
-      lastTapTime = now;
-      lastTapSide = side;
-      showControls();
-    }, { passive: true });
-
-    function cyclePlaybackRate() {
-      currentRateIdx = (currentRateIdx + 1) % RATES.length;
-      const rate = RATES[currentRateIdx];
-      video.playbackRate = rate;
-      speedBtn.textContent = `${rate}倍`;
-      showGestureTip(`倍速：${rate}x`);
-    }
-
-    function cycleAspectRatio() {
-      currentRatioIdx = (currentRatioIdx + 1) % RATIOS.length;
-      const item = RATIOS[currentRatioIdx];
-      video.className = item.class;
-      ratioBtn.textContent = item.text;
-      showGestureTip(`画面比例：${item.text}`);
-    }
-
-    function changeVolume(val) {
-      video.volume = parseFloat(val);
-      video.muted = (val == 0);
-      document.getElementById('volume-icon').setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
-      volSlider.value = video.muted ? 0 : video.volume;
-    }
-
-    async function togglePiP() {
-      try {
-        if (document.pictureInPictureElement) await document.exitPictureInPicture();
-        else if (video.requestPictureInPicture) await video.requestPictureInPicture();
-      } catch (_) {
-        alert("当前浏览器暂不支持画中画");
-      }
-    }
-
-    function exitPictureInPictureMode() {
-      try {
-        if (document.pictureInPictureElement) {
-          document.exitPictureInPicture().catch(() => {});
-        }
-      } catch (_) {}
-      try {
-        if (video && video.webkitPresentationMode === 'picture-in-picture') {
-          video.webkitSetPresentationMode('inline');
-        }
-      } catch (_) {}
-    }
-
-    video.addEventListener('ended', () => {
-      if (isLiveMode || !currentPlayingMeta) return;
-      // 兼容：优先从搜索列表获取，若从收藏夹起播则直接读取当前播放元数据
-      const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
-      const currentItem = activeGroup 
-        ? (activeGroup.items.find(r => r.id === activeSubItemId) || activeGroup.items[0])
-        : (currentPlayingMeta.vod ? { vod: currentPlayingMeta.vod, siteName: currentPlayingMeta.siteName, id: activeSubItemId } : null);
-
-      if (!currentItem) return;
-      const episodes = getEpisodesList(currentItem);
-      if (episodes.length > 0 && currentActiveEp >= 0 && currentActiveEp < episodes.length - 1) {
-        const nextEpIdx = currentActiveEp + 1;
-        setStatus(`🎉 本集播放完毕，自动连播第 ${nextEpIdx + 1} 集...`, true);
-        setTimeout(() => {
-          currentActiveEp = nextEpIdx;
-          if (currentView === 'normal' && currentMode === 'vod') {
-            renderGroupedVodSources();
-          } else if (currentView === 'fav') {
-            renderFavoritesView();
-          }
-          playCurrentVodSource(currentItem, nextEpIdx);
-        }, 1500);
-      }
-    });
-
-    video.addEventListener('loadedmetadata', () => {
-      if (video.videoHeight && routeBadge.style.display !== 'none') {
-        let realRes = '720p';
-        if (video.videoHeight >= 2160) realRes = '4K';
-        else if (video.videoHeight >= 1080) realRes = '1080p';
-        else if (video.videoHeight >= 720) realRes = '720p';
-        else realRes = `${video.videoHeight}p`;
-        routeBadge.textContent = `${currentPlayingMeta?.siteName || ''} · ${realRes}`;
-      }
-    });
-
     function getLocalFavorites() {
       const raw = localStorage.getItem(getCurrentFavKey());
       try {
@@ -1482,8 +1114,15 @@
       }
     }
 
-    async function getFavoritesList() {
+    // 采用 SWR 机制：本地有数据立刻返回秒开，同时云端静默拉取更新，避免设备间数据失联
+    async function getFavoritesList(forceCloud = false) {
+      if (forceCloud) {
+        const data = await getD1Data(getCurrentFavKey(), '[]');
+        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+      }
       const local = getLocalFavorites();
+      // 后台静默向 D1 拉取最新跨端数据
+      getD1Data(getCurrentFavKey(), '[]').catch(() => {});
       if (local && local.length > 0) return local;
       const data = await getD1Data(getCurrentFavKey(), '[]');
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
@@ -1499,8 +1138,13 @@
       }
     }
 
-    async function getHistoryList() {
+    async function getHistoryList(forceCloud = false) {
+      if (forceCloud) {
+        const data = await getD1Data(getCurrentHistoryKey(), '[]');
+        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+      }
       const local = getLocalHistory();
+      getD1Data(getCurrentHistoryKey(), '[]').catch(() => {});
       if (local && local.length > 0) return local;
       const data = await getD1Data(getCurrentHistoryKey(), '[]');
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
@@ -1685,8 +1329,9 @@
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     async function renderFavoritesView() {
-      const container = document.getElementById('channel-list');
-      const favs = await getFavoritesList();
+    const container = document.getElementById('channel-list');
+    // 打开“我的收藏”界面时，强制从云端 D1 获取全网最新同步列表
+    const favs = await getFavoritesList(true);
 
       if (favs.length === 0) {
         container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
