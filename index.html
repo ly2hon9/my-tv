@@ -977,12 +977,18 @@
       return '';
     }
 
+    function cleanSiteName(name) {
+      return (name || '').replace(/^[🎬📺\s\:\-]+/gu, '').trim() || '默认源';
+    }
+
     function normalizeCleanKey(str) {
-  if (!str) return '';
-  return String(str).toLowerCase()
-    .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+]+/g, '')
-    .replace(/[（(【\[［\{].*?[)）】\]］\}]/g, '');
-}
+      if (!str) return '';
+      return String(str).toLowerCase()
+        .replace(/^[🎬📺\s]+/gu, '')
+        .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+\*★☆]+/g, '')
+        .replace(/[（(【\[［\{].*?[)）】\]］\}]/g, '')
+        .replace(/[^\u4e00-\u9fa5a-z0-9]/gu, '');
+    }
 
     function parseTitleAndVersion(rawName) {
       if (!rawName) return { canonical: "未知影视", version: "" };
@@ -1244,6 +1250,16 @@
     function setStatus(text, show = true) {
       if (show) {
         statusText.innerHTML = text;
+        const iconEl = statusLayer.querySelector('.icon');
+        if (iconEl) {
+          if (text.includes('★') || text.includes('收藏')) {
+            iconEl.textContent = '⭐';
+          } else if (isLiveMode) {
+            iconEl.textContent = '📺';
+          } else {
+            iconEl.textContent = '🎬';
+          }
+        }
         statusLayer.style.display = 'block';
       } else {
         statusLayer.style.display = 'none';
@@ -3782,7 +3798,8 @@ function buildGroupBodyPanel(group) {
       subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
       
       const q = parseQualityTag(item.vod.vod_remarks);
-      const displayTag = item.versionTag ? `${item.siteName} (${item.versionTag})` : item.siteName;
+      const pureSite = cleanSiteName(item.siteName);
+      const displayTag = item.versionTag ? `${pureSite} (${item.versionTag})` : pureSite;
       const isSpecial = isGroupNSFW(group);
       const subCensorTag = isSpecial ? detectCensorshipTag(item.vod, item.siteName) : '';
       const subCensorHtml = subCensorTag ? `<span class="card-censor ${subCensorTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${subCensorTag}</span>` : '';
