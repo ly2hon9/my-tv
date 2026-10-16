@@ -4318,11 +4318,14 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     }
 
     function manualPlayOnly(url) {
-      if (url) url = url.replace(/http:\/\/153\.0\.171\.163:9901\//g, 'https://jp.luyizhong.eu.org/');
+      // 通配规则：将任意形如 http://IP:端口/ 自动改写为万能反代路径
+      if (url) url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
       setStatus("正在建立连接，请稍候...");
+      // ... 下方原有代码完全保持不变
 
       let hasStarted = false;
       const markPlaySuccess = () => {
