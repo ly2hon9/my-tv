@@ -4327,6 +4327,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         }
       }
 
+      // 同步全局当前流地址，保证控制栏与外置按钮有效
+      currentStreamUrl = url;
+
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
@@ -4343,34 +4346,43 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         showControls();
       };
 
-      // 跨国 CDN 链路判定放宽至 15 秒
+      // 跨国链路判定放宽至 15 秒
       playWatchdogTimer = setTimeout(() => {
         if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
       }, 15000);
 
+      // 补全 Safari 原生 HLS 的关键事件监听
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
+      video.onloadedmetadata = markPlaySuccess;
+      video.oncanplay = markPlaySuccess;
       video.onerror = () => {
         showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
       };
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
-      // 苹果设备（iPhone/Safari）：音频已由 VPS 转码为 AAC，允许直接走 iOS 原生硬件播放
+      // 苹果设备（iPhone/Safari）：命中已转码的 AAC 流或影视剧场，直通 iOS 原生播放
       if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
-        video.load();
-        video.play().then(() => {}).catch(err => {
-          if (err && err.name === 'NotSupportedError') {
-            showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
-          }
-        });
+        // 移除多余的 video.load()，避免中断 WebKit 解码流程
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            if (err && err.name === 'NotAllowedError') {
+              video.muted = true;
+              video.play().then(markPlaySuccess).catch(() => {});
+            } else if (err && err.name === 'NotSupportedError') {
+              showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+            }
+          });
+        }
         return;
       }
 
-      // 非苹果设备（Windows Edge/Chrome）：走 Hls.js 解码管道
+      // 非苹果设备（Windows Edge/Chrome/安卓）：走 Hls.js 解码管道
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
@@ -4444,9 +4456,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
           temp = { name, group };
         } else if (line && !line.startsWith('#') && temp) {
-          // 自动将单播源 IP 映射为你刚搭建的 VPS 反代域名
-          line = line.replace(/http:\/\/153\.0\.171\.163:9901\//g, 'https://jp.luyizhong.eu.org/');
-
           if (isSafeUrl(line)) {
             if (!groups[temp.group]) groups[temp.group] = {};
             if (!groups[temp.group][temp.name]) {
