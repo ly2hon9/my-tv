@@ -978,7 +978,7 @@
     }
 
     function cleanSiteName(name) {
-      return (name || '').replace(/^[🎬📺\s\:\-]+/gu, '').trim() || '默认源';
+      return (name || '').replace(/^[🎬📺\s:-]+/gu, '').trim() || '默认源';
     }
 
     function normalizeCleanKey(str) {
