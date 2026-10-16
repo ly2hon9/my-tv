@@ -4318,14 +4318,14 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     }
 
     function manualPlayOnly(url) {
-      // 通配规则：将任意形如 http://IP:端口/ 自动改写为万能反代路径
-      if (url) url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+      if (isLiveMode && url) {
+        url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+      }
 
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
       setStatus("正在建立连接，请稍候...");
-      // ... 下方原有代码完全保持不变
 
       let hasStarted = false;
       const markPlaySuccess = () => {
@@ -4352,7 +4352,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
-      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
+      if (!isLiveMode && isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
         video.load();
         video.play().then(() => {}).catch(err => {
