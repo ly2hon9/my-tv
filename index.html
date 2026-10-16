@@ -4318,6 +4318,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     }
 
     function manualPlayOnly(url) {
+      if (url) url = url.replace(/http:\/\/153\.0\.171\.163:9901\//g, 'https://jp.luyizhong.eu.org/');
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
