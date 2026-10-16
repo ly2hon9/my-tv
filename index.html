@@ -4319,7 +4319,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     function manualPlayOnly(url) {
       if (isLiveMode && url) {
-        url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+        // 核心路由：点击 CCTV-1 线路时，自动走 VPS 实时 AAC 转码流
+        if (url.includes('0001_1.m3u8') || url.includes('/live/cctv1.m3u8')) {
+          url = 'https://jp.luyizhong.eu.org/live/cctv1.m3u8';
+        } else {
+          url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+        }
       }
 
       clearPlayWatchdog();
@@ -4338,11 +4343,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         showControls();
       };
 
+      // 跨国 CDN 链路判定放宽至 15 秒
       playWatchdogTimer = setTimeout(() => {
         if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
-      }, 6000);
+      }, 15000);
 
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
@@ -4352,7 +4358,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
-      if (!isLiveMode && isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
+      // 苹果设备（iPhone/Safari）：音频已由 VPS 转码为 AAC，允许直接走 iOS 原生硬件播放
+      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
         video.load();
         video.play().then(() => {}).catch(err => {
@@ -4363,15 +4370,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return;
       }
 
+      // 非苹果设备（Windows Edge/Chrome）：走 Hls.js 解码管道
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
           backBufferLength: 60,
-          manifestLoadingTimeOut: 5000,
-          manifestLoadingMaxRetry: 1,
-          fragLoadingTimeOut: 5000,
-          fragLoadingMaxRetry: 1,
+          manifestLoadingTimeOut: 10000,
+          manifestLoadingMaxRetry: 2,
+          fragLoadingTimeOut: 10000,
+          fragLoadingMaxRetry: 2,
           xhrSetup: (xhr) => { xhr.withCredentials = false; }
         });
         hls.loadSource(url);
