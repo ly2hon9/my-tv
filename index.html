@@ -4432,6 +4432,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           const group = (groupMatch ? groupMatch[1] : '常规频道').trim();
           temp = { name, group };
         } else if (line && !line.startsWith('#') && temp) {
+          // 自动将单播源 IP 映射为你刚搭建的 VPS 反代域名
+          line = line.replace(/http:\/\/153\.0\.171\.163:9901\//g, 'https://jp.luyizhong.eu.org/');
+
           if (isSafeUrl(line)) {
             if (!groups[temp.group]) groups[temp.group] = {};
             if (!groups[temp.group][temp.name]) {
