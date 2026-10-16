@@ -1582,9 +1582,32 @@
       localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
       updateFavIconState(favs);
       setTimeout(() => setStatus("", false), 1500);
-      if (currentView === 'fav') renderFavoritesView();
+      if (currentView === 'fav') {
+        renderFavoritesView();
+      } else {
+        // 同步点亮当前正在展开的片源卡片按钮
+        document.querySelectorAll('.source-sub-card').forEach(subCard => {
+          const btn = subCard.querySelector('button[id^="fav-btn-"]');
+          if (!btn) return;
+          const siteTag = subCard.querySelector('.card-sitename-tag')?.textContent || '';
+          const normSubSite = normalizeCleanKey(siteTag);
+          const normCurTitle = normalizeCleanKey(currentPlayingMeta.title);
+          const isFavorited = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normCurTitle && normalizeCleanKey(f.siteName) === normSubSite);
+          if (isFavorited) {
+            btn.textContent = `★ 已收藏 (${currentEpName})`;
+            btn.style.color = '#facc15';
+            btn.style.borderColor = '#facc15';
+            btn.style.background = 'rgba(250, 204, 21, 0.12)';
+          } else {
+            btn.textContent = '☆ 收藏';
+            btn.style.color = 'var(--text-sub)';
+            btn.style.borderColor = 'var(--border-light)';
+            btn.style.background = 'transparent';
+          }
+        });
+      }
 
-      // 2. 后台静默同步至 D1 云数据库，绝不阻塞前端按钮响应
+      // 2. 后台静默同步至 D1 云数据库
       setD1Data(getCurrentFavKey(), favs);
     }
 
@@ -1592,7 +1615,7 @@
     async function savePlaybackProgress() {
       if (isLiveMode || !currentPlayingMeta || !video.duration || video.currentTime < 2) return;
       const nowSec = Math.floor(video.currentTime);
-      if (Math.abs(nowSec - lastSavedTime) < 4) return;
+      if (Math.abs(nowSec - lastSavedTime) < 15) return;
       lastSavedTime = nowSec;
 
       let history = await getHistoryList();
@@ -1688,29 +1711,41 @@
         card.className = 'history-card';
         card.innerHTML = `
           <div class="history-info">
-            <div class="history-title">📺 ${escapeHtml(item.title)}</div>
+            <div class="history-title">
+              <span>${escapeHtml(item.title)}</span>
+              <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName)})</span>
+              ${censorHtml}
+            </div>
             <div class="history-meta">
-              <span>直播线路</span>
-              <span>${escapeHtml(item.siteName || '电视')}</span>
-              <span>${escapeHtml(item.savedAt || '')}</span>
+              <span>看到：${formatTime(item.time)} / ${formatTime(item.duration)}</span>
+              <span>${escapeHtml(item.siteName)}</span>
+              <span>${escapeHtml(item.updatedAt || '')}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="取消收藏">✕</button>
+          <button type="button" class="btn-del-item" title="删除">✕</button>
         `;
+
         const delBtn = card.querySelector('.btn-del-item');
         if (delBtn) {
           delBtn.onclick = (e) => {
             e.stopPropagation();
-            removeFavoriteItem(item.url || item.title, card);
+            removeHistoryItem(uniqueKey, card);
           };
         }
+
         card.onclick = () => {
-          isLiveMode = true;
+          isLiveMode = false;
           currentStreamUrl = item.url;
-          currentTitle.textContent = item.title;
+          currentVodUniqueKey = item.key;
+          currentTitle.textContent = `${item.title} - ${item.epName}`;
           routeBadge.style.display = 'inline-block';
-          routeBadge.textContent = '直播';
-          currentPlayingMeta = { title: item.title, epName: '直播', siteName: item.siteName || '直播' };
+          routeBadge.textContent = item.siteName;
+          currentPlayingMeta = {
+            title: item.title,
+            epName: item.epName,
+            siteName: item.siteName,
+            censorTag: tag
+          };
           updateFavIconState();
           manualPlayOnly(item.url);
         };
