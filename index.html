@@ -1472,39 +1472,45 @@
       }
     });
 
+    function getLocalFavorites() {
+      const raw = localStorage.getItem(getCurrentFavKey());
+      try {
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
     async function getFavoritesList() {
+      const local = getLocalFavorites();
+      if (local && local.length > 0) return local;
       const data = await getD1Data(getCurrentFavKey(), '[]');
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
-    async function getHistoryList() {
-      const data = await getD1Data(getCurrentHistoryKey(), '[]');
-      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
-    }
-
-    /* === 实时更新收藏图标高亮状态（按归一化片名 + 线路精确判断） === */
-    function updateFavIconState() {
+    /* === 实时更新收藏图标高亮状态（本地瞬时判定，0ms延迟） === */
+    function updateFavIconState(favsList) {
       if (!currentPlayingMeta) {
         favToggleBtn.classList.remove('active');
         return;
       }
-      getFavoritesList().then(favs => {
-        let isFav = false;
-        const curTitle = normalizeCleanKey(currentPlayingMeta.title);
-        const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
-        if (isLiveMode) {
-          isFav = favs.some(f => f.type === 'tv' && (f.url === currentStreamUrl || normalizeCleanKey(f.title) === curTitle));
-        } else {
-          isFav = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
-        }
-        favToggleBtn.classList.toggle('active', isFav);
-      });
+      const favs = favsList || getLocalFavorites();
+      let isFav = false;
+      const curTitle = normalizeCleanKey(currentPlayingMeta.title);
+      const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
+      if (isLiveMode) {
+        isFav = favs.some(f => f.type === 'tv' && (f.url === currentStreamUrl || normalizeCleanKey(f.title) === curTitle));
+      } else {
+        isFav = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
+      }
+      favToggleBtn.classList.toggle('active', isFav);
     }
 
-    /* === 点击收藏：按片源独立收藏并固定正在观看的集数 === */
-    async function toggleCurrentFavorite() {
+    /* === 点击收藏：瞬时本地响应 + 后台静默写云端 === */
+    function toggleCurrentFavorite() {
       if (!currentPlayingMeta) { alert("请先选择播放项目！"); return; }
-      let favs = await getFavoritesList();
+      let favs = getLocalFavorites();
       const currentEpName = currentPlayingMeta.epName || '正片';
       const curTitle = normalizeCleanKey(currentPlayingMeta.title);
       const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
@@ -1526,7 +1532,6 @@
           setStatus("⭐ 已加入电视收藏", true);
         }
       } else {
-        // 影视剧场：归一化精确匹配当前线路
         const idx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
         if (idx >= 0) {
           if (favs[idx].epName !== currentEpName) {
@@ -1540,10 +1545,9 @@
             setStatus(`已取消收藏【${escapeHtml(currentPlayingMeta.siteName)}】`, true);
           }
         } else {
-          // 新增收藏：保存线路、集数索引与完整源数据，确保秒播与全集调取
           favs.unshift({
             title: currentPlayingMeta.title,
-            siteName: (currentPlayingMeta.siteName || '').replace(/^[🎬\s\:\-]+/, '').trim(),
+            siteName: cleanSiteName(currentPlayingMeta.siteName),
             epName: currentEpName,
             epIdx: (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp,
             url: currentStreamUrl,
@@ -1556,10 +1560,15 @@
           setStatus(`⭐ 已收藏【${escapeHtml(currentPlayingMeta.siteName)} · ${escapeHtml(currentEpName)}】`, true);
         }
       }
+
+      // 1. 本地与 UI 瞬时 0ms 更新高亮
+      localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
+      updateFavIconState(favs);
       setTimeout(() => setStatus("", false), 1500);
-      await setD1Data(getCurrentFavKey(), favs);
-      updateFavIconState();
       if (currentView === 'fav') renderFavoritesView();
+
+      // 2. 后台静默同步至 D1 云数据库，绝不阻塞前端按钮响应
+      setD1Data(getCurrentFavKey(), favs);
     }
 
     let lastSavedTime = 0;
@@ -3764,27 +3773,26 @@ function buildGroupBodyPanel(group) {
     bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
   }
 
-  // 实时刷新各个片源卡片上的收藏高亮与锁定的集数状态（归一化精确匹配）
-  function refreshSubCardsFavStatus() {
-    getFavoritesList().then(favs => {
-      const normGroupTitle = normalizeCleanKey(group.title);
-      group.items.forEach(it => {
-        const btn = bodyPanel.querySelector(`#fav-btn-${it.id}`);
-        if (!btn) return;
-        const normItSite = normalizeCleanKey(it.siteName);
-        const favRecord = favs.find(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
-        if (favRecord) {
-          btn.textContent = `★ 已收藏 (${favRecord.epName || '正片'})`;
-          btn.style.color = '#facc15';
-          btn.style.borderColor = '#facc15';
-          btn.style.background = 'rgba(250, 204, 21, 0.12)';
-        } else {
-          btn.textContent = '☆ 收藏';
-          btn.style.color = 'var(--text-sub)';
-          btn.style.borderColor = 'var(--border-light)';
-          btn.style.background = 'transparent';
-        }
-      });
+  // 实时刷新各个片源卡片上的收藏高亮与锁定的集数状态（瞬时本地匹配，0ms 响应）
+  function refreshSubCardsFavStatus(favsList) {
+    const favs = favsList || getLocalFavorites();
+    const normGroupTitle = normalizeCleanKey(group.title);
+    group.items.forEach(it => {
+      const btn = bodyPanel.querySelector(`#fav-btn-${it.id}`);
+      if (!btn) return;
+      const normItSite = normalizeCleanKey(it.siteName);
+      const favRecord = favs.find(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
+      if (favRecord) {
+        btn.textContent = `★ 已收藏 (${favRecord.epName || '正片'})`;
+        btn.style.color = '#facc15';
+        btn.style.borderColor = '#facc15';
+        btn.style.background = 'rgba(250, 204, 21, 0.12)';
+      } else {
+        btn.textContent = '☆ 收藏';
+        btn.style.color = 'var(--text-sub)';
+        btn.style.borderColor = 'var(--border-light)';
+        btn.style.background = 'transparent';
+      }
     });
   }
 
@@ -3832,11 +3840,11 @@ function buildGroupBodyPanel(group) {
         refreshSubCardsFavStatus();
       };
 
-      // 点击片源小卡片专属收藏按钮：归一化精准防重复
+      // 点击小卡片收藏按钮：0ms 瞬时切换样式，后台静默上云
       const favBtn = subCard.querySelector(`#fav-btn-${item.id}`);
-      favBtn.onclick = async (e) => {
+      favBtn.onclick = (e) => {
         e.stopPropagation();
-        let favs = await getFavoritesList();
+        let favs = getLocalFavorites();
         const normGroupTitle = normalizeCleanKey(group.title);
         const normItemSite = normalizeCleanKey(item.siteName);
         const existingIdx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItemSite);
@@ -3851,7 +3859,7 @@ function buildGroupBodyPanel(group) {
         } else {
           favs.unshift({
             title: group.title,
-            siteName: (item.siteName || '').replace(/^[🎬\s\:\-]+/, '').trim(),
+            siteName: cleanSiteName(item.siteName),
             epName: lockEp.name,
             epIdx: lockEpIdx,
             url: lockEp.url,
@@ -3863,10 +3871,15 @@ function buildGroupBodyPanel(group) {
           });
           setStatus(`⭐ 已收藏【${escapeHtml(item.siteName)} · ${escapeHtml(lockEp.name)}】`, true);
         }
+
+        // 1. 本地存储立即写入，界面 0ms 瞬间点亮金色高亮
+        localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
+        updateFavIconState(favs);
+        refreshSubCardsFavStatus(favs);
         setTimeout(() => setStatus("", false), 1500);
-        await setD1Data(getCurrentFavKey(), favs);
-        updateFavIconState();
-        refreshSubCardsFavStatus();
+
+        // 2. 后台静默写云端，不阻塞任何前端操作
+        setD1Data(getCurrentFavKey(), favs);
       };
 
       bodyPanel.appendChild(subCard);
