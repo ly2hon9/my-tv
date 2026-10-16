@@ -3900,7 +3900,7 @@ function buildGroupBodyPanel(group) {
 
       let sourceTagHtml = '';
       if (isSingle) {
-        sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(firstItem.siteName)}</span>`;
+        sourceTagHtml = `<span class="card-sitename-tag" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,112,243,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;">🎬 ${escapeHtml(cleanSiteName(firstItem.siteName))}</span>`;
       }
 
       const countBadgeHtml = isSingleSourceSingleEp 
