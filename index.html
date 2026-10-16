@@ -1489,6 +1489,23 @@
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
+    function getLocalHistory() {
+      const raw = localStorage.getItem(getCurrentHistoryKey());
+      try {
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function getHistoryList() {
+      const local = getLocalHistory();
+      if (local && local.length > 0) return local;
+      const data = await getD1Data(getCurrentHistoryKey(), '[]');
+      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+    }
+
     /* === 实时更新收藏图标高亮状态（本地瞬时判定，0ms延迟） === */
     function updateFavIconState(favsList) {
       if (!currentPlayingMeta) {
