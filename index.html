@@ -978,16 +978,16 @@
     }
 
     function cleanSiteName(name) {
-      return (name || '').replace(/^[🎬📺\s:-]+/gu, '').trim() || '默认源';
+      return (name || '').replace(/^(?:🎬|📺|[\s:-])+/g, '').trim() || '默认源';
     }
 
     function normalizeCleanKey(str) {
       if (!str) return '';
       return String(str).toLowerCase()
-        .replace(/^[🎬📺\s]+/gu, '')
+        .replace(/^(?:🎬|📺|\s)+/g, '')
         .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+\*★☆]+/g, '')
         .replace(/[（(【\[［\{].*?[)）】\]］\}]/g, '')
-        .replace(/[^\u4e00-\u9fa5a-z0-9]/gu, '');
+        .replace(/[^\u4e00-\u9fa5a-z0-9]/g, '');
     }
 
     function parseTitleAndVersion(rawName) {
