@@ -2856,6 +2856,9 @@
           if (text && text.includes('#EXTINF')) {
             parseM3U(text, true);
             msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
+            if (currentMode === 'tv' && currentView === 'normal') {
+              renderList(groups, false);
+            }
           } else {
             msg.push(`电视直播源内容解析为空`);
           }
@@ -2892,16 +2895,34 @@
 
     async function triggerSilentSync() {
       const subUrl = await getD1Data(KEY_SUB, '');
-      if (!subUrl) return;
-      try {
-        let text = await fetchWithSmartProxy(subUrl, 5000);
-        let sites = parseSubscriptionPayload(text);
-        if (sites.length > 0) {
-          parsedSites = sites;
-          setD1Data(KEY_SITES, parsedSites);
-          setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
-        }
-      } catch (_) {}
+      const m3uUrl = await getD1Data(KEY_M3U, '');
+      let hasUpdated = false;
+
+      if (subUrl) {
+        try {
+          let text = await fetchWithSmartProxy(subUrl, 5000);
+          let sites = parseSubscriptionPayload(text);
+          if (sites.length > 0) {
+            parsedSites = sites;
+            setD1Data(KEY_SITES, parsedSites);
+            hasUpdated = true;
+          }
+        } catch (_) {}
+      }
+
+      if (m3uUrl) {
+        try {
+          const text = await fetchWithSmartProxy(m3uUrl, 5000);
+          if (text && text.includes('#EXTINF')) {
+            parseM3U(text, true);
+            hasUpdated = true;
+          }
+        } catch (_) {}
+      }
+
+      if (hasUpdated) {
+        setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
+      }
     }
 
     function extractSitesFromAnyJson(parsed) {
@@ -3599,7 +3620,66 @@
       if (currentView === 'fav') {
         renderFavoritesView();
       } else {
-        renderGroupedVodSources();
+        const activeCard = document.querySelector('.title-group-box.expanded');
+        if (activeCard) {
+          const bodyPanel = activeCard.querySelector('.group-body-panel');
+          const group = groupedVodList.find(g => g.title === activeGroupTitle);
+          if (group && bodyPanel) {
+            const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+            const oldBox = bodyPanel.querySelector('.episodes-collapse-box');
+            if (oldBox) oldBox.remove();
+
+            const episodes = getEpisodesList(currentSubItem);
+            if (episodes.length > 1) {
+              const collapseBox = document.createElement('div');
+              collapseBox.className = 'episodes-collapse-box';
+              const epStatusText = currentActiveEp >= 0 
+                ? `当前第 ${currentActiveEp + 1} 集` 
+                : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
+
+              const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
+              collapseBox.innerHTML = `
+                <div class="episodes-header">
+                  <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
+                  <div class="episodes-actions">
+                    <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                    <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
+                  </div>
+                </div>
+                <div class="episodes-grid" id="${gridId}"></div>
+              `;
+
+              const epGrid = collapseBox.querySelector(`#${gridId}`);
+              const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+
+              displayEps.forEach((ep) => {
+                const epIdx = ep.originalIdx;
+                const btn = document.createElement('button');
+                btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+                btn.setAttribute('data-ep-idx', String(epIdx));
+                btn.textContent = ep.name;
+                btn.onclick = (e) => {
+                  e.stopPropagation();
+                  bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+                  btn.classList.add('active');
+                  playCurrentVodSource(currentSubItem, epIdx, false);
+                  saveVodSessionState();
+                };
+                epGrid.appendChild(btn);
+              });
+
+              collapseBox.querySelector('.episodes-header').onclick = (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+                e.stopPropagation();
+                const isHide = epGrid.style.display === 'none';
+                epGrid.style.display = isHide ? 'grid' : 'none';
+                collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+              };
+
+              bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
+            }
+          }
+        }
       }
       showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
@@ -3630,6 +3710,7 @@ function buildGroupBodyPanel(group) {
       ? `当前第 ${currentActiveEp + 1} 集` 
       : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
 
+    const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
     collapseBox.innerHTML = `
       <div class="episodes-header">
         <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
@@ -3638,10 +3719,10 @@ function buildGroupBodyPanel(group) {
           <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
         </div>
       </div>
-      <div class="episodes-grid" id="episodes-grid-list"></div>
+      <div class="episodes-grid" id="${gridId}"></div>
     `;
 
-    const epGrid = collapseBox.querySelector('#episodes-grid-list');
+    const epGrid = collapseBox.querySelector(`#${gridId}`);
     const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
     displayEps.forEach((ep) => {
@@ -3924,10 +4005,13 @@ function buildGroupBodyPanel(group) {
         saveVodSessionState();
       };
 
-      const oldPanel = groupCard.querySelector('.group-body-panel');
-      if (oldPanel) oldPanel.remove();
+      const existingPanel = groupCard.querySelector('.group-body-panel');
       if (isCurrentActiveGroup && !isSingleSourceSingleEp) {
-        groupCard.appendChild(buildGroupBodyPanel(group));
+        if (!existingPanel) {
+          groupCard.appendChild(buildGroupBodyPanel(group));
+        }
+      } else if (existingPanel) {
+        existingPanel.remove();
       }
 
       return groupCard;
@@ -4209,8 +4293,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     });
 
-    // === 新增：主搜索视窗选集网格联动高亮（正序/倒序均不串集） ===
-    const mainEpGrid = document.getElementById('episodes-grid-list');
+    // === 新增：主搜索视窗选集网格联动高亮（根据片名精准定位对应网格） ===
+    const cleanCurrentTitle = normalizeCleanKey(item.vod.vod_name);
+    const mainEpGrid = document.getElementById(`episodes-grid-list-\${cleanCurrentTitle}`);
     if (mainEpGrid) {
       mainEpGrid.querySelectorAll('.ep-item').forEach(b => {
         const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
@@ -4673,6 +4758,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           if (submitBtn) submitBtn.textContent = "初始化管理员";
           const switchLink = document.getElementById('gate-switch-link');
           if (switchLink) switchLink.style.display = 'none';
+          
+          gateScreen.style.display = 'flex';
         }
         if (results[6].status === 'fulfilled' && results[6].value) {
           try { userList = JSON.parse(results[6].value); } catch (_) {}
