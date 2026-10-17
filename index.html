@@ -1054,7 +1054,7 @@
       const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
       try {
         localStorage.setItem(key, valStr);
-      } catch (_) {} // 保护本地配额超限时不阻断云端请求
+      } catch (_) {}
       try {
         await fetch('/api/data', {
           method: 'POST',
@@ -2119,7 +2119,7 @@
         case 'potplayer': s = `potplayer://${rawUrl.replace(/^https?:\/\//i, '')}`; break;
         case 'iina': s = `iina://weblink?url=${encodeURIComponent(rawUrl)}`; break;
         case 'nplayer': s = `nplayer-${rawUrl}`; break;
-        case 'aptv': s = `aptv://install?url=${encodeURIComponent(rawUrl)}`; break;
+        case 'aptv': s = `aptv://play?url=${encodeURIComponent(rawUrl)}`; break;
       }
       if (s) window.location.href = s;
     }
@@ -2721,10 +2721,10 @@
               <span style="width:64px; text-align:center; font-family:monospace; font-size:12px; color:var(--text-sub);">${failThreshold}</span>
             </div>
             <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-              <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
+              <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus(decodeURIComponent('${encodeURIComponent(site.name)}'))">
                 ${isDis ? '已禁用' : '已启用'}
               </button>
-              <button type="button" class="btn-danger-del" title="删除该源" onclick="deleteSite('${escapeHtml(site.name)}')">✕</button>
+              <button type="button" class="btn-danger-del" title="删除该源" onclick="deleteSite(decodeURIComponent('${encodeURIComponent(site.name)}'))">✕</button>
             </div>
           </div>
         `;
@@ -4159,7 +4159,7 @@ function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex =
     if (curNum !== null) {
       const numIdx = targetEpisodes.findIndex(ep => parseEpisodeNumber(ep.name) === curNum);
       if (numIdx >= 0) return numIdx;
-      return -1;
+      // 移除这里的 return -1，让未匹配成功的项平滑走入下方的 fallbackIndex 逻辑
     }
   }
 
@@ -4743,9 +4743,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (results[5].status === 'fulfilled' && results[5].value) {
           try { adminAccount = JSON.parse(results[5].value); } catch (_) {}
         }
-        // 若数据库中尚无主管理员记录，自动激活门禁的初始化通道
+        // 若数据库中尚无主管理员记录，自动激活门禁并展现初始化窗口
         if (!adminAccount) {
           gateAuthMode = 'init_admin';
+          gateScreen.style.display = 'flex'; // 关键修复：主动唤起门禁界面
           const subTip = document.getElementById('gate-sub-tip');
           if (subTip) {
             subTip.textContent = "首次使用，请设定主管理员账号与密码";
