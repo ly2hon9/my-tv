@@ -3648,6 +3648,7 @@ function buildGroupBodyPanel(group) {
       const epIdx = ep.originalIdx;
       const btn = document.createElement('button');
       btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+      btn.setAttribute('data-ep-idx', String(epIdx)); // ← 就是缺了这一行标记
       btn.textContent = ep.name;
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -4195,21 +4196,30 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       setD1Data(getCurrentFavKey(), favs);
       // 使用 getElementById 彻底避免特殊字符报错，并按真实 data-ep-idx 匹配高亮（倒序绝不错位）
       if (currentView === 'fav') {
-        const trackLabel = document.getElementById(`fav-meta-track-${cleanCurrentTitle}`);
-        if (trackLabel) trackLabel.textContent = `看到: ${targetEp.name}`;
-        const grid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
-        if (grid) {
-          grid.querySelectorAll('.ep-item').forEach(b => {
-            const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
-            b.classList.toggle('active', bIdx === targetEpIdx);
-          });
+          const trackLabel = document.getElementById(`fav-meta-track-${cleanCurrentTitle}`);
+          if (trackLabel) trackLabel.textContent = `看到: ${targetEp.name}`;
+          const grid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
+          if (grid) {
+            grid.querySelectorAll('.ep-item').forEach(b => {
+              const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
+              b.classList.toggle('active', bIdx === targetEpIdx);
+            });
+          }
         }
       }
-    }
-  });
+    });
 
-  updateFavIconState();
-  manualPlayOnly(rawUrl);
+    // === 新增：主搜索视窗选集网格联动高亮（正序/倒序均不串集） ===
+    const mainEpGrid = document.getElementById('episodes-grid-list');
+    if (mainEpGrid) {
+      mainEpGrid.querySelectorAll('.ep-item').forEach(b => {
+        const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
+        b.classList.toggle('active', bIdx === targetEpIdx);
+      });
+    }
+
+    updateFavIconState();
+    manualPlayOnly(rawUrl);
 }
 
     function destroyHlsInstance() {
