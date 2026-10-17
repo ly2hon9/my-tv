@@ -4255,26 +4255,23 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    function manualPlayOnly(url) {
-      if (isLiveMode && url) {
-        // 1. CCTV-1 智能判定：无论频道名称叫 CCTV-1 / cctv1 还是带有特征码 3221225829，均直通 VPS 实时 AAC 转码流
-        const isCctv1 = (currentPlayingMeta?.title && /cctv-?1\b/i.test(currentPlayingMeta.title)) ||
-                        url.includes('3221225829') ||
-                        url.includes('0001_1.m3u8') ||
-                        url.includes('/live/cctv1.m3u8');
-
-        if (isCctv1) {
-          url = 'https://jp.luyizhong.eu.org/live/cctv1.m3u8';
-        } else {
-          // 2. 泛匹配所有 http 协议源（无论带不带端口号、无论是 IP 还是域名），全部转为 https 代理直连，杜绝浏览器 Mixed Content 拦截
-          url = url.replace(/^http:\/\/([^\/]+)\//i, 'https://jp.luyizhong.eu.org/stream/$1/');
-        }
-      }
-
-      currentStreamUrl = url;
+    async function manualPlayOnly(url) {
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
+
+      // 全电视频道通用转码路由：只要是看电视直播，点击任意台均向 VPS 发送切台信令
+      if (isLiveMode && url) {
+        setStatus("正在极速切台，同步转码中...");
+        try {
+          await fetch(`https://jp.luyizhong.eu.org/switch?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
+        } catch (_) {}
+        // 等待新频道转码首个切片生成
+        await new Promise(r => setTimeout(r, 1800));
+        url = 'https://jp.luyizhong.eu.org/live/live.m3u8';
+      }
+
+      currentStreamUrl = url;
       setStatus("正在建立连接，请稍候...");
 
       let hasStarted = false;
