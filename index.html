@@ -1356,41 +1356,29 @@
         card.className = 'history-card';
         card.innerHTML = `
           <div class="history-info">
-            <div class="history-title">
-              <span>${escapeHtml(item.title)}</span>
-              <span style="font-size:12px;color:var(--accent);">(${escapeHtml(item.epName)})</span>
-              ${censorHtml}
-            </div>
+            <div class="history-title">📺 ${escapeHtml(item.title)}</div>
             <div class="history-meta">
-              <span>看到：${formatTime(item.time)} / ${formatTime(item.duration)}</span>
-              <span>${escapeHtml(item.siteName)}</span>
-              <span>${escapeHtml(item.updatedAt || '')}</span>
+              <span>直播线路</span>
+              <span>${escapeHtml(item.siteName || '电视')}</span>
+              <span>${escapeHtml(item.savedAt || '')}</span>
             </div>
           </div>
-          <button type="button" class="btn-del-item" title="删除">✕</button>
+          <button type="button" class="btn-del-item" title="取消收藏">✕</button>
         `;
-
         const delBtn = card.querySelector('.btn-del-item');
         if (delBtn) {
           delBtn.onclick = (e) => {
             e.stopPropagation();
-            removeHistoryItem(uniqueKey, card);
+            removeFavoriteItem(item.url || item.title, card);
           };
         }
-
         card.onclick = () => {
-          isLiveMode = false;
+          isLiveMode = true;
           currentStreamUrl = item.url;
-          currentVodUniqueKey = item.key;
-          currentTitle.textContent = `${item.title} - ${item.epName}`;
+          currentTitle.textContent = item.title;
           routeBadge.style.display = 'inline-block';
-          routeBadge.textContent = item.siteName;
-          currentPlayingMeta = {
-            title: item.title,
-            epName: item.epName,
-            siteName: item.siteName,
-            censorTag: tag
-          };
+          routeBadge.textContent = '直播';
+          currentPlayingMeta = { title: item.title, epName: '直播', siteName: item.siteName || '直播' };
           updateFavIconState();
           manualPlayOnly(item.url);
         };
