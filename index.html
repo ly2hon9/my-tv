@@ -1052,9 +1052,7 @@
 
     async function setD1Data(key, value) {
       const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
-      try {
-        localStorage.setItem(key, valStr);
-      } catch (_) {}
+      localStorage.setItem(key, valStr);
       try {
         await fetch('/api/data', {
           method: 'POST',
@@ -1448,7 +1446,8 @@
         document.querySelectorAll('.source-sub-card').forEach(subCard => {
           const btn = subCard.querySelector('button[id^="fav-btn-"]');
           if (!btn) return;
-          const normSubSite = subCard.getAttribute('data-site-norm') || normalizeCleanKey(subCard.querySelector('.card-sitename-tag')?.textContent || '');
+          const siteTag = subCard.querySelector('.card-sitename-tag')?.textContent || '';
+          const normSubSite = normalizeCleanKey(siteTag);
           const normCurTitle = normalizeCleanKey(currentPlayingMeta.title);
           const isFavorited = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normCurTitle && normalizeCleanKey(f.siteName) === normSubSite);
           if (isFavorited) {
@@ -1470,43 +1469,31 @@
     }
 
     let lastSavedTime = 0;
-    let lastD1SyncTime = 0;
-    async function savePlaybackProgress(forceCloudSync = false) {
+    async function savePlaybackProgress() {
       if (isLiveMode || !currentPlayingMeta || !video.duration || video.currentTime < 2) return;
       const nowSec = Math.floor(video.currentTime);
-      if (!forceCloudSync && Math.abs(nowSec - lastSavedTime) < 15) return;
+      if (Math.abs(nowSec - lastSavedTime) < 15) return;
       lastSavedTime = nowSec;
 
-      let history = getLocalHistory();
+      let history = await getHistoryList();
       const existingIdx = history.findIndex(h => h.key === currentVodUniqueKey);
       const item = {
         key: currentVodUniqueKey,
         title: currentPlayingMeta.title,
         epName: currentPlayingMeta.epName || '正片',
-        epIdx: (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp,
         url: currentStreamUrl,
         time: nowSec,
         duration: Math.floor(video.duration),
         siteName: currentPlayingMeta.siteName || '',
         thumb: currentPlayingMeta.thumb || '',
         censorTag: currentPlayingMeta.censorTag || '',
-        vod: currentPlayingMeta.vod || null,
         updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
       if (existingIdx >= 0) history.splice(existingIdx, 1);
       history.unshift(item);
       if (history.length > 50) history.pop();
-      
-      // 1. 本地 localStorage 每 15 秒写入，保证无卡顿
-      localStorage.setItem(getCurrentHistoryKey(), JSON.stringify(history));
-
-      // 2. 云端 D1 每 120 秒或暂停/换集时才同步一次，降低 80% 的 API 调用量
-      const nowMs = Date.now();
-      if (forceCloudSync || (nowMs - lastD1SyncTime > 120000)) {
-        lastD1SyncTime = nowMs;
-        setD1Data(getCurrentHistoryKey(), history);
-      }
+      setD1Data(getCurrentHistoryKey(), history);
     }
 
     async function restorePlaybackProgress() {
@@ -1554,10 +1541,11 @@
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
-    async function renderFavoritesView(cachedFavs = null) {
-  const container = document.getElementById('channel-list');
-  // 若传入了本地最新计算的数组则直接使用，彻底避免 D1 写入未完成导致旧数据回弹
-  const favs = cachedFavs || (await getFavoritesList(true));
+    async function renderFavoritesView() {
+    const container = document.getElementById('channel-list');
+    // 打开“我的收藏”界面时，强制从云端 D1 获取全网最新同步列表
+    const favs = await getFavoritesList(true);
+
       if (favs.length === 0) {
         container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
         return;
@@ -1875,31 +1863,18 @@
         const isSameSite = (f.siteName || '').replace(/^[🎬\s\:\-]+/, '').trim().toLowerCase() === cleanSite;
         return !(isSameTitle && isSameSite);
       });
-
-      // 1. 本地存储先行更新，避免 D1 只读副本同步延迟导致旧数据回弹
-      localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
-      updateFavIconState(favs);
-
-      // 2. 传入最新过滤后的集合直接重绘，绝不回源强拉旧副本
-      renderFavoritesView(favs);
-
-      // 3. 后台静默同步写回 D1
-      setD1Data(getCurrentFavKey(), favs);
+      await setD1Data(getCurrentFavKey(), favs);
+      updateFavIconState();
+      renderFavoritesView();
     }
 
     async function removeFavoriteItem(matchKey, cardEl) {
       if (cardEl) cardEl.remove();
       let favs = await getFavoritesList();
       favs = favs.filter(f => (f.url || f.title) !== matchKey);
-      localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
       await setD1Data(getCurrentFavKey(), favs);
-      updateFavIconState(favs);
-
-      const titleEl = document.querySelector('.sources-header-title');
-      if (titleEl && titleEl.textContent.includes('我的收藏')) {
-        titleEl.textContent = `⭐ 我的收藏 (${favs.length})`;
-      }
-      if (favs.length === 0) renderFavoritesView(favs);
+      updateFavIconState();
+      if (favs.length === 0) renderFavoritesView();
     }
 
     async function renderHistoryView() {
@@ -1943,17 +1918,8 @@
               <span>${escapeHtml(item.updatedAt || '')}</span>
             </div>
           </div>
-          <button type="button" class="btn-del-item" title="删除">✕</button>
+          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeHistoryItem('${escapeHtml(uniqueKey)}', this.closest('.history-card'))">✕</button>
         `;
-
-        // 安全绑定删除事件，杜绝片名中包含单引号导致内联语法错误
-        const delBtn = card.querySelector('.btn-del-item');
-        if (delBtn) {
-          delBtn.onclick = (e) => {
-            e.stopPropagation();
-            removeHistoryItem(uniqueKey, card);
-          };
-        }
 
         card.onclick = () => {
           isLiveMode = false;
@@ -1962,16 +1928,11 @@
           currentTitle.textContent = `${item.title} - ${item.epName}`;
           routeBadge.style.display = 'inline-block';
           routeBadge.textContent = item.siteName;
-          currentActiveEp = (item.epIdx !== undefined && item.epIdx >= 0) ? item.epIdx : (parseEpisodeNumber(item.epName) ? parseEpisodeNumber(item.epName) - 1 : 0);
           currentPlayingMeta = {
             title: item.title,
             epName: item.epName,
-            epIdx: currentActiveEp,
             siteName: item.siteName,
-            thumb: item.thumb || '',
-            censorTag: tag,
-            vod: item.vod || null,
-            url: item.url
+            censorTag: tag
           };
           updateFavIconState();
           manualPlayOnly(item.url);
@@ -2037,9 +1998,7 @@
       isDraggingProgress = true;
       showControls();
       progressContainer.classList.add('dragging');
-      try {
-        progressContainer.setPointerCapture(e.pointerId);
-      } catch (_) {}
+      progressContainer.setPointerCapture(e.pointerId);
 
       const ratio = calcProgressRatio(e.clientX);
       progressBar.style.width = `${ratio * 100}%`;
@@ -2125,7 +2084,7 @@
         case 'potplayer': s = `potplayer://${rawUrl.replace(/^https?:\/\//i, '')}`; break;
         case 'iina': s = `iina://weblink?url=${encodeURIComponent(rawUrl)}`; break;
         case 'nplayer': s = `nplayer-${rawUrl}`; break;
-        case 'aptv': s = `aptv://play?url=${encodeURIComponent(rawUrl)}`; break;
+        case 'aptv': s = `aptv://install?url=${encodeURIComponent(rawUrl)}`; break;
       }
       if (s) window.location.href = s;
     }
@@ -2141,15 +2100,6 @@
       const input = document.getElementById('filter');
       input.value = '';
       toggleClearBtn('');
-
-      // 若处于电视直播板块，清空关键词直接还原电视频道树形目录
-      if (currentMode === 'tv') {
-        renderList(groups, false);
-        input.focus();
-        return;
-      }
-
-      // 影视剧场板块清空逻辑
       try { sessionStorage.removeItem(KEY_SESSION_VOD_STATE); } catch (_) {}
       groupedVodList = [];
       currentSearchingWord = '';
@@ -2649,7 +2599,7 @@
     }
 
     async function recordSourceFailure(siteName, videoKey) {
-      // 移除原有的管理员身份限制，使所有终端遭遇播放死链时都能计入权重
+      if (!currentUser || currentUser.role !== 'admin') return;
       if (!siteName) return;
 
       const vKey = videoKey || currentVodUniqueKey || currentPlayingMeta?.title || '未知影片';
@@ -2727,10 +2677,10 @@
               <span style="width:64px; text-align:center; font-family:monospace; font-size:12px; color:var(--text-sub);">${failThreshold}</span>
             </div>
             <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-              <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus(decodeURIComponent('${encodeURIComponent(site.name).replace(/'/g, '%27')}'))">
+              <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
                 ${isDis ? '已禁用' : '已启用'}
               </button>
-              <button type="button" class="btn-danger-del" title="删除该源" onclick="deleteSite(decodeURIComponent('${encodeURIComponent(site.name).replace(/'/g, '%27')}'))">✕</button>
+              <button type="button" class="btn-danger-del" title="删除该源" onclick="deleteSite('${escapeHtml(site.name)}')">✕</button>
             </div>
           </div>
         `;
@@ -2912,10 +2862,9 @@
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
-      const nowIso = new Date().toISOString();
-      const nowDisplay = new Date().toLocaleString();
-      setD1Data(KEY_LAST_SYNC, nowIso);
-      document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowDisplay}`;
+      const nowStr = new Date().toLocaleString();
+      setD1Data(KEY_LAST_SYNC, nowStr);
+      document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowStr}`;
 
       syncBtn.textContent = "🔄 同步更新源";
       syncBtn.disabled = false;
@@ -2932,19 +2881,7 @@
         await triggerSilentSync();
         return;
       }
-      // 优先解析标准数字时间戳与 ISO 字符串，失败时再尝试斜杠格式降级
-      let lastTime = Number(lastTimeStr);
-      if (isNaN(lastTime)) {
-        lastTime = new Date(lastTimeStr).getTime();
-      }
-      if (isNaN(lastTime) && lastTimeStr.includes('-')) {
-        lastTime = new Date(lastTimeStr.replace(/-/g, '/')).getTime();
-      }
-      if (isNaN(lastTime)) {
-        await triggerSilentSync();
-        return;
-      }
-
+      const lastTime = new Date(lastTimeStr).getTime();
       const now = Date.now();
       const diffHours = (now - lastTime) / (1000 * 60 * 60);
 
@@ -2962,7 +2899,7 @@
         if (sites.length > 0) {
           parsedSites = sites;
           setD1Data(KEY_SITES, parsedSites);
-          setD1Data(KEY_LAST_SYNC, new Date().toISOString()); // 修复：统一为标准 ISO 字符串
+          setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
         }
       } catch (_) {}
     }
@@ -3068,14 +3005,8 @@
       return false;
     }
 
-    window.addEventListener('beforeunload', () => {
-      saveVodSessionState();
-      savePlaybackProgress(true); // 电脑端关掉标签页/刷新时，强制写一次 D1
-    });
-    window.addEventListener('pagehide', () => {
-      saveVodSessionState();
-      savePlaybackProgress(true); // 手机端（iOS Safari / 微信）切后台、锁屏时，强制写一次 D1
-    });
+    window.addEventListener('beforeunload', saveVodSessionState);
+    window.addEventListener('pagehide', saveVodSessionState);
 
     /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
     function switchMode(mode) {
@@ -3772,7 +3703,6 @@ function buildGroupBodyPanel(group) {
       const isSubActive = (item.id === activeSubItemId);
       const subCard = document.createElement('div');
       subCard.className = 'source-sub-card ' + (isSubActive ? 'active-sub' : '');
-      subCard.setAttribute('data-site-norm', normalizeCleanKey(item.siteName));
       
       const q = parseQualityTag(item.vod.vod_remarks);
       const pureSite = cleanSiteName(item.siteName);
@@ -4129,13 +4059,11 @@ function buildGroupBodyPanel(group) {
       const rawEps = m3u8Group.split('#').filter(Boolean);
 
       return rawEps.map((ep, idx) => {
-        const parts = ep.split('\$');
-        const hasDollar = parts.length > 1;
-        const nameCandidate = hasDollar ? parts[0].trim() : `第${idx + 1}集`;
-        const urlCandidate = (hasDollar ? parts[1] : parts[0]).trim();
+        const parts = ep.split('$');
+        const urlCandidate = (parts[1] || parts[0]).trim();
         return { 
           originalIdx: idx,
-          name: nameCandidate || `第${idx + 1}集`, 
+          name: parts[0] || `第${idx+1}集`, 
           url: isSafeUrl(urlCandidate) ? urlCandidate : '' 
         };
       }).filter(ep => ep.url !== '');
@@ -4166,7 +4094,7 @@ function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex =
     if (curNum !== null) {
       const numIdx = targetEpisodes.findIndex(ep => parseEpisodeNumber(ep.name) === curNum);
       if (numIdx >= 0) return numIdx;
-      // 移除这里的 return -1，让未匹配成功的项平滑走入下方的 fallbackIndex 逻辑
+      return -1;
     }
   }
 
@@ -4303,11 +4231,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         hls.destroy();
         hls = null;
       }
-      // 彻底重置原生 video 标签，释放媒体解码管道
-      try {
-        video.removeAttribute('src');
-        video.load();
-      } catch (_) {}
     }
 
     function clearPlayWatchdog() {
@@ -4325,48 +4248,29 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
       setStatus(tipText, true);
 
-      // 无论超时、跨域死链还是格式错误，统一触发失效计数
-      if (currentPlayingMeta?.siteName) {
-        recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
+      if (tipText.includes("编码格式不支持")) {
+        if (currentPlayingMeta?.siteName) {
+          recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
+        }
       }
     }
 
-    async function manualPlayOnly(url) {
-      clearPlayWatchdog();
-      exitPictureInPictureMode();
-      destroyHlsInstance();
-      lastSavedTime = 0; // 重置进度节流基准，修复切片起播前 15 秒进度丢失的问题
-
-      let playableUrl = url;
-      currentStreamUrl = url; // 保持全局变量为原始真实直链，供复制与外置播放器提取
-
-      // 电视直播切台与转码调度（安全等待 VPS 切片就绪）
+    function manualPlayOnly(url) {
       if (isLiveMode && url) {
-        setStatus("正在连接 VPS 转码直播流...");
-        try {
-          const transController = new AbortController();
-          const transTimer = setTimeout(() => transController.abort(), 7500); // 宽延至 7.5 秒，适应跨国网络与探测
-          const res = await fetch(`https://jp.luyizhong.eu.org/switch?url=${encodeURIComponent(url)}`, { 
-            cache: 'no-store',
-            signal: transController.signal
-          });
-          clearTimeout(transTimer);
-          if (res.ok) {
-            // 后端已确保 live.m3u8 真实生成，加时间戳防 CDN 旧缓存
-            playableUrl = `https://jp.luyizhong.eu.org/live/live.m3u8?_t=${Date.now()}`;
-          } else {
-            throw new Error("转码响应异常");
-          }
-        } catch (_) {
-          // 若为非 HTTPS 直链且站点为 HTTPS，原流直拉必被浏览器 Mixed Content 阻断
-          if (window.location.protocol === 'https:' && url.startsWith('http://')) {
-            showFailTip("直播线路转码超时<br><span style='color:var(--text-sub);font-size:12px;'>原流为 HTTP 协议受浏览器安全限制无法直连，请在右侧选择【调用外部播放器】一键秒播</span>");
-            return;
-          }
-          playableUrl = url;
+        // 核心路由：点击 CCTV-1 线路时，自动走 VPS 实时 AAC 转码流
+        if (url.includes('0001_1.m3u8') || url.includes('/live/cctv1.m3u8')) {
+          url = 'https://jp.luyizhong.eu.org/live/cctv1.m3u8';
+        } else {
+          url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
         }
       }
 
+      // 同步全局当前流地址，保证控制栏与外置按钮有效
+      currentStreamUrl = url;
+
+      clearPlayWatchdog();
+      exitPictureInPictureMode();
+      destroyHlsInstance();
       setStatus("正在建立连接，请稍候...");
 
       let hasStarted = false;
@@ -4380,12 +4284,14 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         showControls();
       };
 
+      // 跨国链路判定放宽至 15 秒
       playWatchdogTimer = setTimeout(() => {
         if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
       }, 15000);
 
+      // 补全 Safari 原生 HLS 的关键事件监听
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
       video.onloadedmetadata = markPlaySuccess;
@@ -4396,8 +4302,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
+      // 苹果设备（iPhone/Safari）：命中已转码的 AAC 流或影视剧场，直通 iOS 原生播放
       if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = playableUrl;
+        video.src = url;
+        // 移除多余的 video.load()，避免中断 WebKit 解码流程
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(err => {
@@ -4412,6 +4320,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return;
       }
 
+      // 非苹果设备（Windows Edge/Chrome/安卓）：走 Hls.js 解码管道
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
@@ -4423,7 +4332,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           fragLoadingMaxRetry: 2,
           xhrSetup: (xhr) => { xhr.withCredentials = false; }
         });
-        hls.loadSource(playableUrl);
+        hls.loadSource(url);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -4446,7 +4355,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = playableUrl;
+        video.src = url;
         video.load();
         video.play().catch(() => {});
       }
@@ -4601,11 +4510,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       updatePlayBtn(true); 
       showControls(); 
     });
-    video.addEventListener('pause', () => {
-      updatePlayBtn(false);
-      showControls();
-      savePlaybackProgress(true); // 核心：用户点暂停时，立刻把当前精确进度同步到 D1
-    });
+    video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
     // 自动连续播放下一集闭环（支持搜索列表、收藏夹、播放历史全场景秒播下一集）
     video.addEventListener('ended', () => {
@@ -4756,10 +4661,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (results[5].status === 'fulfilled' && results[5].value) {
           try { adminAccount = JSON.parse(results[5].value); } catch (_) {}
         }
-        // 若数据库中尚无主管理员记录，自动激活门禁并展现初始化窗口
+        // 若数据库中尚无主管理员记录，自动激活门禁的初始化通道
         if (!adminAccount) {
           gateAuthMode = 'init_admin';
-          gateScreen.style.display = 'flex'; // 关键修复：主动唤起门禁界面
           const subTip = document.getElementById('gate-sub-tip');
           if (subTip) {
             subTip.textContent = "首次使用，请设定主管理员账号与密码";
