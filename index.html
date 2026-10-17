@@ -985,7 +985,7 @@
       if (!str) return '';
       return String(str).toLowerCase()
         .replace(/^(?:🎬|📺|\s)+/g, '')
-        .replace(/[\s\:\：\-\_\·\/\\\|，,。.\+\*★☆]+/g, '')
+        .replace(/[-\s:：_·/\\|，,。.+*★☆]+/g, '')
         .replace(/[（(【\[［\{].*?[)）】\]］\}]/g, '')
         .replace(/[^\u4e00-\u9fa5a-z0-9]/g, '');
     }
@@ -1102,40 +1102,6 @@
     }
     function getCurrentHistoryKey() {
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
-    }
-
-    function getLocalFavorites() {
-      const raw = localStorage.getItem(getCurrentFavKey());
-      try {
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) ? arr : [];
-      } catch (_) {
-        return [];
-      }
-    }
-
-    // 采用 SWR 机制：本地有数据立刻返回秒开，同时云端静默拉取更新，避免设备间数据失联
-    async function getFavoritesList(forceCloud = false) {
-      if (forceCloud) {
-        const data = await getD1Data(getCurrentFavKey(), '[]');
-        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
-      }
-      const local = getLocalFavorites();
-      // 后台静默向 D1 拉取最新跨端数据
-      getD1Data(getCurrentFavKey(), '[]').catch(() => {});
-      if (local && local.length > 0) return local;
-      const data = await getD1Data(getCurrentFavKey(), '[]');
-      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
-    }
-
-    function getLocalHistory() {
-      const raw = localStorage.getItem(getCurrentHistoryKey());
-      try {
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) ? arr : [];
-      } catch (_) {
-        return [];
-      }
     }
 
     function getLocalFavorites() {
