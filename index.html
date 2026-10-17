@@ -1541,11 +1541,10 @@
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
-    async function renderFavoritesView() {
-    const container = document.getElementById('channel-list');
-    // 打开“我的收藏”界面时，强制从云端 D1 获取全网最新同步列表
-    const favs = await getFavoritesList(true);
-
+    async function renderFavoritesView(cachedFavs = null) {
+  const container = document.getElementById('channel-list');
+  // 若传入了本地最新计算的数组则直接使用，彻底避免 D1 写入未完成导致旧数据回弹
+  const favs = cachedFavs || (await getFavoritesList(true));
       if (favs.length === 0) {
         container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
         return;
@@ -1868,8 +1867,8 @@
       localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
       updateFavIconState(favs);
 
-      // 2. 传入最新集合直接重绘界面
-      renderFavoritesView();
+      // 2. 传入最新过滤后的集合直接重绘，绝不回源强拉旧副本
+      renderFavoritesView(favs);
 
       // 3. 后台静默同步写回 D1
       setD1Data(getCurrentFavKey(), favs);
@@ -1879,9 +1878,15 @@
       if (cardEl) cardEl.remove();
       let favs = await getFavoritesList();
       favs = favs.filter(f => (f.url || f.title) !== matchKey);
+      localStorage.setItem(getCurrentFavKey(), JSON.stringify(favs));
       await setD1Data(getCurrentFavKey(), favs);
-      updateFavIconState();
-      if (favs.length === 0) renderFavoritesView();
+      updateFavIconState(favs);
+
+      const titleEl = document.querySelector('.sources-header-title');
+      if (titleEl && titleEl.textContent.includes('我的收藏')) {
+        titleEl.textContent = `⭐ 我的收藏 (${favs.length})`;
+      }
+      if (favs.length === 0) renderFavoritesView(favs);
     }
 
     async function renderHistoryView() {
@@ -3613,7 +3618,7 @@
     function toggleEpisodesOrder() {
       isEpisodeReversed = !isEpisodeReversed;
       if (currentView === 'fav') {
-        renderFavoritesView();
+        renderFavoritesView(favs);
       } else {
         renderGroupedVodSources();
       }
@@ -4075,11 +4080,13 @@ function buildGroupBodyPanel(group) {
       const rawEps = m3u8Group.split('#').filter(Boolean);
 
       return rawEps.map((ep, idx) => {
-        const parts = ep.split('$');
-        const urlCandidate = (parts[1] || parts[0]).trim();
+        const parts = ep.split('\$');
+        const hasDollar = parts.length > 1;
+        const nameCandidate = hasDollar ? parts[0].trim() : `第${idx + 1}集`;
+        const urlCandidate = (hasDollar ? parts[1] : parts[0]).trim();
         return { 
           originalIdx: idx,
-          name: parts[0] || `第${idx+1}集`, 
+          name: nameCandidate || `第${idx + 1}集`, 
           url: isSafeUrl(urlCandidate) ? urlCandidate : '' 
         };
       }).filter(ep => ep.url !== '');
