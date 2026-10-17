@@ -1095,6 +1095,7 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
+    const KEY_SESSION_VOD_STATE = "session_active_vod_state_v3";
     /* ===================================================================
        核心 DOM 节点句柄与全局状态变量初始化（彻底消除 ReferenceError）
        =================================================================== */
@@ -4496,6 +4497,23 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       showControls(); 
     });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
+
+    // 自动连续播放下一集闭环
+    video.addEventListener('ended', () => {
+      if (isLiveMode || !currentPlayingMeta) return;
+      const nextEpIdx = currentActiveEp + 1;
+      const group = groupedVodList.find(g => normalizeCleanKey(g.title) === normalizeCleanKey(currentPlayingMeta.title));
+      const curItem = group ? (group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName)) || group.items[0]) : null;
+      if (curItem) {
+        const episodes = getEpisodesList(curItem);
+        if (nextEpIdx < episodes.length) {
+          showGestureTip(`自动播放下一集: ${episodes[nextEpIdx].name}`);
+          playCurrentVodSource(curItem, nextEpIdx, false);
+        } else {
+          showGestureTip("已播放完最后一集");
+        }
+      }
+    });
 
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
