@@ -1052,7 +1052,9 @@
 
     async function setD1Data(key, value) {
       const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
-      localStorage.setItem(key, valStr);
+      try {
+        localStorage.setItem(key, valStr);
+      } catch (_) {} // 保护本地配额超限时不阻断云端请求
       try {
         await fetch('/api/data', {
           method: 'POST',
@@ -1940,8 +1942,17 @@
               <span>${escapeHtml(item.updatedAt || '')}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeHistoryItem('${escapeHtml(uniqueKey)}', this.closest('.history-card'))">✕</button>
+          <button type="button" class="btn-del-item" title="删除">✕</button>
         `;
+
+        // 安全绑定删除事件，杜绝片名中包含单引号导致内联语法错误
+        const delBtn = card.querySelector('.btn-del-item');
+        if (delBtn) {
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            removeHistoryItem(uniqueKey, card);
+          };
+        }
 
         card.onclick = () => {
           isLiveMode = false;
@@ -2915,13 +2926,13 @@
         await triggerSilentSync();
         return;
       }
-      // 容错解析：兼容 ISO 8601、毫秒数字与斜杠格式，防止 Safari Date.parse 返回 NaN
+      // 优先解析标准数字时间戳与 ISO 字符串，失败时再尝试斜杠格式降级
       let lastTime = Number(lastTimeStr);
       if (isNaN(lastTime)) {
-        lastTime = new Date(lastTimeStr.replace(/-/g, '/')).getTime();
-      }
-      if (isNaN(lastTime)) {
         lastTime = new Date(lastTimeStr).getTime();
+      }
+      if (isNaN(lastTime) && lastTimeStr.includes('-')) {
+        lastTime = new Date(lastTimeStr.replace(/-/g, '/')).getTime();
       }
       if (isNaN(lastTime)) {
         await triggerSilentSync();
