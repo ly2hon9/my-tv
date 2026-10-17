@@ -1138,6 +1138,38 @@
       }
     }
 
+    function getLocalFavorites() {
+      const raw = localStorage.getItem(getCurrentFavKey());
+      try {
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function getFavoritesList(forceCloud = false) {
+      if (forceCloud) {
+        const data = await getD1Data(getCurrentFavKey(), '[]');
+        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+      }
+      const local = getLocalFavorites();
+      getD1Data(getCurrentFavKey(), '[]').catch(() => {});
+      if (local && local.length > 0) return local;
+      const data = await getD1Data(getCurrentFavKey(), '[]');
+      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+    }
+
+    function getLocalHistory() {
+      const raw = localStorage.getItem(getCurrentHistoryKey());
+      try {
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
     async function getHistoryList(forceCloud = false) {
       if (forceCloud) {
         const data = await getD1Data(getCurrentHistoryKey(), '[]');
