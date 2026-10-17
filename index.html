@@ -4340,23 +4340,29 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       let playableUrl = url;
       currentStreamUrl = url; // 保持全局变量为原始真实直链，供复制与外置播放器提取
 
-      // 电视直播切台与转码调度（加入环境兜底与超时保护）
+      // 电视直播切台与转码调度（安全等待 VPS 切片就绪）
       if (isLiveMode && url) {
-        setStatus("正在解析直播线路...");
+        setStatus("正在连接 VPS 转码直播流...");
         try {
           const transController = new AbortController();
-          const transTimer = setTimeout(() => transController.abort(), 2000);
+          const transTimer = setTimeout(() => transController.abort(), 7500); // 宽延至 7.5 秒，适应跨国网络与探测
           const res = await fetch(`https://jp.luyizhong.eu.org/switch?url=${encodeURIComponent(url)}`, { 
             cache: 'no-store',
             signal: transController.signal
           });
           clearTimeout(transTimer);
           if (res.ok) {
-            await new Promise(r => setTimeout(r, 1200));
-            playableUrl = 'https://jp.luyizhong.eu.org/live/live.m3u8';
+            // 后端已确保 live.m3u8 真实生成，加时间戳防 CDN 旧缓存
+            playableUrl = `https://jp.luyizhong.eu.org/live/live.m3u8?_t=${Date.now()}`;
+          } else {
+            throw new Error("转码响应异常");
           }
         } catch (_) {
-          // 若 VPS 离线或信令响应超时，无缝回退到 M3U 原流直连，绝不黑屏阻断
+          // 若为非 HTTPS 直链且站点为 HTTPS，原流直拉必被浏览器 Mixed Content 阻断
+          if (window.location.protocol === 'https:' && url.startsWith('http://')) {
+            showFailTip("直播线路转码超时<br><span style='color:var(--text-sub);font-size:12px;'>原流为 HTTP 协议受浏览器安全限制无法直连，请在右侧选择【调用外部播放器】一键秒播</span>");
+            return;
+          }
           playableUrl = url;
         }
       }
