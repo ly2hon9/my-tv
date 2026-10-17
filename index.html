@@ -1095,35 +1095,223 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
-    const KEY_SESSION_VOD_STATE = "session_active_vod_state_v3";
+    /* ===================================================================
+       核心 DOM 节点句柄与全局状态变量初始化（彻底消除 ReferenceError）
+       =================================================================== */
+    const wrap = document.getElementById('player-wrap');
+    const video = document.getElementById('video');
+    const currentTitle = document.getElementById('current-title');
+    const routeBadge = document.getElementById('current-route-badge');
+    const favToggleBtn = document.getElementById('btn-fav-toggle');
+    const statusLayer = document.getElementById('status-layer');
+    const statusText = document.getElementById('status-text');
+    const gestureTip = document.getElementById('gesture-tip');
+    const progressContainer = document.getElementById('progress-container');
+    const progressTrack = document.getElementById('progress-track');
+    const progressBar = document.getElementById('progress-bar');
+    const streamTimeEl = document.getElementById('stream-time');
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
+    const volSlider = document.getElementById('vol-slider');
+
+    // 核心账户与权限状态
+    let currentUser = null;
+    let adminAccount = null;
+    let userList = [];
+    let sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
+    let authConfig = { requireLogin: false };
+    let parsedSites = [];
+    let disabledSites = [];
+    let sourceFailures = {};
+    let failThreshold = 5;
+    let currentThemeSetting = 'auto';
+    let gateAuthMode = 'login';
+    let currentEditingGroupId = null;
+    let userAssigningIdx = -1;
+
+    // 播放与界面视图状态
+    let currentMode = 'vod';
+    let currentView = 'normal';
+    let isLiveMode = false;
+    let currentStreamUrl = '';
+    let currentVodUniqueKey = '';
+    let currentPlayingMeta = null;
+    let currentActiveEp = 0;
+    let isEpisodeReversed = false;
+    let isDraggingProgress = false;
+    let dragTargetTime = 0;
+    let hls = null;
+    let playWatchdogTimer = null;
+    let gestureTipTimer = null;
+    let controlsTimer = null;
+
+    // 电视直播数据
+    let groups = {};
+    let totalChannelsCount = 0;
+    let totalStreamsCount = 0;
+
+    // 影视剧场检索与渲染状态
+    let groupedVodList = [];
+    let currentSearchingWord = '';
+    let activeGroupTitle = '';
+    let activeSubItemId = '';
+    let currentVodSortType = 'score';
+    let currentCategoryFilter = 'auto';
+    let isSearchingActive = false;
+    let isSpeedTesting = false;
+    let currentSearchAbortController = null;
+    let renderFrameTimer = null;
+    let domNodeCache = new Map();
+    let activeDisplayCardList = [];
+    let currentlyRenderedCount = 0;
+    const CHUNK_PAGE_SIZE = 30;
+
+    /* ===================================================================
+       基础支撑工具函数（提示、状态层、时间格式化、缓存与播放控制）
+       =================================================================== */
+    function formatTime(sec) {
+      if (!sec || isNaN(sec) || sec < 0) return "00:00";
+      const s = Math.floor(sec);
+      const m = Math.floor(s / 60);
+      const ss = s % 60;
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      if (h > 0) {
+        return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+      }
+      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    }
+
+    function setStatus(msg, persistent = false) {
+      if (!statusLayer || !statusText) return;
+      if (!msg) {
+        statusLayer.style.display = 'none';
+        return;
+      }
+      statusText.innerHTML = msg;
+      statusLayer.style.display = 'block';
+    }
+
+    function showGestureTip(msg) {
+      if (!gestureTip) return;
+      gestureTip.textContent = msg;
+      gestureTip.style.opacity = '1';
+      if (gestureTipTimer) clearTimeout(gestureTipTimer);
+      gestureTipTimer = setTimeout(() => {
+        gestureTip.style.opacity = '0';
+      }, 1600);
+    }
+
+    function showControls() {
+      if (!wrap) return;
+      wrap.classList.remove('controls-hidden');
+      if (controlsTimer) clearTimeout(controlsTimer);
+      controlsTimer = setTimeout(() => {
+        if (!video.paused && !isDraggingProgress) {
+          wrap.classList.add('controls-hidden');
+        }
+      }, 3500);
+    }
+
+    if (wrap) {
+      wrap.addEventListener('mousemove', showControls);
+      wrap.addEventListener('click', (e) => {
+        if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
+        wrap.classList.toggle('controls-hidden');
+      });
+    }
+
+    const PLAYBACK_RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
+    let currentRateIdx = 0;
+    function cyclePlaybackRate() {
+      currentRateIdx = (currentRateIdx + 1) % PLAYBACK_RATES.length;
+      const rate = PLAYBACK_RATES[currentRateIdx];
+      video.playbackRate = rate;
+      const btn = document.getElementById('speed-btn');
+      if (btn) btn.textContent = `${rate}倍`;
+      showGestureTip(`倍速: ${rate}x`);
+    }
+
+    const ASPECT_RATIOS = [
+      { label: '适应', cls: '' },
+      { label: '拉伸', cls: 'fit-fill' },
+      { label: '覆盖', cls: 'fit-cover' }
+    ];
+    let currentRatioIdx = 0;
+    function cycleAspectRatio() {
+      currentRatioIdx = (currentRatioIdx + 1) % ASPECT_RATIOS.length;
+      const r = ASPECT_RATIOS[currentRatioIdx];
+      video.className = r.cls;
+      const btn = document.getElementById('ratio-btn');
+      if (btn) btn.textContent = r.label;
+      showGestureTip(`画幅: ${r.label}`);
+    }
+
+    function changeVolume(val) {
+      const v = parseFloat(val);
+      video.volume = isNaN(v) ? 1 : Math.max(0, Math.min(1, v));
+      video.muted = (video.volume === 0);
+      const icon = document.getElementById('volume-icon');
+      if (icon) icon.setAttribute('stroke', video.muted ? '#ff6b6b' : '#fff');
+    }
+
+    function togglePiP() {
+      if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().catch(() => {});
+      } else if (document.pictureInPictureEnabled && video !== document.pictureInPictureElement) {
+        video.requestPictureInPicture().catch(() => {});
+      }
+    }
+
+    function exitPictureInPictureMode() {
+      if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().catch(() => {});
+      }
+    }
+
+    function decodeBase58(str) {
+      const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      const bytes = [0];
+      for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        const val = ALPHABET.indexOf(c);
+        if (val === -1) continue;
+        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
+        bytes[0] += val;
+        let carry = 0;
+        for (let j = 0; j < bytes.length; j++) {
+          bytes[j] += carry;
+          carry = bytes[j] >> 8;
+          bytes[j] &= 0xff;
+        }
+        while (carry > 0) {
+          bytes.push(carry & 0xff);
+          carry >>= 8;
+        }
+      }
+      for (let i = 0; i < str.length && str[i] === '1'; i++) bytes.push(0);
+      return new TextDecoder().decode(new Uint8Array(bytes.reverse()));
+    }
+
+    const VodSearchCache = {
+      get(kw, gid) {
+        try {
+          const raw = sessionStorage.getItem(`vod_cache_${gid}_${kw}`);
+          return raw ? JSON.parse(raw) : null;
+        } catch (_) { return null; }
+      },
+      set(kw, gid, data) {
+        try {
+          sessionStorage.setItem(`vod_cache_${gid}_${kw}`, JSON.stringify(data.map(slimGroupForStorage)));
+        } catch (_) {}
+      }
+    };
 
     function getCurrentFavKey() {
       return currentUser ? `favs_u_${currentUser.username}` : KEY_FAVS;
     }
     function getCurrentHistoryKey() {
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
-    }
-
-    function getLocalFavorites() {
-      const raw = localStorage.getItem(getCurrentFavKey());
-      try {
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) ? arr : [];
-      } catch (_) {
-        return [];
-      }
-    }
-
-    async function getFavoritesList(forceCloud = false) {
-      if (forceCloud) {
-        const data = await getD1Data(getCurrentFavKey(), '[]');
-        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
-      }
-      const local = getLocalFavorites();
-      getD1Data(getCurrentFavKey(), '[]').catch(() => {});
-      if (local && local.length > 0) return local;
-      const data = await getD1Data(getCurrentFavKey(), '[]');
-      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
     function getLocalFavorites() {
