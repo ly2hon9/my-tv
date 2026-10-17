@@ -4257,11 +4257,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     function manualPlayOnly(url) {
       if (isLiveMode && url) {
-        // 核心路由：点击 CCTV-1 线路时，走 VPS 实时 AAC 转码流；其余各台直连反代
-        if (url.includes('0001_1.m3u8') || url.includes('/live/cctv1.m3u8')) {
+        // 1. CCTV-1 智能判定：无论频道名称叫 CCTV-1 / cctv1 还是带有特征码 3221225829，均直通 VPS 实时 AAC 转码流
+        const isCctv1 = (currentPlayingMeta?.title && /cctv-?1\b/i.test(currentPlayingMeta.title)) ||
+                        url.includes('3221225829') ||
+                        url.includes('0001_1.m3u8') ||
+                        url.includes('/live/cctv1.m3u8');
+
+        if (isCctv1) {
           url = 'https://jp.luyizhong.eu.org/live/cctv1.m3u8';
         } else {
-          url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+          // 2. 泛匹配所有 http 协议源（无论带不带端口号、无论是 IP 还是域名），全部转为 https 代理直连，杜绝浏览器 Mixed Content 拦截
+          url = url.replace(/^http:\/\/([^\/]+)\//i, 'https://jp.luyizhong.eu.org/stream/$1/');
         }
       }
 
