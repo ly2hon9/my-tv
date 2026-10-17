@@ -4255,22 +4255,23 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    function manualPlayOnly(url) {
+    async function manualPlayOnly(url) {
+      clearPlayWatchdog();
+      exitPictureInPictureMode();
+      destroyHlsInstance();
+
+      // 【核心升级】：仅在看电视直播时，向 VPS 发起秒切信令并等待 1.2 秒首个切片落地
       if (isLiveMode && url) {
-        // 核心路由：点击 CCTV-1 线路时，自动走 VPS 实时 AAC 转码流
-        if (url.includes('0001_1.m3u8') || url.includes('/live/cctv1.m3u8')) {
-          url = 'https://jp.luyizhong.eu.org/live/cctv1.m3u8';
-        } else {
-          url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
-        }
+        setStatus("正在极速切台，同步转码中...");
+        try {
+          await fetch(`https://jp.luyizhong.eu.org/switch?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 1200));
+        url = 'https://jp.luyizhong.eu.org/live/live.m3u8';
       }
 
       // 同步全局当前流地址，保证控制栏与外置按钮有效
       currentStreamUrl = url;
-
-      clearPlayWatchdog();
-      exitPictureInPictureMode();
-      destroyHlsInstance();
       setStatus("正在建立连接，请稍候...");
 
       let hasStarted = false;
@@ -4302,10 +4303,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
-      // 苹果设备（iPhone/Safari）：命中已转码的 AAC 流或影视剧场，直通 iOS 原生播放
+      // 苹果设备（iPhone/Safari）：直通 iOS 原生播放
       if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
-        // 移除多余的 video.load()，避免中断 WebKit 解码流程
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(err => {
@@ -4719,6 +4719,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         switchMode('vod');
       }
       checkAutoSyncSchedule();
+    });
+    window.addEventListener('pagehide', () => {
+      if (isLiveMode) {
+        navigator.sendBeacon('https://jp.luyizhong.eu.org/stop');
+      }
     });
   </script>
 </body>
