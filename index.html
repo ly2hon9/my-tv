@@ -1218,7 +1218,11 @@
       wrap.addEventListener('mousemove', showControls);
       wrap.addEventListener('click', (e) => {
         if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
-        wrap.classList.toggle('controls-hidden');
+        if (wrap.classList.contains('controls-hidden')) {
+          showControls();
+        } else {
+          wrap.classList.add('controls-hidden');
+        }
       });
     }
 
@@ -4498,12 +4502,23 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     });
     video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
 
-    // 自动连续播放下一集闭环
+    // 自动连续播放下一集闭环（支持搜索列表、收藏夹、播放历史全场景秒播下一集）
     video.addEventListener('ended', () => {
       if (isLiveMode || !currentPlayingMeta) return;
       const nextEpIdx = currentActiveEp + 1;
       const group = groupedVodList.find(g => normalizeCleanKey(g.title) === normalizeCleanKey(currentPlayingMeta.title));
-      const curItem = group ? (group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName)) || group.items[0]) : null;
+      let curItem = group ? (group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName)) || group.items[0]) : null;
+
+      // 降级兜底：如果从收藏夹或历史记录直接起播，内存无搜索列表时直接调取 currentPlayingMeta
+      if (!curItem && currentPlayingMeta.vod) {
+        curItem = {
+          id: 'meta_auto_next_' + Date.now(),
+          siteName: currentPlayingMeta.siteName || '默认源',
+          versionTag: '',
+          vod: currentPlayingMeta.vod
+        };
+      }
+
       if (curItem) {
         const episodes = getEpisodesList(curItem);
         if (nextEpIdx < episodes.length) {
