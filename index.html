@@ -1469,7 +1469,6 @@
     }
 
     let lastSavedTime = 0;
-    let lastSavedTime = 0;
     let lastD1SyncTime = 0;
     async function savePlaybackProgress(forceCloudSync = false) {
       if (isLiveMode || !currentPlayingMeta || !video.duration || video.currentTime < 2) return;
@@ -2946,7 +2945,7 @@
         if (sites.length > 0) {
           parsedSites = sites;
           setD1Data(KEY_SITES, parsedSites);
-          setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
+          setD1Data(KEY_LAST_SYNC, new Date().toISOString()); // 修复：统一为标准 ISO 字符串
         }
       } catch (_) {}
     }
