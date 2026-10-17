@@ -4651,6 +4651,19 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (results[5].status === 'fulfilled' && results[5].value) {
           try { adminAccount = JSON.parse(results[5].value); } catch (_) {}
         }
+        // 若数据库中尚无主管理员记录，自动激活门禁的初始化通道
+        if (!adminAccount) {
+          gateAuthMode = 'init_admin';
+          const subTip = document.getElementById('gate-sub-tip');
+          if (subTip) {
+            subTip.textContent = "首次使用，请设定主管理员账号与密码";
+            subTip.style.display = 'block';
+          }
+          const submitBtn = document.getElementById('gate-submit-btn');
+          if (submitBtn) submitBtn.textContent = "初始化管理员";
+          const switchLink = document.getElementById('gate-switch-link');
+          if (switchLink) switchLink.style.display = 'none';
+        }
         if (results[6].status === 'fulfilled' && results[6].value) {
           try { userList = JSON.parse(results[6].value); } catch (_) {}
         }
