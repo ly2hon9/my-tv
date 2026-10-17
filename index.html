@@ -4713,11 +4713,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
       checkAutoSyncSchedule();
     });
-    window.addEventListener('pagehide', () => {
-      if (isLiveMode) {
-        navigator.sendBeacon('https://jp.luyizhong.eu.org/stop');
-      }
-    });
   </script>
 </body>
 </html>
