@@ -1469,13 +1469,15 @@
     }
 
     let lastSavedTime = 0;
-    async function savePlaybackProgress() {
+    let lastSavedTime = 0;
+    let lastD1SyncTime = 0;
+    async function savePlaybackProgress(forceCloudSync = false) {
       if (isLiveMode || !currentPlayingMeta || !video.duration || video.currentTime < 2) return;
       const nowSec = Math.floor(video.currentTime);
-      if (Math.abs(nowSec - lastSavedTime) < 15) return;
+      if (!forceCloudSync && Math.abs(nowSec - lastSavedTime) < 15) return;
       lastSavedTime = nowSec;
 
-      let history = await getHistoryList();
+      let history = getLocalHistory();
       const existingIdx = history.findIndex(h => h.key === currentVodUniqueKey);
       const item = {
         key: currentVodUniqueKey,
@@ -1493,7 +1495,16 @@
       if (existingIdx >= 0) history.splice(existingIdx, 1);
       history.unshift(item);
       if (history.length > 50) history.pop();
-      setD1Data(getCurrentHistoryKey(), history);
+      
+      // 1. 本地 localStorage 每 15 秒写入，保证无卡顿
+      localStorage.setItem(getCurrentHistoryKey(), JSON.stringify(history));
+
+      // 2. 云端 D1 每 120 秒或暂停/换集时才同步一次，降低 80% 的 API 调用量
+      const nowMs = Date.now();
+      if (forceCloudSync || (nowMs - lastD1SyncTime > 120000)) {
+        lastD1SyncTime = nowMs;
+        setD1Data(getCurrentHistoryKey(), history);
+      }
     }
 
     async function restorePlaybackProgress() {
@@ -2010,7 +2021,9 @@
       isDraggingProgress = true;
       showControls();
       progressContainer.classList.add('dragging');
-      progressContainer.setPointerCapture(e.pointerId);
+      try {
+        progressContainer.setPointerCapture(e.pointerId);
+      } catch (_) {}
 
       const ratio = calcProgressRatio(e.clientX);
       progressBar.style.width = `${ratio * 100}%`;
@@ -2883,9 +2896,10 @@
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
-      const nowStr = new Date().toLocaleString();
-      setD1Data(KEY_LAST_SYNC, nowStr);
-      document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowStr}`;
+      const nowIso = new Date().toISOString();
+      const nowDisplay = new Date().toLocaleString();
+      setD1Data(KEY_LAST_SYNC, nowIso);
+      document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowDisplay}`;
 
       syncBtn.textContent = "🔄 同步更新源";
       syncBtn.disabled = false;
@@ -2902,7 +2916,19 @@
         await triggerSilentSync();
         return;
       }
-      const lastTime = new Date(lastTimeStr).getTime();
+      // 容错解析：兼容 ISO 8601、毫秒数字与斜杠格式，防止 Safari Date.parse 返回 NaN
+      let lastTime = Number(lastTimeStr);
+      if (isNaN(lastTime)) {
+        lastTime = new Date(lastTimeStr.replace(/-/g, '/')).getTime();
+      }
+      if (isNaN(lastTime)) {
+        lastTime = new Date(lastTimeStr).getTime();
+      }
+      if (isNaN(lastTime)) {
+        await triggerSilentSync();
+        return;
+      }
+
       const now = Date.now();
       const diffHours = (now - lastTime) / (1000 * 60 * 60);
 
@@ -3026,8 +3052,14 @@
       return false;
     }
 
-    window.addEventListener('beforeunload', saveVodSessionState);
-    window.addEventListener('pagehide', saveVodSessionState);
+    window.addEventListener('beforeunload', () => {
+      saveVodSessionState();
+      savePlaybackProgress(true); // 电脑端关掉标签页/刷新时，强制写一次 D1
+    });
+    window.addEventListener('pagehide', () => {
+      saveVodSessionState();
+      savePlaybackProgress(true); // 手机端（iOS Safari / 微信）切后台、锁屏时，强制写一次 D1
+    });
 
     /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
     function switchMode(mode) {
@@ -3618,7 +3650,7 @@
     function toggleEpisodesOrder() {
       isEpisodeReversed = !isEpisodeReversed;
       if (currentView === 'fav') {
-        renderFavoritesView(favs);
+        renderFavoritesView();
       } else {
         renderGroupedVodSources();
       }
@@ -4276,10 +4308,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
       setStatus(tipText, true);
 
-      if (tipText.includes("编码格式不支持")) {
-        if (currentPlayingMeta?.siteName) {
-          recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
-        }
+      // 无论超时、跨域死链还是格式错误，统一触发失效计数
+      if (currentPlayingMeta?.siteName) {
+        recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
       }
     }
 
@@ -4547,7 +4578,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       updatePlayBtn(true); 
       showControls(); 
     });
-    video.addEventListener('pause', () => { updatePlayBtn(false); showControls(); });
+    video.addEventListener('pause', () => {
+      updatePlayBtn(false);
+      showControls();
+      savePlaybackProgress(true); // 核心：用户点暂停时，立刻把当前精确进度同步到 D1
+    });
 
     // 自动连续播放下一集闭环（支持搜索列表、收藏夹、播放历史全场景秒播下一集）
     video.addEventListener('ended', () => {
