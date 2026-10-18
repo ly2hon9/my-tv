@@ -2899,7 +2899,7 @@
 
       if (m3uUrl) {
         try {
-          const text = await fetchWithSmartProxy(m3uUrl, 5000);
+          const text = await fetchTvM3uContent(m3uUrl)
           if (text && text.includes('#EXTINF')) {
             parseM3U(text, true);
             msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
@@ -3073,11 +3073,20 @@
       return false;
     }
 
-    window.addEventListener('beforeunload', saveVodSessionState);
-    window.addEventListener('pagehide', saveVodSessionState);
+    window.addEventListener('beforeunload', () => {
+      saveVodSessionState();
+      stopRemoteTvTranscode();
+    });
+    window.addEventListener('pagehide', () => {
+      saveVodSessionState();
+      stopRemoteTvTranscode();
+    });
 
     /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
     function switchMode(mode) {
+      if (currentMode === 'tv' && mode !== 'tv') {
+        stopRemoteTvTranscode();
+      }
       currentMode = mode;
       currentView = 'normal';
 
@@ -4399,18 +4408,41 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    function manualPlayOnly(url) {
-      if (isLiveMode && url) {
-        // 核心路由：点击 CCTV-1 线路时，自动走 VPS 实时 AAC 转码流
-        if (url.includes('0001_1.m3u8') || url.includes('/live/cctv1.m3u8')) {
-          url = 'https://jp.luyizhong.eu.org/live/cctv1.m3u8';
+    const VPS_TV_BASE = 'https://jp.luyizhong.eu.org/tv';
+    let hasActiveRemoteTv = false;
+
+    function stopRemoteTvTranscode() {
+      if (!hasActiveRemoteTv) return;
+      hasActiveRemoteTv = false;
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(`${VPS_TV_BASE}/stop?_t=${Date.now()}`);
         } else {
-          url = url.replace(/http:\/\/(\d+\.\d+\.\d+\.\d+:\d+)\//g, 'https://jp.luyizhong.eu.org/stream/$1/');
+          fetch(`${VPS_TV_BASE}/stop?_t=${Date.now()}`, { mode: 'no-cors', keepalive: true }).catch(() => {});
         }
+      } catch (_) {}
+    }
+
+    function manualPlayOnly(url) {
+      if (!url) return;
+      let playUrl = url;
+
+      if (isLiveMode) {
+        // 电视直播模式：全部走 VPS 按需实时转码（与影视剧场完全隔离）
+        let rawTarget = url;
+        if (url.startsWith(`${VPS_TV_BASE}/live.m3u8?url=`)) {
+          try { rawTarget = decodeURIComponent(url.split('url=')[1].split('&')[0]); } catch (_) {}
+        }
+        currentStreamUrl = rawTarget; // 保持原始直链供外置播放器或复制使用
+        playUrl = `${VPS_TV_BASE}/live.m3u8?url=${encodeURIComponent(rawTarget)}`;
+        hasActiveRemoteTv = true;
+      } else {
+        // 影视剧场模式：若之前正在看电视直播，立即通知 VPS 停止解码释放资源
+        stopRemoteTvTranscode();
+        currentStreamUrl = url;
       }
 
-      // 同步全局当前流地址，保证控制栏与外置按钮有效
-      currentStreamUrl = url;
+      url = playUrl;
 
       clearPlayWatchdog();
       exitPictureInPictureMode();
@@ -4506,6 +4538,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     }
 
     /* === 电视直播模块：持久化拉取与增量更新逻辑 === */
+    async function fetchTvM3uContent(m3uUrl) {
+      try {
+        const res = await fetch(`${VPS_TV_BASE}/m3u?url=${encodeURIComponent(m3uUrl)}&_t=${Date.now()}`);
+        if (res.ok) {
+          const txt = await res.text();
+          if (txt && txt.includes('#EXTINF')) return txt;
+        }
+      } catch (_) {}
+      return await fetchWithSmartProxy(m3uUrl, 5000);
+    }
+
     async function initTv(force = false) {
       if (!force && Object.keys(groups).length > 0) {
         if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
@@ -4514,7 +4557,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       const targetUrl = await getD1Data(KEY_M3U, '');
       if (!targetUrl) return;
       try {
-        const text = await fetchWithSmartProxy(targetUrl, 5000);
+        const text = await fetchTvM3uContent(targetUrl);
         if (text && text.includes('#EXTINF')) {
           parseM3U(text, true);
           if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
