@@ -4428,16 +4428,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       let playUrl = url;
 
       if (isLiveMode) {
-        // 电视直播模式：全部走 VPS 按需实时转码（与影视剧场完全隔离）
+        // 电视直播模式：全局强制转为 https://jp.luyizhong.eu.org/tv/live.m3u8?url=...
         let rawTarget = url;
         if (url.startsWith(`${VPS_TV_BASE}/live.m3u8?url=`)) {
           try { rawTarget = decodeURIComponent(url.split('url=')[1].split('&')[0]); } catch (_) {}
         }
-        currentStreamUrl = rawTarget; // 保持原始直链供外置播放器或复制使用
         playUrl = `${VPS_TV_BASE}/live.m3u8?url=${encodeURIComponent(rawTarget)}`;
+        currentStreamUrl = playUrl; // 复制直链与外置播放器统一使用转换后的 https 地址
         hasActiveRemoteTv = true;
       } else {
-        // 影视剧场模式：若之前正在看电视直播，立即通知 VPS 停止解码释放资源
+        // 影视剧场模式：与 VPS 完全隔离，若之前在看电视则立刻关停 VPS 转码
         stopRemoteTvTranscode();
         currentStreamUrl = url;
       }
@@ -4447,7 +4447,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
-      setStatus("正在建立连接，请稍候...");
+      setStatus(isLiveMode ? "正在通过 VPS 解码直播流，请稍候..." : "正在建立连接，请稍候...");
 
       let hasStarted = false;
       const markPlaySuccess = () => {
@@ -4460,14 +4460,13 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         showControls();
       };
 
-      // 跨国链路判定放宽至 15 秒
+      // 给 VPS 首次跨国拉流预留 20 秒缓冲时间
       playWatchdogTimer = setTimeout(() => {
         if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
-      }, 15000);
+      }, 20000);
 
-      // 补全 Safari 原生 HLS 的关键事件监听
       video.onplaying = markPlaySuccess;
       video.onloadeddata = markPlaySuccess;
       video.onloadedmetadata = markPlaySuccess;
@@ -4478,10 +4477,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
 
-      // 苹果设备（iPhone/Safari）：命中已转码的 AAC 流或影视剧场，直通 iOS 原生播放
       if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url;
-        // 移除多余的 video.load()，避免中断 WebKit 解码流程
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(err => {
@@ -4496,16 +4493,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return;
       }
 
-      // 非苹果设备（Windows Edge/Chrome/安卓）：走 Hls.js 解码管道
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
+          lowLatencyMode: false,
           backBufferLength: 60,
-          manifestLoadingTimeOut: 10000,
-          manifestLoadingMaxRetry: 2,
-          fragLoadingTimeOut: 10000,
-          fragLoadingMaxRetry: 2,
+          manifestLoadingTimeOut: 20000,
+          manifestLoadingMaxRetry: 3,
+          levelLoadingTimeOut: 20000,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 3,
           xhrSetup: (xhr) => { xhr.withCredentials = false; }
         });
         hls.loadSource(url);
