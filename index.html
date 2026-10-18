@@ -1214,14 +1214,91 @@
       }, 3500);
     }
 
+    let lastTapTime = 0;
+    let lastTapZone = '';
+    let singleTapTimer = null;
+    let seekStreakDir = 0;
+    let seekStreakSec = 0;
+    let seekStreakResetTimer = null;
+
+    function triggerCumulativeSeek(dir) {
+      if (isLiveMode || !video.duration || !isFinite(video.duration)) {
+        showGestureTip("📺 直播模式不支持快进/后退");
+        return;
+      }
+
+      if (seekStreakDir === dir && seekStreakResetTimer) {
+        seekStreakSec += 10;
+      } else {
+        seekStreakDir = dir;
+        seekStreakSec = 10;
+      }
+
+      const targetTime = Math.max(0, Math.min(video.duration, video.currentTime + dir * 10));
+      video.currentTime = targetTime;
+
+      const cur = video.currentTime;
+      const dur = video.duration;
+      streamTimeEl.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+      progressBar.style.width = `${(cur / dur) * 100}%`;
+
+      showGestureTip(dir > 0 ? `⏩ 快进 ${seekStreakSec} 秒` : `⏪ 后退 ${seekStreakSec} 秒`);
+
+      if (seekStreakResetTimer) clearTimeout(seekStreakResetTimer);
+      seekStreakResetTimer = setTimeout(() => {
+        seekStreakDir = 0;
+        seekStreakSec = 0;
+        seekStreakResetTimer = null;
+      }, 1200);
+    }
+
     if (wrap) {
+      wrap.style.touchAction = 'manipulation';
+      wrap.style.userSelect = 'none';
+      wrap.style.webkitUserSelect = 'none';
+
       wrap.addEventListener('mousemove', showControls);
       wrap.addEventListener('click', (e) => {
-        if (e.target.closest('#custom-controls') || e.target.closest('#top-bar')) return;
-        if (wrap.classList.contains('controls-hidden')) {
-          showControls();
+        if (e.target.closest('#custom-controls') || e.target.closest('#top-bar') || e.target.closest('#status-layer')) return;
+
+        const rect = wrap.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / (rect.width || 1);
+        const zone = ratio < 0.35 ? 'left' : (ratio > 0.65 ? 'right' : 'center');
+        const now = performance.now();
+
+        if (lastTapTime > 0 && (now - lastTapTime) < 300 && lastTapZone === zone) {
+          // 命中双击（左退 / 右进 / 中间暂停或播放）
+          if (singleTapTimer) {
+            clearTimeout(singleTapTimer);
+            singleTapTimer = null;
+          }
+          lastTapTime = 0;
+
+          if (zone === 'left') {
+            triggerCumulativeSeek(-1);
+          } else if (zone === 'right') {
+            triggerCumulativeSeek(1);
+          } else {
+            togglePlay();
+            showGestureTip(video.paused ? "⏸ 已暂停" : "▶ 继续播放");
+          }
         } else {
-          wrap.classList.add('controls-hidden');
+          // 首次点击：等待 260ms 判断是否升级为双击
+          lastTapTime = now;
+          lastTapZone = zone;
+          if (singleTapTimer) clearTimeout(singleTapTimer);
+
+          singleTapTimer = setTimeout(() => {
+            singleTapTimer = null;
+            lastTapTime = 0;
+            // 若正处于连续双击快进/快退的展示周期内，不闪烁控制栏
+            if (seekStreakResetTimer) return;
+            if (wrap.classList.contains('controls-hidden')) {
+              showControls();
+            } else {
+              wrap.classList.add('controls-hidden');
+            }
+          }, 260);
         }
       });
     }
@@ -2959,7 +3036,7 @@
 
       if (m3uUrl) {
         try {
-          const text = await fetchWithSmartProxy(m3uUrl, 5000);
+          const text = await fetchTvM3uContent(m3uUrl);
           if (text && text.includes('#EXTINF')) {
             parseM3U(text, true);
             hasUpdated = true;
