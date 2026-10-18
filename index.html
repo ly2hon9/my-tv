@@ -1481,12 +1481,14 @@
         key: currentVodUniqueKey,
         title: currentPlayingMeta.title,
         epName: currentPlayingMeta.epName || '正片',
+        epIdx: (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp,
         url: currentStreamUrl,
         time: nowSec,
         duration: Math.floor(video.duration),
         siteName: currentPlayingMeta.siteName || '',
         thumb: currentPlayingMeta.thumb || '',
         censorTag: currentPlayingMeta.censorTag || '',
+        vod: currentPlayingMeta.vod || null,
         updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -1918,24 +1920,45 @@
               <span>${escapeHtml(item.updatedAt || '')}</span>
             </div>
           </div>
-          <button class="btn-del-item" title="删除" onclick="event.stopPropagation(); removeHistoryItem('${escapeHtml(uniqueKey)}', this.closest('.history-card'))">✕</button>
+          <button type="button" class="btn-del-item" title="删除">✕</button>
         `;
 
-        card.onclick = () => {
-          isLiveMode = false;
-          currentStreamUrl = item.url;
-          currentVodUniqueKey = item.key;
-          currentTitle.textContent = `${item.title} - ${item.epName}`;
-          routeBadge.style.display = 'inline-block';
-          routeBadge.textContent = item.siteName;
-          currentPlayingMeta = {
-            title: item.title,
-            epName: item.epName,
-            siteName: item.siteName,
-            censorTag: tag
+        const delBtn = card.querySelector('.btn-del-item');
+        if (delBtn) {
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            removeHistoryItem(uniqueKey, card);
           };
-          updateFavIconState();
-          manualPlayOnly(item.url);
+        }
+
+        card.onclick = () => {
+          if (item.vod) {
+            playCurrentVodSource({
+              id: 'hist_' + Date.now(),
+              siteName: item.siteName || '历史源',
+              versionTag: '',
+              vod: item.vod
+            }, (item.epIdx !== undefined && item.epIdx >= 0) ? item.epIdx : (item.epName || 0), false);
+          } else {
+            isLiveMode = false;
+            currentStreamUrl = item.url;
+            currentVodUniqueKey = item.key;
+            currentActiveEp = item.epIdx || 0;
+            currentTitle.textContent = `${item.title} - ${item.epName}`;
+            routeBadge.style.display = 'inline-block';
+            routeBadge.textContent = item.siteName;
+            currentPlayingMeta = {
+              title: item.title,
+              epName: item.epName,
+              epIdx: item.epIdx || 0,
+              siteName: item.siteName,
+              thumb: item.thumb || '',
+              censorTag: tag,
+              url: item.url
+            };
+            updateFavIconState();
+            manualPlayOnly(item.url);
+          }
         };
         frag.appendChild(card);
       });
@@ -2214,6 +2237,13 @@
         currentUser = { username: u, role: 'admin', allowedSites: ['*'] };
         if (remember) localStorage.setItem(KEY_SAVED_CREDS, JSON.stringify({ u, passHash }));
         localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
+        gateAuthMode = 'login';
+        const subTip = document.getElementById('gate-sub-tip');
+        if (subTip) subTip.style.display = 'none';
+        const submitBtn = document.getElementById('gate-submit-btn');
+        if (submitBtn) submitBtn.textContent = '登 录';
+        const switchLink = document.getElementById('gate-switch-link');
+        if (switchLink) switchLink.style.display = '';
         updateMainRoleButton();
         document.getElementById('auth-gate-screen').style.display = 'none';
         showGestureTip("✓ 初始化成功");
@@ -2640,6 +2670,15 @@
       showGestureTip("✓ 已重置全部失效统计并恢复");
     }
 
+    function clearVodSearchSessionCache() {
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('vod_cache_')) sessionStorage.removeItem(k);
+        }
+      } catch (_) {}
+    }
+
     function renderSitesManagerList() {
       const container = document.getElementById('sites-items-container');
       const badge = document.getElementById('sites-count-badge');
@@ -2663,28 +2702,33 @@
         return failB - failA;
       });
 
-      container.innerHTML = sortedSites.map((site) => {
+      container.innerHTML = '';
+      sortedSites.forEach((site) => {
         const isDis = disabledSites.includes(site.name);
         const failCount = sourceFailures[site.name]?.count || 0;
 
-        return `
-          <div class="site-toggle-row" style="${isDis ? 'opacity:0.65;background:rgba(0,0,0,0.1);' : ''}">
-            <div style="flex:1.2; min-width:0; display:flex; align-items:center;">
-              <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🎬 ${escapeHtml(site.name)}</span>
-            </div>
-            <div style="flex:1.5; display:flex; align-items:center; justify-content:center; gap:8px;">
-              <span style="width:40px; text-align:center; font-family:monospace; font-size:12px; font-weight:600; color:${failCount > 0 ? (failCount >= failThreshold ? '#ef4444' : '#facc15') : 'var(--text-mute)'};">${failCount}</span>
-              <span style="width:64px; text-align:center; font-family:monospace; font-size:12px; color:var(--text-sub);">${failThreshold}</span>
-            </div>
-            <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-              <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}" onclick="toggleSiteStatus('${escapeHtml(site.name)}')">
-                ${isDis ? '已禁用' : '已启用'}
-              </button>
-              <button type="button" class="btn-danger-del" title="删除该源" onclick="deleteSite('${escapeHtml(site.name)}')">✕</button>
-            </div>
+        const row = document.createElement('div');
+        row.className = 'site-toggle-row';
+        if (isDis) row.style.cssText = 'opacity:0.65;background:rgba(0,0,0,0.1);';
+
+        row.innerHTML = `
+          <div style="flex:1.2; min-width:0; display:flex; align-items:center;">
+            <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🎬 ${escapeHtml(site.name)}</span>
+          </div>
+          <div style="flex:1.5; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <span style="width:40px; text-align:center; font-family:monospace; font-size:12px; font-weight:600; color:${failCount > 0 ? (failCount >= failThreshold ? '#ef4444' : '#facc15') : 'var(--text-mute)'};">${failCount}</span>
+            <span style="width:64px; text-align:center; font-family:monospace; font-size:12px; color:var(--text-sub);">${failThreshold}</span>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+            <button type="button" class="btn-site-toggle ${isDis ? 'disabled' : 'enabled'}">${isDis ? '已禁用' : '已启用'}</button>
+            <button type="button" class="btn-danger-del" title="删除该源">✕</button>
           </div>
         `;
-      }).join('');
+
+        row.querySelector('.btn-site-toggle').onclick = () => toggleSiteStatus(site.name);
+        row.querySelector('.btn-danger-del').onclick = () => deleteSite(site.name);
+        container.appendChild(row);
+      });
     }
 
     async function toggleSiteStatus(siteName) {
@@ -2700,6 +2744,7 @@
         disabledSites.push(siteName);
       }
 
+      clearVodSearchSessionCache();
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
     }
@@ -2716,6 +2761,7 @@
       if (parsedSites.some(s => s.name === name)) { alert('已存在同名源站！'); return; }
 
       parsedSites.unshift({ name, api });
+      clearVodSearchSessionCache();
       setD1Data(KEY_SITES, parsedSites);
       nameInput.value = '';
       apiInput.value = '';
@@ -2729,6 +2775,7 @@
       parsedSites = parsedSites.filter(s => s.name !== siteName);
       disabledSites = disabledSites.filter(n => n !== siteName);
       if (sourceFailures[siteName]) delete sourceFailures[siteName];
+      clearVodSearchSessionCache();
       setD1Data(KEY_SITES, parsedSites);
       setD1Data(KEY_DISABLED_SITES, disabledSites);
       setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
@@ -4195,15 +4242,25 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
   const episodes = getEpisodesList(item);
   let targetEpIdx = -1;
+  const prevEpIdx = currentActiveEp;
 
-  if (isSourceSwitch && currentPlayingMeta?.epName && currentPlayingMeta?.title === item.vod.vod_name) {
-    targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta.epName, currentActiveEp);
+  const isSameWork = currentPlayingMeta?.title &&
+    normalizeCleanKey(parseTitleAndVersion(currentPlayingMeta.title).canonical) ===
+    normalizeCleanKey(parseTitleAndVersion(item.vod.vod_name).canonical);
+
+  if (isSourceSwitch) {
+    if (isSameWork && currentPlayingMeta?.epName) {
+      targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta.epName, prevEpIdx);
+    } else {
+      targetEpIdx = (typeof targetEpParam === 'number' && targetEpParam >= 0 && targetEpParam < episodes.length) ? targetEpParam : 0;
+    }
   } else if (typeof targetEpParam === 'number') {
-    // 越界保护：如果索引在有效范围内直接读取；若历史单集缓存超出了数组长度，按名称智能匹配或兜底第0集
     if (targetEpParam >= 0 && targetEpParam < episodes.length) {
       targetEpIdx = targetEpParam;
-    } else if (currentPlayingMeta?.epName || item.vod?.vod_remarks) {
-      targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta?.epName || item.vod?.vod_remarks, 0);
+    } else if (isSameWork && currentPlayingMeta?.epName) {
+      targetEpIdx = findMatchingEpisodeIndex(episodes, currentPlayingMeta.epName, 0);
+    } else if (item.vod?.vod_remarks) {
+      targetEpIdx = findMatchingEpisodeIndex(episodes, item.vod.vod_remarks, 0);
     } else {
       targetEpIdx = 0;
     }
@@ -4214,6 +4271,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   }
 
   if (targetEpIdx < 0 || !episodes[targetEpIdx]?.url) {
+    const missingEpText = (isSameWork && currentPlayingMeta?.epName) || (prevEpIdx >= 0 ? `第${prevEpIdx + 1}集` : '当前集数');
     currentActiveEp = -1;
     currentStreamUrl = "";
     destroyHlsInstance();
@@ -4224,7 +4282,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       video.load();
     } catch (_) {}
 
-    const missingEpText = currentPlayingMeta?.epName || (currentActiveEp >= 0 ? `第${currentActiveEp + 1}集` : '当前集数');
     currentTitle.textContent = `${item.vod.vod_name} - 该线路暂未更新`;
     routeBadge.style.display = 'inline-block';
     routeBadge.textContent = `${item.siteName} · 未更新`;
@@ -4255,19 +4312,19 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     siteName: item.siteName,
     thumb: item.vod.vod_pic || '',
     censorTag: cTag,
-    vod: item.vod,           // 保留完整片源数据供收藏秒调全集
-    epIdx: targetEpIdx,      // 锁定当前集数索引
+    vod: item.vod,
+    epIdx: targetEpIdx,
     url: rawUrl
   };
 
-  // 【核心功能】：只要播放或自动连播下一集，后台自动将最新集数实时同步回 D1 收藏夹与界面！
+  const cleanCurrentTitle = normalizeCleanKey(parseTitleAndVersion(item.vod.vod_name).canonical) || normalizeCleanKey(item.vod.vod_name);
+  const cleanCurrentSite = normalizeCleanKey(item.siteName);
+
   getFavoritesList().then(favs => {
     let updated = false;
-    const cleanCurrentTitle = normalizeCleanKey(item.vod.vod_name);
-    const cleanCurrentSite = normalizeCleanKey(item.siteName);
-
     favs.forEach(f => {
-      if (f.type !== 'tv' && normalizeCleanKey(f.title) === cleanCurrentTitle && normalizeCleanKey(f.siteName) === cleanCurrentSite) {
+      const fCleanTitle = normalizeCleanKey(parseTitleAndVersion(f.title).canonical) || normalizeCleanKey(f.title);
+      if (f.type !== 'tv' && fCleanTitle === cleanCurrentTitle && normalizeCleanKey(f.siteName) === cleanCurrentSite) {
         f.epName = targetEp.name;
         f.epIdx = targetEpIdx;
         f.url = rawUrl;
@@ -4278,33 +4335,35 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     if (updated) {
       setD1Data(getCurrentFavKey(), favs);
-      // 使用 getElementById 彻底避免特殊字符报错，并按真实 data-ep-idx 匹配高亮（倒序绝不错位）
       if (currentView === 'fav') {
-          const trackLabel = document.getElementById(`fav-meta-track-${cleanCurrentTitle}`);
-          if (trackLabel) trackLabel.textContent = `看到: ${targetEp.name}`;
-          const grid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
-          if (grid) {
-            grid.querySelectorAll('.ep-item').forEach(b => {
-              const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
-              b.classList.toggle('active', bIdx === targetEpIdx);
-            });
-          }
+        const trackLabel = document.getElementById(`fav-meta-track-${cleanCurrentTitle}`);
+        if (trackLabel) trackLabel.textContent = `看到: ${targetEp.name}`;
+        const grid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
+        if (grid) {
+          grid.querySelectorAll('.ep-item').forEach(b => {
+            const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
+            b.classList.toggle('active', bIdx === targetEpIdx);
+          });
         }
       }
-    });
-
-    // === 新增：主搜索视窗选集网格联动高亮（根据片名精准定位对应网格） ===
-    const cleanCurrentTitle = normalizeCleanKey(item.vod.vod_name);
-    const mainEpGrid = document.getElementById(`episodes-grid-list-\${cleanCurrentTitle}`);
-    if (mainEpGrid) {
-      mainEpGrid.querySelectorAll('.ep-item').forEach(b => {
-        const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
-        b.classList.toggle('active', bIdx === targetEpIdx);
-      });
     }
+  });
 
-    updateFavIconState();
-    manualPlayOnly(rawUrl);
+  // 主搜索视窗选集网格与集数标题联动高亮（已修复转义符）
+  const mainEpGrid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
+  if (mainEpGrid) {
+    mainEpGrid.querySelectorAll('.ep-item').forEach(b => {
+      const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
+      b.classList.toggle('active', bIdx === targetEpIdx);
+    });
+    const epHeaderSpan = mainEpGrid.parentElement?.querySelector('.episodes-header > span');
+    if (epHeaderSpan) {
+      epHeaderSpan.innerHTML = `📺 选集 (${episodes.length} 集) - 当前第 ${targetEpIdx + 1} 集`;
+    }
+  }
+
+  updateFavIconState();
+  manualPlayOnly(rawUrl);
 }
 
     function destroyHlsInstance() {
@@ -4333,8 +4392,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       const tipText = msg || "当前线路受限<br><span style='color:var(--text-sub);font-size:12px;'>源站拒绝连接或防盗链拦截，请在下方选择其他源或调用外部播放器</span>";
       setStatus(tipText, true);
 
-      if (tipText.includes("编码格式不支持")) {
-        if (currentPlayingMeta?.siteName) {
+      if (!isLiveMode && currentPlayingMeta?.siteName) {
+        if (tipText.includes("编码格式不支持") || tipText.includes("响应超时") || tipText.includes("网络连接失败")) {
           recordSourceFailure(currentPlayingMeta.siteName, currentVodUniqueKey);
         }
       }
@@ -4534,6 +4593,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               e.stopPropagation();
               isLiveMode = true;
               currentVodUniqueKey = "";
+              document.querySelectorAll('.channel-row.playing').forEach(el => el.classList.remove('playing'));
+              rowEl.classList.add('playing');
               document.querySelectorAll('.source-item.active-source').forEach(el => el.classList.remove('active-source'));
               itemEl.classList.add('active-source');
               currentTitle.textContent = chName;
@@ -4600,8 +4661,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     // 自动连续播放下一集闭环（支持搜索列表、收藏夹、播放历史全场景秒播下一集）
     video.addEventListener('ended', () => {
       if (isLiveMode || !currentPlayingMeta) return;
-      const nextEpIdx = currentActiveEp + 1;
-      const group = groupedVodList.find(g => normalizeCleanKey(g.title) === normalizeCleanKey(currentPlayingMeta.title));
+      const baseEpIdx = (currentPlayingMeta.epIdx !== undefined && currentPlayingMeta.epIdx >= 0) ? currentPlayingMeta.epIdx : currentActiveEp;
+      const nextEpIdx = baseEpIdx + 1;
+      const normCurTitle = normalizeCleanKey(parseTitleAndVersion(currentPlayingMeta.title).canonical) || normalizeCleanKey(currentPlayingMeta.title);
+      const group = groupedVodList.find(g => normalizeCleanKey(g.title) === normCurTitle);
       let curItem = group ? (group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName)) || group.items[0]) : null;
 
       // 降级兜底：如果从收藏夹或历史记录直接起播，内存无搜索列表时直接调取 currentPlayingMeta
