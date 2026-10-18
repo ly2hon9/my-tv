@@ -2176,8 +2176,9 @@
     function enterPseudoFullscreen() { wrap.classList.toggle('pseudo-fullscreen'); }
 
     function openPlayer(type) {
-      if (!isSafeUrl(currentStreamUrl)) { alert("当前链接无效！"); return; }
-      const rawUrl = currentStreamUrl.trim();
+      const targetUrl = (isLiveMode && window.currentRawStreamUrl) ? window.currentRawStreamUrl : currentStreamUrl;
+      if (!isSafeUrl(targetUrl)) { alert("当前链接无效！"); return; }
+      const rawUrl = targetUrl.trim();
       let s = "";
       switch (type) {
         case 'vlc': s = navigator.userAgent.match(/(iPhone|iPad|iPod)/i) ? `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(rawUrl)}` : `vlc://${rawUrl}`; break;
@@ -4511,7 +4512,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           try { rawTarget = decodeURIComponent(url.split('url=')[1].split('&')[0]); } catch (_) {}
         }
         playUrl = `${VPS_TV_BASE}/live.m3u8?url=${encodeURIComponent(rawTarget)}`;
-        currentStreamUrl = playUrl; // 复制直链与外置播放器统一使用转换后的 https 地址
+        currentStreamUrl = playUrl; // 复制直链使用转换后的 https 地址
+        window.currentRawStreamUrl = rawTarget; // 保留原始 http 直链供外部播放器直连
         hasActiveRemoteTv = true;
       } else {
         // 影视剧场模式：与 VPS 完全隔离，若之前在看电视则立刻关停 VPS 转码
