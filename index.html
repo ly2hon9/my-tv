@@ -1818,17 +1818,17 @@
           const collapseBox = document.createElement('div');
           collapseBox.className = 'episodes-collapse-box';
           const epStatusText = formatCurrentEpStatus(episodes, activeIdx);
+          const orderBtnLabel = isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵';
 
-          collapseBox.innerHTML = `
-            <div class="episodes-header">
-              <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
-              <div class="episodes-actions">
-                <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">\${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
-              </div>
-            </div>
-            <div class="episodes-grid" id="episodes-grid-list-\${normKey}"></div>
-          `;
+          collapseBox.innerHTML =
+            '<div class="episodes-header">' +
+              '<span>📺 选集 (' + getDisplayEpisodesCount(episodes) + ' 集) - ' + epStatusText + '</span>' +
+              '<div class="episodes-actions">' +
+                '<button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">' + orderBtnLabel + '</button>' +
+                '<span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="episodes-grid" id="episodes-grid-list-' + normKey + '"></div>';
 
           const epGrid = collapseBox.querySelector('.episodes-grid');
           const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
@@ -1852,9 +1852,9 @@
               setD1Data(getCurrentFavKey(), favs);
 
               const trackLabel = groupCard.querySelector('.fav-meta-track');
-              if (trackLabel) trackLabel.textContent = `看到: \${ep.name}`;
+              if (trackLabel) trackLabel.textContent = '看到: ' + ep.name;
               const activeSubQual = bodyEl.querySelector('.source-sub-card.active-sub .card-quality');
-              if (activeSubQual) activeSubQual.textContent = `看到: \${ep.name}`;
+              if (activeSubQual) activeSubQual.textContent = '看到: ' + ep.name;
               refreshFavEpisodesBox(curSource);
             };
             epGrid.appendChild(btn);
@@ -1869,6 +1869,14 @@
           };
 
           bodyEl.insertBefore(collapseBox, bodyEl.firstChild);
+
+          // 自动将当前高亮集数（如第215集）滚动到选集可视区域正中央
+          setTimeout(() => {
+            const activeBtn = epGrid.querySelector('.ep-item.active');
+            if (activeBtn && epGrid.scrollHeight > epGrid.clientHeight) {
+              epGrid.scrollTop = Math.max(0, activeBtn.offsetTop - (epGrid.clientHeight / 2) + (activeBtn.clientHeight / 2));
+            }
+          }, 20);
         }
 
         // 核心：若旧收藏数据只有单集，自动联网向源站请求并补齐整套 216 集选集网格
@@ -4100,43 +4108,45 @@ function buildGroupBodyPanel(group) {
         singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
+      const actorHtml = group.actor
+        ? '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">' + escapeHtml(group.actor) + '</span>'
+        : '';
+
       if (!groupCard || !groupCard.classList.contains('title-group-box')) {
         const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
         groupCard = document.createElement('div');
         groupCard.className = 'title-group-box';
-        groupCard.innerHTML = `
-          <div class="title-group-header">
-            <div class="group-header-left">
-              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
-              <div class="group-info-wrap">
-                <div class="group-main-title">${escapeHtml(group.title)}</div>
-                <div class="group-meta-tag">
-                  <span>${escapeHtml(group.type || '影视')}</span>
-                  ${groupCensorHtml}
-                  ${sourceTagHtml}
-                  ${pubDateHtml}
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">\${escapeHtml(group.actor)}</span>` : ''}
-                  ${countBadgeHtml}
-                  ${singlePingHtml}
-                </div>
-              </div>
-            </div>
-            ${arrowIconHtml}
-          </div>
-        `;
+        groupCard.innerHTML =
+          '<div class="title-group-header">' +
+            '<div class="group-header-left">' +
+              '<img class="group-poster" src="' + posterSrc + '" loading="lazy" onerror="this.src=\'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E\'" />' +
+              '<div class="group-info-wrap">' +
+                '<div class="group-main-title">' + escapeHtml(group.title) + '</div>' +
+                '<div class="group-meta-tag">' +
+                  '<span>' + escapeHtml(group.type || '影视') + '</span>' +
+                  groupCensorHtml +
+                  sourceTagHtml +
+                  pubDateHtml +
+                  actorHtml +
+                  countBadgeHtml +
+                  singlePingHtml +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            arrowIconHtml +
+          '</div>';
         domNodeCache.set(group.title, groupCard);
       } else {
         const metaTag = groupCard.querySelector('.group-meta-tag');
         if (metaTag) {
-          metaTag.innerHTML = `
-            <span>${escapeHtml(group.type || '影视')}</span>
-            ${groupCensorHtml}
-            ${sourceTagHtml}
-            ${pubDateHtml}
-            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">\${escapeHtml(group.actor)}</span>` : ''}
-            ${countBadgeHtml}
-            ${singlePingHtml}
-          `;
+          metaTag.innerHTML =
+            '<span>' + escapeHtml(group.type || '影视') + '</span>' +
+            groupCensorHtml +
+            sourceTagHtml +
+            pubDateHtml +
+            actorHtml +
+            countBadgeHtml +
+            singlePingHtml;
         }
       }
 
@@ -4328,7 +4338,7 @@ function buildGroupBodyPanel(group) {
     function getEpisodesList(item) {
       if (!item?.vod) return [];
       const playUrlStr = item.vod.vod_play_url || '';
-      const playGroups = playUrlStr.split('\$\$\$');
+      const playGroups = playUrlStr.split('\x24\x24\x24');
       const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
       const rawEps = m3u8Group.split('#').filter(Boolean);
 
@@ -4336,14 +4346,14 @@ function buildGroupBodyPanel(group) {
       const seenKeyToIndex = new Map();
 
       rawEps.forEach((ep, idx) => {
-        const parts = ep.split('\$');
+        const parts = ep.split('\x24');
         const urlCandidate = (parts[1] || parts[0]).trim();
         if (!isSafeUrl(urlCandidate)) return;
 
-        const rawName = (parts[0] || `第${idx + 1}集`).trim();
+        const rawName = (parts[0] || ('第' + (idx + 1) + '集')).trim();
         // 对同名集数或同编号标准集数（如“第01集”与“第1集”）自动去重，保留最新有效链接
-        const pureNumMatch = rawName.match(/^(?:第\s*)?0*(\d+)\s*(?:集|话|期)?\$/i);
-        const dedupKey = pureNumMatch ? `ep_num_${pureNumMatch[1]}` : `ep_str_${rawName.toLowerCase()}`;
+        const pureNumMatch = rawName.match(/^(?:第\s*)?0*(\d+)\s*(?:集|话|期)?(?![\s\S])/i);
+        const dedupKey = pureNumMatch ? ('ep_num_' + pureNumMatch[1]) : ('ep_str_' + rawName.toLowerCase());
 
         if (seenKeyToIndex.has(dedupKey)) {
           const existIdx = seenKeyToIndex.get(dedupKey);
@@ -4380,24 +4390,24 @@ function buildGroupBodyPanel(group) {
       }
       const epName = String(episodes[activeIdx].name || '').trim();
       const epNum = parseEpisodeNumber(epName);
-      if (epNum !== null && /(?:第|ep|e)\s*\d+\s*(?:集|话|期)?|^\d+\$/i.test(epName)) {
-        return `当前第 ${epNum} 集`;
+      if (epNum !== null && /(?:第|ep|e)\s*\d+\s*(?:集|话|期)?|^\d+(?![\s\S])/i.test(epName)) {
+        return '当前第 ' + epNum + ' 集';
       }
-      return epName ? `当前: ${escapeHtml(epName)}` : `当前第 ${activeIdx + 1} 集`;
+      return epName ? ('当前: ' + escapeHtml(epName)) : ('当前第 ' + (activeIdx + 1) + ' 集');
     }
 
     /* === 集数编号与语义提取辅助函数 === */
-function parseEpisodeNumber(name) {
-  if (!name) return null;
-  const str = String(name).trim();
-  const mExplicit = str.match(/(?:第|ep|e)\s*(\d+)\s*(?:集|话|期)?/i);
-  if (mExplicit) return parseInt(mExplicit[1], 10);
-  const mPure = str.match(/^\s*(\d+)\s*\$/);
-  if (mPure) return parseInt(mPure[1], 10);
-  const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|\$)/);
-  if (mNum) return parseInt(mNum[1], 10);
-  return null;
-}
+    function parseEpisodeNumber(name) {
+      if (!name) return null;
+      const str = String(name).trim();
+      const mExplicit = str.match(/(?:第|ep|e)\s*(\d+)\s*(?:集|话|期)?/i);
+      if (mExplicit) return parseInt(mExplicit[1], 10);
+      const mPure = str.match(/^\s*(\d+)\s*(?![\s\S])/);
+      if (mPure) return parseInt(mPure[1], 10);
+      const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|(?![\s\S]))/);
+      if (mNum) return parseInt(mNum[1], 10);
+      return null;
+    }
 
 function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex = 0) {
   if (!targetEpisodes || targetEpisodes.length === 0) return -1;
