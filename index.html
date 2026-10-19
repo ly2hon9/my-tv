@@ -1800,31 +1800,34 @@
           arrowEl.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)';
         };
 
-        // 局部刷新函数：生成如 图2 般的选集完整网格（安全使用 class 选择器，杜绝特殊符号选择器报错）
+        // 局部刷新函数：生成选集完整网格，按真实集数名精准匹配高亮与标题
         function refreshFavEpisodesBox(curSource) {
           const oldBox = bodyEl.querySelector('.episodes-collapse-box');
           if (oldBox) oldBox.remove();
 
           const episodes = getEpisodesList(curSource);
-          const activeIdx = (currentPlayingMeta?.title && normalizeCleanKey(currentPlayingMeta.title) === normKey && normalizeCleanKey(currentPlayingMeta?.siteName) === normalizeCleanKey(curSource.siteName))
+          const isCurrentlyPlayingThis = (
+            currentPlayingMeta?.title &&
+            getCanonicalFavTitleKey(currentPlayingMeta.title) === normKey &&
+            normalizeCleanKey(currentPlayingMeta?.siteName) === normalizeCleanKey(curSource.siteName)
+          );
+          const activeIdx = isCurrentlyPlayingThis
             ? currentActiveEp
-            : (curSource.savedFavRef?.epIdx ?? 0);
+            : findMatchingEpisodeIndex(episodes, curSource.savedFavRef?.epName, curSource.savedFavRef?.epIdx ?? 0);
 
           const collapseBox = document.createElement('div');
           collapseBox.className = 'episodes-collapse-box';
-          const epStatusText = activeIdx >= 0 
-            ? `当前第 ${activeIdx + 1} 集` 
-            : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
+          const epStatusText = formatCurrentEpStatus(episodes, activeIdx);
 
           collapseBox.innerHTML = `
             <div class="episodes-header">
-              <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
+              <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
               <div class="episodes-actions">
-                <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">\${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
                 <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
               </div>
             </div>
-            <div class="episodes-grid" id="episodes-grid-list-${normKey}"></div>
+            <div class="episodes-grid" id="episodes-grid-list-\${normKey}"></div>
           `;
 
           const epGrid = collapseBox.querySelector('.episodes-grid');
@@ -1956,7 +1959,7 @@
             subCard.classList.add('active-sub');
             activeSourceItem = sItem;
 
-            playCurrentVodSource(sItem, favRef.epIdx ?? 0, false);
+            playCurrentVodSource(sItem, favRef.epName || favRef.epIdx || 0, false);
             tryReplenishEpisodesAndRender(sItem);
           };
 
@@ -3819,14 +3822,12 @@
             if (episodes.length > 1) {
               const collapseBox = document.createElement('div');
               collapseBox.className = 'episodes-collapse-box';
-              const epStatusText = currentActiveEp >= 0 
-                ? `当前第 ${currentActiveEp + 1} 集` 
-                : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
+              const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
 
               const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
               collapseBox.innerHTML = `
                 <div class="episodes-header">
-                  <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
+                  <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
                   <div class="episodes-actions">
                     <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
                     <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
@@ -3892,14 +3893,12 @@ function buildGroupBodyPanel(group) {
 
     const collapseBox = document.createElement('div');
     collapseBox.className = 'episodes-collapse-box';
-    const epStatusText = currentActiveEp >= 0 
-      ? `当前第 ${currentActiveEp + 1} 集` 
-      : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
+    const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
 
-    const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
+    const gridId = `episodes-grid-list-\${normalizeCleanKey(group.title)}`;
     collapseBox.innerHTML = `
       <div class="episodes-header">
-        <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
+        <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
         <div class="episodes-actions">
           <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
           <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
@@ -4324,19 +4323,62 @@ function buildGroupBodyPanel(group) {
     function getEpisodesList(item) {
       if (!item?.vod) return [];
       const playUrlStr = item.vod.vod_play_url || '';
-      const playGroups = playUrlStr.split('$$$');
+      const playGroups = playUrlStr.split('\$\$\$');
       const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
       const rawEps = m3u8Group.split('#').filter(Boolean);
 
-      return rawEps.map((ep, idx) => {
-        const parts = ep.split('$');
+      const validEps = [];
+      const seenKeyToIndex = new Map();
+
+      rawEps.forEach((ep, idx) => {
+        const parts = ep.split('\$');
         const urlCandidate = (parts[1] || parts[0]).trim();
-        return { 
-          originalIdx: idx,
-          name: parts[0] || `第${idx+1}集`, 
-          url: isSafeUrl(urlCandidate) ? urlCandidate : '' 
-        };
-      }).filter(ep => ep.url !== '');
+        if (!isSafeUrl(urlCandidate)) return;
+
+        const rawName = (parts[0] || `第${idx + 1}集`).trim();
+        // 对同名集数或同编号标准集数（如“第01集”与“第1集”）自动去重，保留最新有效链接
+        const pureNumMatch = rawName.match(/^(?:第\s*)?0*(\d+)\s*(?:集|话|期)?\$/i);
+        const dedupKey = pureNumMatch ? `ep_num_${pureNumMatch[1]}` : `ep_str_${rawName.toLowerCase()}`;
+
+        if (seenKeyToIndex.has(dedupKey)) {
+          const existIdx = seenKeyToIndex.get(dedupKey);
+          validEps[existIdx].url = urlCandidate;
+          validEps[existIdx].name = rawName;
+        } else {
+          seenKeyToIndex.set(dedupKey, validEps.length);
+          validEps.push({
+            originalIdx: validEps.length,
+            name: rawName,
+            url: urlCandidate
+          });
+        }
+      });
+
+      return validEps;
+    }
+
+    // 智能获取展示总集数：若最后一集明确为“第215集”，则以实际最新集数215为准，消除特别篇/预告造成的数量虚高
+    function getDisplayEpisodesCount(episodes) {
+      if (!episodes || episodes.length === 0) return 0;
+      const lastEpName = String(episodes[episodes.length - 1]?.name || '').trim();
+      const lastNum = parseEpisodeNumber(lastEpName);
+      if (lastNum && lastNum > 0 && /(?:第|ep|e)\s*\d+\s*(?:集|话|期)/i.test(lastEpName)) {
+        return lastNum;
+      }
+      return episodes.length;
+    }
+
+    // 智能格式化当前集数文字：直接读取按钮真实集数（如“第215集” -> “当前第 215 集”），绝不盲目用数组下标+1
+    function formatCurrentEpStatus(episodes, activeIdx) {
+      if (activeIdx < 0 || !episodes || !episodes[activeIdx]) {
+        return '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
+      }
+      const epName = String(episodes[activeIdx].name || '').trim();
+      const epNum = parseEpisodeNumber(epName);
+      if (epNum !== null && /(?:第|ep|e)\s*\d+\s*(?:集|话|期)?|^\d+\$/i.test(epName)) {
+        return `当前第 ${epNum} 集`;
+      }
+      return epName ? `当前: ${escapeHtml(epName)}` : `当前第 ${activeIdx + 1} 集`;
     }
 
     /* === 集数编号与语义提取辅助函数 === */
@@ -4345,9 +4387,9 @@ function parseEpisodeNumber(name) {
   const str = String(name).trim();
   const mExplicit = str.match(/(?:第|ep|e)\s*(\d+)\s*(?:集|话|期)?/i);
   if (mExplicit) return parseInt(mExplicit[1], 10);
-  const mPure = str.match(/^\s*(\d+)\s*$/);
+  const mPure = str.match(/^\s*(\d+)\s*\$/);
   if (mPure) return parseInt(mPure[1], 10);
-  const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|$)/);
+  const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|\$)/);
   if (mNum) return parseInt(mNum[1], 10);
   return null;
 }
@@ -4425,7 +4467,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     routeBadge.style.display = 'inline-block';
     routeBadge.textContent = `${item.siteName} · 未更新`;
 
-    setStatus(`⚠️ 该线路暂未更新【${escapeHtml(missingEpText)}】<br><span style="color:var(--text-sub);font-size:12px;">该源共 ${episodes.length} 集，请选择其他源播放</span>`, true);
+    setStatus(`⚠️ 该线路暂未更新【${escapeHtml(missingEpText)}】<br><span style="color:var(--text-sub);font-size:12px;">该源共 ${getDisplayEpisodesCount(episodes)} 集，请选择其他源播放</span>`, true);
     return;
   }
 
@@ -4483,12 +4525,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
             const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
             b.classList.toggle('active', bIdx === targetEpIdx);
           });
+          const favHeaderSpan = grid.parentElement?.querySelector('.episodes-header > span');
+          if (favHeaderSpan) {
+            favHeaderSpan.innerHTML = `📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${formatCurrentEpStatus(episodes, targetEpIdx)}`;
+          }
         }
       }
     }
   });
 
-  // 主搜索视窗选集网格与集数标题联动高亮（已修复转义符）
+  // 主搜索视窗选集网格与集数标题联动高亮
   const mainEpGrid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
   if (mainEpGrid) {
     mainEpGrid.querySelectorAll('.ep-item').forEach(b => {
@@ -4497,7 +4543,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     });
     const epHeaderSpan = mainEpGrid.parentElement?.querySelector('.episodes-header > span');
     if (epHeaderSpan) {
-      epHeaderSpan.innerHTML = `📺 选集 (${episodes.length} 集) - 当前第 ${targetEpIdx + 1} 集`;
+      epHeaderSpan.innerHTML = `📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${formatCurrentEpStatus(episodes, targetEpIdx)}`;
     }
   }
 
