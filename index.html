@@ -1242,6 +1242,7 @@
     let seekStreakDir = 0;
     let seekStreakSec = 0;
     let seekStreakResetTimer = null;
+    let seekBaseTime = 0;
 
     function triggerCumulativeSeek(dir) {
       if (isLiveMode || !video.duration || !isFinite(video.duration)) {
@@ -1254,15 +1255,15 @@
       } else {
         seekStreakDir = dir;
         seekStreakSec = 10;
+        seekBaseTime = video.currentTime;
       }
 
-      const targetTime = Math.max(0, Math.min(video.duration, video.currentTime + dir * 10));
+      const dur = video.duration;
+      const targetTime = Math.max(0, Math.min(dur, seekBaseTime + dir * seekStreakSec));
       video.currentTime = targetTime;
 
-      const cur = video.currentTime;
-      const dur = video.duration;
-      streamTimeEl.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
-      progressBar.style.width = `${(cur / dur) * 100}%`;
+      streamTimeEl.textContent = `${formatTime(targetTime)} / ${formatTime(dur)}`;
+      progressBar.style.width = `${(targetTime / dur) * 100}%`;
 
       showGestureTip(dir > 0 ? `⏩ 快进 ${seekStreakSec} 秒` : `⏪ 后退 ${seekStreakSec} 秒`);
 
@@ -1462,6 +1463,11 @@
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
+    function getCanonicalFavTitleKey(rawTitle) {
+      if (!rawTitle) return '';
+      return normalizeCleanKey(parseTitleAndVersion(rawTitle).canonical) || normalizeCleanKey(rawTitle);
+    }
+
     /* === 实时更新收藏图标高亮状态（本地瞬时判定，0ms延迟） === */
     function updateFavIconState(favsList) {
       if (!currentPlayingMeta) {
@@ -1470,12 +1476,13 @@
       }
       const favs = favsList || getLocalFavorites();
       let isFav = false;
-      const curTitle = normalizeCleanKey(currentPlayingMeta.title);
+      const curTitle = getCanonicalFavTitleKey(currentPlayingMeta.title);
       const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
+      const rawTvUrl = window.currentRawStreamUrl || currentStreamUrl;
       if (isLiveMode) {
-        isFav = favs.some(f => f.type === 'tv' && (f.url === currentStreamUrl || normalizeCleanKey(f.title) === curTitle));
+        isFav = favs.some(f => f.type === 'tv' && (f.url === rawTvUrl || f.url === currentStreamUrl || normalizeCleanKey(f.title) === normalizeCleanKey(currentPlayingMeta.title)));
       } else {
-        isFav = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
+        isFav = favs.some(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
       }
       favToggleBtn.classList.toggle('active', isFav);
     }
@@ -1485,19 +1492,28 @@
       if (!currentPlayingMeta) { alert("请先选择播放项目！"); return; }
       let favs = getLocalFavorites();
       const currentEpName = currentPlayingMeta.epName || '正片';
-      const curTitle = normalizeCleanKey(currentPlayingMeta.title);
+      const curTitle = getCanonicalFavTitleKey(currentPlayingMeta.title);
       const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
       
       if (isLiveMode) {
-        const idx = favs.findIndex(f => f.type === 'tv' && (f.url === currentStreamUrl || normalizeCleanKey(f.title) === curTitle));
+        const rawTvUrl = window.currentRawStreamUrl || currentStreamUrl;
+        const normTvTitle = normalizeCleanKey(currentPlayingMeta.title);
+        const idx = favs.findIndex(f => f.type === 'tv' && (f.url === rawTvUrl || f.url === currentStreamUrl || normalizeCleanKey(f.title) === normTvTitle));
         if (idx >= 0) {
-          favs.splice(idx, 1);
-          setStatus("已取消收藏电视频道", true);
+          if (favs[idx].url !== rawTvUrl && favs[idx].siteName !== currentPlayingMeta.siteName) {
+            favs[idx].url = rawTvUrl;
+            favs[idx].siteName = currentPlayingMeta.siteName || '直播';
+            favs[idx].savedAt = new Date().toLocaleDateString();
+            setStatus(`⭐ 已更新收藏线路为【${escapeHtml(favs[idx].siteName)}】`, true);
+          } else {
+            favs.splice(idx, 1);
+            setStatus("已取消收藏电视频道", true);
+          }
         } else {
           favs.unshift({
             title: currentPlayingMeta.title,
             epName: '直播',
-            url: currentStreamUrl,
+            url: rawTvUrl,
             type: 'tv',
             siteName: currentPlayingMeta.siteName || '直播',
             savedAt: new Date().toLocaleDateString()
@@ -1505,7 +1521,8 @@
           setStatus("⭐ 已加入电视收藏", true);
         }
       } else {
-        const idx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
+        const canonicalTitle = parseTitleAndVersion(currentPlayingMeta.title).canonical || currentPlayingMeta.title;
+        const idx = favs.findIndex(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
         if (idx >= 0) {
           if (favs[idx].epName !== currentEpName) {
             favs[idx].epName = currentEpName;
@@ -1519,7 +1536,7 @@
           }
         } else {
           favs.unshift({
-            title: currentPlayingMeta.title,
+            title: canonicalTitle,
             siteName: cleanSiteName(currentPlayingMeta.siteName),
             epName: currentEpName,
             epIdx: (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp,
@@ -1546,9 +1563,8 @@
           const btn = subCard.querySelector('button[id^="fav-btn-"]');
           if (!btn) return;
           const siteTag = subCard.querySelector('.card-sitename-tag')?.textContent || '';
-          const normSubSite = normalizeCleanKey(siteTag);
-          const normCurTitle = normalizeCleanKey(currentPlayingMeta.title);
-          const isFavorited = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normCurTitle && normalizeCleanKey(f.siteName) === normSubSite);
+          const normSubSite = normalizeCleanKey(parseTitleAndVersion(siteTag).canonical || siteTag);
+          const isFavorited = favs.some(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === normSubSite);
           if (isFavorited) {
             btn.textContent = `★ 已收藏 (${currentEpName})`;
             btn.style.color = '#facc15';
@@ -1603,8 +1619,7 @@
       const record = history.find(h => h.key === currentVodUniqueKey);
       if (record && record.time > 5 && (!video.duration || record.time < video.duration - 15)) {
         video.currentTime = record.time;
-        setStatus(`已自动跳转至进度：${formatTime(record.time)}`, true);
-        setTimeout(() => setStatus("", false), 1800);
+        showGestureTip(`⏱ 已自动续播至 ${formatTime(record.time)}`);
       }
     }
 
@@ -2397,6 +2412,17 @@
     }
 
     function logoutCurrentUser() {
+      stopRemoteTvTranscode();
+      destroyHlsInstance();
+      updatePlayBtn(false);
+      try {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      } catch (_) {}
+      currentStreamUrl = '';
+      currentPlayingMeta = null;
+
       currentUser = null;
       localStorage.removeItem(KEY_CURRENT_USER);
       localStorage.removeItem(KEY_SAVED_CREDS);
@@ -2569,6 +2595,7 @@
           u.groupName = defaultGroup.name;
         }
       });
+      clearVodSearchSessionCache();
       setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
       setD1Data(KEY_USERS_LIST, userList);
       renderUsersManagerList();
@@ -2615,6 +2642,7 @@
       });
       group.sites = (selected.length === checkboxes.length) ? ['*'] : selected;
 
+      clearVodSearchSessionCache();
       setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
       renderUsersManagerList();
       closeUserPermModal();
@@ -2723,6 +2751,7 @@
           disabledSites.push(siteName);
         }
       }
+      clearVodSearchSessionCache();
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
       showGestureTip(`✓ 禁用阈值已同步设置为 ${failThreshold} 次`);
@@ -2764,6 +2793,7 @@
       if (!confirm("确定重置所有源的失效统计并恢复启用吗？")) return;
       sourceFailures = {};
       disabledSites = [];
+      clearVodSearchSessionCache();
       await setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
@@ -4808,11 +4838,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (fastTag) fastTag.remove();
       });
 
+      // 若该频道下已有正在播放的线路，则仅测速排序，不重复触发起播断流
+      if (panelEl.querySelector('.source-item.active-source')) {
+        hasTriggeredAutoPlay = true;
+      }
+
       // 预设兜底定时器：若自动起播模式下 1.2 秒内还未选出最快源，先起播排第一的源防等待
       let fallbackPlayTimer = null;
       if (autoPlayFastest && !hasTriggeredAutoPlay) {
         fallbackPlayTimer = setTimeout(() => {
-          if (!hasTriggeredAutoPlay && rowEl.classList.contains('expanded')) {
+          if (!hasTriggeredAutoPlay && !panelEl.querySelector('.source-item.active-source') && rowEl.classList.contains('expanded')) {
             hasTriggeredAutoPlay = true;
             const currentFirst = panelEl.querySelector('.source-item');
             if (currentFirst) currentFirst.click();
@@ -4843,7 +4878,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         }
 
         // 一旦首个有效高速源测出结果，在自动起播模式下立即抢先起播
-        if (autoPlayFastest && !hasTriggeredAutoPlay && ping < 9999 && rowEl.classList.contains('expanded')) {
+        if (autoPlayFastest && !hasTriggeredAutoPlay && !panelEl.querySelector('.source-item.active-source') && ping < 9999 && rowEl.classList.contains('expanded')) {
           hasTriggeredAutoPlay = true;
           if (fallbackPlayTimer) clearTimeout(fallbackPlayTimer);
           itemEl.click();
@@ -5122,6 +5157,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               groups = parsedTv.groups || parsedTv;
               totalChannelsCount = parsedTv.totalChannelsCount || 0;
               totalStreamsCount = parsedTv.totalStreamsCount || 0;
+              if (parsedTv.tvEpgSourceUrl) tvEpgSourceUrl = parsedTv.tvEpgSourceUrl;
             }
           } catch (_) {}
         }
@@ -5238,6 +5274,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               groups = parsedTv.groups || parsedTv;
               totalChannelsCount = parsedTv.totalChannelsCount || 0;
               totalStreamsCount = parsedTv.totalStreamsCount || 0;
+              if (parsedTv.tvEpgSourceUrl) {
+                tvEpgSourceUrl = parsedTv.tvEpgSourceUrl;
+                localStorage.setItem(KEY_TV_EPG_URL, tvEpgSourceUrl);
+              }
               if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
             }
           } catch (_) {}
