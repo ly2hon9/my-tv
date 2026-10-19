@@ -1844,7 +1844,7 @@
               epGrid.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
               btn.classList.add('active');
 
-              // 播放所选集数，并立即同步写回 D1 收藏夹
+              // 播放所选集数，并立即同步写回 D1 收藏夹与下方源卡片绿标
               playCurrentVodSource(curSource, epIdx, false);
               curSource.savedFavRef.epName = ep.name;
               curSource.savedFavRef.epIdx = epIdx;
@@ -1852,7 +1852,9 @@
               setD1Data(getCurrentFavKey(), favs);
 
               const trackLabel = groupCard.querySelector('.fav-meta-track');
-              if (trackLabel) trackLabel.textContent = `看到: ${ep.name}`;
+              if (trackLabel) trackLabel.textContent = `看到: \${ep.name}`;
+              const activeSubQual = bodyEl.querySelector('.source-sub-card.active-sub .card-quality');
+              if (activeSubQual) activeSubQual.textContent = `看到: \${ep.name}`;
               refreshFavEpisodesBox(curSource);
             };
             epGrid.appendChild(btn);
@@ -3895,7 +3897,7 @@ function buildGroupBodyPanel(group) {
     collapseBox.className = 'episodes-collapse-box';
     const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
 
-    const gridId = `episodes-grid-list-\${normalizeCleanKey(group.title)}`;
+    const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
     collapseBox.innerHTML = `
       <div class="episodes-header">
         <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
@@ -3907,14 +3909,14 @@ function buildGroupBodyPanel(group) {
       <div class="episodes-grid" id="${gridId}"></div>
     `;
 
-    const epGrid = collapseBox.querySelector(`#${gridId}`);
+    const epGrid = collapseBox.querySelector('.episodes-grid');
     const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
     displayEps.forEach((ep) => {
       const epIdx = ep.originalIdx;
       const btn = document.createElement('button');
       btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-      btn.setAttribute('data-ep-idx', String(epIdx)); // ← 就是缺了这一行标记
+      btn.setAttribute('data-ep-idx', String(epIdx));
       btn.textContent = ep.name;
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -3946,7 +3948,7 @@ function buildGroupBodyPanel(group) {
       const btn = bodyPanel.querySelector(`#fav-btn-${it.id}`);
       if (!btn) return;
       const normItSite = normalizeCleanKey(it.siteName);
-      const favRecord = favs.find(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
+      const favRecord = favs.find(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
       if (favRecord) {
         btn.textContent = `★ 已收藏 (${favRecord.epName || '正片'})`;
         btn.style.color = '#facc15';
@@ -4012,7 +4014,7 @@ function buildGroupBodyPanel(group) {
         let favs = getLocalFavorites();
         const normGroupTitle = normalizeCleanKey(group.title);
         const normItemSite = normalizeCleanKey(item.siteName);
-        const existingIdx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItemSite);
+        const existingIdx = favs.findIndex(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItemSite);
 
         const episodes = getEpisodesList(item);
         const lockEpIdx = (item.id === activeSubItemId && currentActiveEp >= 0) ? currentActiveEp : 0;
@@ -4084,7 +4086,7 @@ function buildGroupBodyPanel(group) {
       const countBadgeHtml = isSingleSourceSingleEp 
         ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
         : (group.items.length === 1 
-            ? `<span class="group-badge-count">${episodes.length} 集全</span>` 
+            ? `<span class="group-badge-count">${getDisplayEpisodesCount(episodes)} 集全</span>` 
             : `<span class="group-badge-count">${group.items.length} 个版本/源</span>`);
 
       const arrowIconHtml = isSingleSourceSingleEp
@@ -4113,7 +4115,7 @@ function buildGroupBodyPanel(group) {
                   ${groupCensorHtml}
                   ${sourceTagHtml}
                   ${pubDateHtml}
-                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">\${escapeHtml(group.actor)}</span>` : ''}
                   ${countBadgeHtml}
                   ${singlePingHtml}
                 </div>
@@ -4131,7 +4133,7 @@ function buildGroupBodyPanel(group) {
             ${groupCensorHtml}
             ${sourceTagHtml}
             ${pubDateHtml}
-            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
+            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">\${escapeHtml(group.actor)}</span>` : ''}
             ${countBadgeHtml}
             ${singlePingHtml}
           `;
@@ -4175,8 +4177,11 @@ function buildGroupBodyPanel(group) {
           groupCard.classList.add('expanded');
           activeGroupTitle = group.title;
           if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
-            activeSubItemId = group.items[0]?.id || '';
-            currentActiveEp = 0;
+            const playingMatch = (currentPlayingMeta && getCanonicalFavTitleKey(currentPlayingMeta.title) === normalizeCleanKey(group.title))
+              ? group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName))
+              : null;
+            activeSubItemId = (playingMatch || group.items[0])?.id || '';
+            currentActiveEp = playingMatch ? (currentPlayingMeta.epIdx ?? 0) : 0;
           }
           const panel = buildGroupBodyPanel(group);
           groupCard.appendChild(panel);
