@@ -3703,19 +3703,7 @@
 
       const container = document.getElementById('channel-list');
 
-      const userGroupId = currentUser?.groupId || 'def';
-      const cachedResults = VodSearchCache.get(keyword, userGroupId);
-      if (cachedResults && cachedResults.length > 0) {
-        groupedVodList = cachedResults;
-        consolidateVodGroups();
-        domNodeCache.clear();
-        isSearchingActive = false;
-        sortGroupedVodList();
-        renderGroupedVodSources();
-        saveVodSessionState();
-        showGestureTip("⚡ 已从极速缓存秒开");
-        return;
-      }
+      // 彻底禁用会话缓存，确保每次检索或切换板块均由独立命名空间强隔离渲染，绝不交叉串扰
 
       container.innerHTML = '<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《' + escapeHtml(keyword) + '》中，请稍候...</div>';
       
