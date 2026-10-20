@@ -1930,9 +1930,13 @@
         }
 
         refreshFavEpisodesBox(activeSourceItem);
-        // 后台静默为当前选中的源拉取全网最新连载集数并刷新
-        syncSourceEpisodesFromCloud(activeSourceItem, () => {
-          refreshFavEpisodesBox(activeSourceItem);
+        // 后台静默为该剧收藏的所有源（第1、第2、第3个源全部）同步全网最新连载集数
+        sourceItemList.forEach((sItem) => {
+          syncSourceEpisodesFromCloud(sItem, () => {
+            if (activeSourceItem === sItem) {
+              refreshFavEpisodesBox(sItem);
+            }
+          });
         });
 
         // 渲染收藏的源线路子卡片
@@ -1941,18 +1945,17 @@
           const subCard = document.createElement('div');
           subCard.className = 'source-sub-card ' + (idx === 0 ? 'active-sub' : '');
           const cTag = favRef.censorTag || '';
-          const censorHtml = cTag ? `<span class="card-censor ${cTag.includes('无码') ? 'c-wuma' : 'c-youma'}">${escapeHtml(cTag)}</span>` : '';
+          const censorHtml = cTag ? ('<span class="card-censor ' + (cTag.includes('无码') ? 'c-wuma' : 'c-youma') + '">' + escapeHtml(cTag) + '</span>') : '';
 
-          subCard.innerHTML = `
-            <div class="source-sub-left">
-              <span class="card-sitename-tag">🎬 ${escapeHtml(sItem.siteName)}</span>
-              <span class="card-quality q-1080">看到: ${escapeHtml(favRef.epName || '正片')}</span>
-              ${censorHtml}
-            </div>
-            <div class="card-status-bar">
-              <button class="btn-del-item" title="取消该源收藏">✕</button>
-            </div>
-          `;
+          subCard.innerHTML =
+            '<div class="source-sub-left">' +
+              '<span class="card-sitename-tag">🎬 ' + escapeHtml(sItem.siteName) + '</span>' +
+              '<span class="card-quality q-1080">看到: ' + escapeHtml(favRef.epName || '正片') + '</span>' +
+              censorHtml +
+            '</div>' +
+            '<div class="card-status-bar">' +
+              '<button class="btn-del-item" title="取消该源收藏">✕</button>' +
+            '</div>';
 
           // 安全绑定删除事件，绝不因为英文单引号或特殊字符报错
           const delBtn = subCard.querySelector('.btn-del-item');
@@ -1963,7 +1966,7 @@
             };
           }
 
-          // 点击切换源：起播并自适应重绘选集网格
+          // 点击切换源：起播并自适应重绘当前源的完整选集网格
           subCard.onclick = (e) => {
             e.stopPropagation();
             bodyEl.querySelectorAll('.source-sub-card').forEach(el => el.classList.remove('active-sub'));
@@ -1971,7 +1974,12 @@
             activeSourceItem = sItem;
 
             playCurrentVodSource(sItem, favRef.epName || favRef.epIdx || 0, false);
-            tryReplenishEpisodesAndRender(sItem);
+            refreshFavEpisodesBox(sItem);
+            syncSourceEpisodesFromCloud(sItem, () => {
+              if (activeSourceItem === sItem) {
+                refreshFavEpisodesBox(sItem);
+              }
+            });
           };
 
           bodyEl.appendChild(subCard);
@@ -3659,7 +3667,22 @@
 
       groupedVodList = result;
     }
-      
+
+    async function fastStreamSearchVod(keyword) {
+      if (currentSearchAbortController) currentSearchAbortController.abort();
+      currentSearchAbortController = new AbortController();
+      const currentSignal = currentSearchAbortController.signal;
+
+      isSearchingActive = true;
+      currentSearchingWord = keyword;
+      currentCategoryFilter = 'auto';
+      categorySortState.multi = 'score';
+      categorySortState.single = 'score';
+      categorySortState.nsfw = 'score';
+      currentVodSortType = 'score';
+
+      const container = document.getElementById('channel-list');
+
       const userGroupId = currentUser?.groupId || 'def';
       const cachedResults = VodSearchCache.get(keyword, userGroupId);
       if (cachedResults && cachedResults.length > 0) {
@@ -3850,6 +3873,73 @@
       }
 
       saveVodSessionState();
+    }
+
+    function toggleEpisodesOrder() {
+      isEpisodeReversed = !isEpisodeReversed;
+      if (currentView === 'fav') {
+        renderFavoritesView();
+      } else {
+        const activeCard = document.querySelector('.title-group-box.expanded');
+        if (activeCard) {
+          const bodyPanel = activeCard.querySelector('.group-body-panel');
+          const group = groupedVodList.find(g => g.title === activeGroupTitle);
+          if (group && bodyPanel) {
+            const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
+            const oldBox = bodyPanel.querySelector('.episodes-collapse-box');
+            if (oldBox) oldBox.remove();
+
+            const episodes = getEpisodesList(currentSubItem);
+            if (episodes.length > 1) {
+              const collapseBox = document.createElement('div');
+              collapseBox.className = 'episodes-collapse-box';
+              const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
+              const orderBtnLabel = isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵';
+              const gridId = 'episodes-grid-list-' + normalizeCleanKey(group.title);
+
+              collapseBox.innerHTML =
+                '<div class="episodes-header">' +
+                  '<span>📺 选集 (' + getDisplayEpisodesCount(episodes) + ' 集) - ' + epStatusText + '</span>' +
+                  '<div class="episodes-actions">' +
+                    '<button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">' + orderBtnLabel + '</button>' +
+                    '<span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="episodes-grid" id="' + gridId + '"></div>';
+
+              const epGrid = collapseBox.querySelector('.episodes-grid');
+              const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
+
+              displayEps.forEach((ep) => {
+                const epIdx = ep.originalIdx;
+                const btn = document.createElement('button');
+                btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
+                btn.setAttribute('data-ep-idx', String(epIdx));
+                btn.textContent = ep.name;
+                btn.onclick = (e) => {
+                  e.stopPropagation();
+                  bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
+                  btn.classList.add('active');
+                  playCurrentVodSource(currentSubItem, epIdx, false);
+                  saveVodSessionState();
+                };
+                epGrid.appendChild(btn);
+              });
+
+              collapseBox.querySelector('.episodes-header').onclick = (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+                e.stopPropagation();
+                const isHide = epGrid.style.display === 'none';
+                epGrid.style.display = isHide ? 'grid' : 'none';
+                collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
+              };
+
+              bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
+            }
+          }
+        }
+      }
+      showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
     }
 
     // 准则 4：切换板块时，自动恢复该板块上一次记录的独立排序状态，互不干扰！
@@ -4527,7 +4617,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         f.epName = targetEp.name;
         f.epIdx = targetEpIdx;
         f.url = rawUrl;
-        if (!f.vod || getEpisodesList({ vod: f.vod }).length <= 1) f.vod = item.vod;
+        if (!f.vod || getEpisodesList({ vod: item.vod }).length >= getEpisodesList({ vod: f.vod }).length) f.vod = item.vod;
         updated = true;
       }
     });
