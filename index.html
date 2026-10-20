@@ -1800,7 +1800,7 @@
           arrowEl.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)';
         };
 
-        // 局部刷新函数：生成选集完整网格，按真实集数名精准匹配高亮与标题
+        // 局部刷新函数：锁定当前选中的源，倒序绝对不跳源，并自动滚动到当前集数
         function refreshFavEpisodesBox(curSource) {
           const oldBox = bodyEl.querySelector('.episodes-collapse-box');
           if (oldBox) oldBox.remove();
@@ -1824,11 +1824,20 @@
             '<div class="episodes-header">' +
               '<span>📺 选集 (' + getDisplayEpisodesCount(episodes) + ' 集) - ' + epStatusText + '</span>' +
               '<div class="episodes-actions">' +
-                '<button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">' + orderBtnLabel + '</button>' +
+                '<button class="btn-ep-order" type="button">' + orderBtnLabel + '</button>' +
                 '<span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>' +
               '</div>' +
             '</div>' +
             '<div class="episodes-grid" id="episodes-grid-list-' + normKey + '"></div>';
+
+          // 核心：点击正倒序只改变当前源的选集排列，牢牢锁定当前源，绝不跳回第一个源！
+          const orderBtn = collapseBox.querySelector('.btn-ep-order');
+          orderBtn.onclick = (e) => {
+            e.stopPropagation();
+            isEpisodeReversed = !isEpisodeReversed;
+            refreshFavEpisodesBox(curSource);
+            showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
+          };
 
           const epGrid = collapseBox.querySelector('.episodes-grid');
           const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
@@ -1870,69 +1879,61 @@
 
           bodyEl.insertBefore(collapseBox, bodyEl.firstChild);
 
-          // 自动将当前高亮集数（如第215集）滚动到选集可视区域正中央
+          // 自动平滑滚动到当前选中的集数，避免手动滑动
           setTimeout(() => {
             const activeBtn = epGrid.querySelector('.ep-item.active');
             if (activeBtn && epGrid.scrollHeight > epGrid.clientHeight) {
               epGrid.scrollTop = Math.max(0, activeBtn.offsetTop - (epGrid.clientHeight / 2) + (activeBtn.clientHeight / 2));
             }
-          }, 20);
+          }, 30);
         }
 
-        // 核心：若旧收藏数据只有单集，自动联网向源站请求并补齐整套 216 集选集网格
-        function tryReplenishEpisodesAndRender(sItem) {
-          const eps = getEpisodesList(sItem);
-          if (eps.length > 1) {
-            refreshFavEpisodesBox(sItem);
-            return;
-          }
-
-          // 先渲染已有集数兜底显示
-          refreshFavEpisodesBox(sItem);
-
-          // 1. 尝试从当前内存检索缓存直接补齐
-          const inMemGroup = groupedVodList.find(g => normalizeCleanKey(g.title) === normKey);
-          if (inMemGroup) {
-            const matchIt = inMemGroup.items.find(it => normalizeCleanKey(it.siteName) === normalizeCleanKey(sItem.siteName)) || inMemGroup.items[0];
-            if (matchIt && matchIt.vod && getEpisodesList(matchIt).length > 1) {
-              sItem.vod = matchIt.vod;
-              sItem.savedFavRef.vod = matchIt.vod;
-              setD1Data(getCurrentFavKey(), favs);
-              refreshFavEpisodesBox(sItem);
-              return;
-            }
-          }
-
-          // 2. 模糊匹配纯净站点名称，向源站请求该片完整选集并重绘（双重片名容错：带空格与无空格）
+        // 核心：对收藏的所有线路自动联网同步更新最新集数（让第二个、第三个源也能同步到最新215集）
+        function syncSourceEpisodesFromCloud(sItem, onDone) {
           const cleanNormSite = normalizeCleanKey(sItem.siteName);
           const site = parsedSites.find(s => normalizeCleanKey(s.name) === cleanNormSite || s.name === sItem.siteName);
+          if (!site || !site.api) { if (onDone) onDone(); return; }
 
-          if (site && site.api) {
-            const queryApi = (searchTerm) => {
-              const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(searchTerm)}&out=json&pg=1`;
-              return fetchWithSmartProxy(urlWd, 4000).then(res => JSON.parse(res)).catch(() => null);
-            };
+          const queryApi = (searchTerm) => {
+            const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + 'ac=videolist&wd=' + encodeURIComponent(searchTerm) + '&out=json&pg=1';
+            return fetchWithSmartProxy(urlWd, 4000).then(res => JSON.parse(res)).catch(() => null);
+          };
 
-            // 优先搜索原名，无结果时自动去除空格再搜（保证百分之百匹配出 216 全集）
-            queryApi(title).then(json => {
-              if (json && Array.isArray(json.list) && json.list.length > 0) return json;
-              if (title.includes(' ')) return queryApi(title.replace(/\s+/g, ''));
-              return null;
-            }).then(json => {
-              if (json && Array.isArray(json.list) && json.list.length > 0) {
-                const matchedVod = json.list.find(v => normalizeCleanKey(v.vod_name) === normKey) || json.list[0];
-                if (matchedVod && getEpisodesList({ vod: matchedVod }).length > 1) {
-                  sItem.vod = matchedVod;
-                  sItem.savedFavRef.vod = matchedVod;
-                  setD1Data(getCurrentFavKey(), favs);
-                  refreshFavEpisodesBox(sItem);
-                }
+          queryApi(title).then(json => {
+            if (json && Array.isArray(json.list) && json.list.length > 0) return json;
+            if (title.includes(' ')) return queryApi(title.replace(/\s+/g, ''));
+            return null;
+          }).then(json => {
+            if (json && Array.isArray(json.list) && json.list.length > 0) {
+              const matchedVod = json.list.find(v => normalizeCleanKey(v.vod_name) === normKey) || json.list[0];
+              if (matchedVod && getEpisodesList({ vod: matchedVod }).length > 0) {
+                sItem.vod = matchedVod;
+                sItem.savedFavRef.vod = matchedVod;
+                setD1Data(getCurrentFavKey(), favs);
               }
-            }).catch(() => {});
-          }
+            }
+            if (onDone) onDone();
+          }).catch(() => { if (onDone) onDone(); });
         }
 
-        tryReplenishEpisodesAndRender(activeSourceItem);
+        // 优先尝试从本地/当前内存检索缓存直接补齐整套选集
+        const inMemGroup = groupedVodList.find(g => normalizeCleanKey(g.title) === normKey);
+        if (inMemGroup) {
+          sourceItemList.forEach(sItem => {
+            const matchIt = inMemGroup.items.find(it => normalizeCleanKey(it.siteName) === normalizeCleanKey(sItem.siteName));
+            if (matchIt && matchIt.vod && getEpisodesList(matchIt).length > getEpisodesList(sItem).length) {
+              sItem.vod = matchIt.vod;
+              sItem.savedFavRef.vod = matchIt.vod;
+            }
+          });
+          setD1Data(getCurrentFavKey(), favs);
+        }
+
+        refreshFavEpisodesBox(activeSourceItem);
+        // 后台静默为当前选中的源拉取全网最新连载集数并刷新
+        syncSourceEpisodesFromCloud(activeSourceItem, () => {
+          refreshFavEpisodesBox(activeSourceItem);
+        });
 
         // 渲染收藏的源线路子卡片
         sourceItemList.forEach((sItem, idx) => {
@@ -3382,42 +3383,49 @@
       '林正英': ['僵尸先生', '一眉道人', '僵尸叔叔', '驱魔警察', '灵幻先生', '新僵尸先生']
     };
 
+    // 准则 1：严格按源站标识判定。只有采集源自身带 🔞 或专属成人源站的，才属于专区源；普通正常源绝不误判进专区！
     function isNSFWSource(siteName) {
       if (!siteName) return false;
-      const lower = siteName.toLowerCase();
-      const nsfwKeywords = [
-        '🔞', '麻豆', '番号', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花',
-        'souav', 'souv', '黄色', '成人', '福利', '色情', 'jkun', '森林', '辣椒',
-        '鲨鱼', '滴滴', '精品资源', '155-', '玉兔', '小鸡', '乐播', '奥斯卡', '大地',
-        '色猫', '杏吧', '美少女', '淫水', '白嫖', '探花', '番号', 'av'
+      const lower = String(siteName).toLowerCase();
+      if (lower.includes('🔞')) return true;
+      const nsfwSourceKeywords = [
+        '麻豆', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花',
+        'souav', 'souv', '黄色', '色情', 'jkun', '杏吧', '探花', '色猫'
       ];
-      return nsfwKeywords.some(kw => lower.includes(kw));
+      return nsfwSourceKeywords.some(kw => lower.includes(kw));
     }
 
-    // 单条片源级严格成人判定：只要站点名、分类、标题或番号命中，立即归为 NSFW
+    // 单片判断：仅依据是否来自专区源站
     function isItemNSFW(vod, siteName) {
-      if (isNSFWSource(siteName)) return true;
-      if (!vod) return false;
-      const typeStr = (vod.type_name || '').toLowerCase();
-      const titleStr = (vod.vod_name || '').toLowerCase();
-      const remarkStr = (vod.vod_remarks || '').toLowerCase();
-      const adultTypeWords = [
-        '🔞', '自拍', '真人自拍', 'cosplay', '写真', '伦理', '成人', '福利', '三级',
-        '情色', '色情', '偷拍', '无码', '有码', 'av', '女优', '同人', '里番', '3d同人',
-        '动漫同人', '丝袜', '诱惑', '国产传媒', '制片厂', '杏吧', '探花'
-      ];
-      if (adultTypeWords.some(w => typeStr.includes(w))) return true;
-      if (['🔞', '自拍', '真人自拍', '无码', '有码', 'h版', '18+', '步兵', '骑兵'].some(w => titleStr.includes(w) || remarkStr.includes(w))) return true;
-      if (detectCensorshipTag(vod, siteName)) return true;
-      return false;
+      return isNSFWSource(siteName);
     }
 
-    // 卡片组级判定：只要标记了 isNsfw 或内部含有任何一条 NSFW 线路，100% 归入“🌶️ 专区”
+    // 分组判断：凡内部包含 🔞 专区源的，一律归入“🌶️ 专区”；普通正常源聚合一律留在“🎬 聚合”或“⚡ 单源”
     function isGroupNSFW(group) {
       if (!group) return false;
-      if (group.isNsfw) return true;
-      if (group.items && group.items.some(i => isItemNSFW(i.vod, i.siteName))) return true;
+      if (group.isNsfw !== undefined) return Boolean(group.isNsfw);
+      if (group.items && group.items.length > 0) {
+        return group.items.some(i => isNSFWSource(i.siteName));
+      }
       return false;
+    }
+
+    // 准则 4：三个板块拥有各自独立的排序模式记录，互不干扰
+    const categorySortState = {
+      multi: 'score',
+      single: 'score',
+      nsfw: 'score'
+    };
+
+    function getCurrentSectionSortType() {
+      const cat = currentCategoryFilter === 'auto' ? 'multi' : currentCategoryFilter;
+      return categorySortState[cat] || 'score';
+    }
+
+    function setCurrentSectionSortType(sortType) {
+      const cat = currentCategoryFilter === 'auto' ? 'multi' : currentCategoryFilter;
+      categorySortState[cat] = sortType;
+      currentVodSortType = sortType;
     }
 
     function getGroupBestPing(group) {
@@ -3466,6 +3474,7 @@
       return score;
     }
 
+    // 准则 4 铁律闭环：无论按综合、按时间、还是按测速，多源折叠的小分组（items.length > 1）永远排在最前面，单源永远在后面！
     function sortGroupedVodList() {
       if (!groupedVodList || groupedVodList.length === 0) return;
 
@@ -3478,26 +3487,27 @@
         }
       }
 
-      groupedVodList.forEach(group => {
-        group.items.sort((a, b) => {
-          const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
-          const pb = (b.ping === undefined || b.ping < 0) ? 99999 : b.ping;
-          return pa - pb;
-        });
-      });
+      const activeSort = getCurrentSectionSortType();
 
       groupedVodList.sort((a, b) => {
+        // 1. 专区与正常区隔离
         const nsfwA = isGroupNSFW(a) ? 1 : 0;
         const nsfwB = isGroupNSFW(b) ? 1 : 0;
         if (nsfwA !== nsfwB) return nsfwA - nsfwB;
 
-        if (currentVodSortType === 'speed') {
+        // 2. 核心铁律：多源折叠组（>1）永远优先置顶，单源（===1）永远垫后！
+        const isMultiA = (a.items && a.items.length > 1) ? 1 : 0;
+        const isMultiB = (b.items && b.items.length > 1) ? 1 : 0;
+        if (isMultiA !== isMultiB) return isMultiB - isMultiA;
+
+        // 3. 在各自组别内部，按当前板块所选模式独立排序
+        if (activeSort === 'speed') {
           const pa = getGroupBestPing(a);
           const pb = getGroupBestPing(b);
           const va = pa < 0 ? 99999 : pa;
           const vb = pb < 0 ? 99999 : pb;
           if (va !== vb) return va - vb;
-        } else if (currentVodSortType === 'time_desc') {
+        } else if (activeSort === 'time_desc') {
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
           if (timeA !== timeB) {
@@ -3505,7 +3515,7 @@
             if (!timeB) return -1;
             return timeB - timeA;
           }
-        } else if (currentVodSortType === 'time_asc') {
+        } else if (activeSort === 'time_asc') {
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
           if (timeA !== timeB) {
@@ -3519,17 +3529,21 @@
       });
     }
 
+    // 综合/最新/最早循环切换：只改变当前板块，不影响其他板块
     function cycleSortMode() {
-      if (currentVodSortType === 'score') {
-        currentVodSortType = 'time_desc';
+      const cur = getCurrentSectionSortType();
+      let nextMode = 'score';
+      if (cur === 'score') {
+        nextMode = 'time_desc';
         showGestureTip("已切换为：最新时间 (降序 ↓)");
-      } else if (currentVodSortType === 'time_desc') {
-        currentVodSortType = 'time_asc';
+      } else if (cur === 'time_desc') {
+        nextMode = 'time_asc';
         showGestureTip("已切换为：早期时间 (升序 ↑)");
       } else {
-        currentVodSortType = 'score';
+        nextMode = 'score';
         showGestureTip("已切换为：智能综合排序");
       }
+      setCurrentSectionSortType(nextMode);
       sortGroupedVodList();
       renderGroupedVodSources();
       saveVodSessionState();
@@ -3541,26 +3555,92 @@
         showGestureTip("⚡ 正在测速并按响应速度排序...");
         await startSpeedTest();
       } else {
-        currentVodSortType = type;
+        setCurrentSectionSortType(type);
         sortGroupedVodList();
         renderGroupedVodSources();
         saveVodSessionState();
       }
     }
 
-    // 将同一部剧但因为先来后到散落在“单源”和“聚合”里的正常组二次归并，同时严格隔离 NSFW 专区
+    // 准则 2：顶部手动测速——只测当前板块卡片，测完立刻按从快到慢重排！
+    async function startSpeedTest() {
+      if (!groupedVodList?.length) return;
+      if (isSpeedTesting) return;
+
+      isSpeedTesting = true;
+      setCurrentSectionSortType('speed');
+      const speedNavBtn = document.getElementById('btn-sort-speed-nav');
+      if (speedNavBtn) {
+        speedNavBtn.textContent = "⚡ 测速中";
+        speedNavBtn.classList.add('active-sort');
+      }
+
+      const targetGroups = [];
+      if (currentCategoryFilter === 'multi') {
+        groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1).forEach(g => targetGroups.push(g));
+      } else if (currentCategoryFilter === 'single') {
+        groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1).forEach(g => targetGroups.push(g));
+      } else if (currentCategoryFilter === 'nsfw') {
+        groupedVodList.filter(g => isGroupNSFW(g)).forEach(g => targetGroups.push(g));
+      }
+
+      const targetItemsToTest = [];
+      targetGroups.forEach(group => {
+        // 未展开的卡片只测首选前2条源以实现秒级排序；已展开的卡片测试全部子源
+        const isExp = (group.title === activeGroupTitle);
+        const listToTest = isExp ? group.items : group.items.slice(0, 2);
+        listToTest.forEach(item => {
+          targetItemsToTest.push({ group, item });
+        });
+      });
+
+      targetItemsToTest.forEach(({ item }) => {
+        const el = document.getElementById('ping-badge-' + item.id);
+        if (el) {
+          el.textContent = "测速中...";
+          el.className = "metric-ping-wait";
+        }
+      });
+
+      let finishedCount = 0;
+      await asyncPool(16, targetItemsToTest, async ({ item }) => {
+        const testUrl = getItemTestUrl(item);
+        item.ping = await probeStreamLatency(testUrl);
+
+        const el = document.getElementById('ping-badge-' + item.id);
+        if (el) {
+          const isErr = item.ping >= 9999 || item.ping < 0;
+          el.textContent = isErr ? "超时" : (item.ping + 'ms');
+          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+        }
+
+        finishedCount++;
+        if (finishedCount % 12 === 0) {
+          sortGroupedVodList();
+          renderGroupedVodSources();
+        }
+      });
+
+      isSpeedTesting = false;
+      setCurrentSectionSortType('speed');
+      sortGroupedVodList();
+      renderGroupedVodSources();
+      saveVodSessionState();
+      showGestureTip("⚡ 测速完毕，已按响应速度从快到慢排序");
+    }
+
+    // 准则 4 & 5：不擅自屏蔽任何资源。严格按是否属于 🔞 源进行专区/正常区精准隔离
     function consolidateVodGroups() {
       if (!groupedVodList || groupedVodList.length === 0) return;
       const mergedMap = new Map();
       const result = [];
 
       groupedVodList.forEach(g => {
+        if (!g.items || g.items.length === 0) return;
         const nsfwFlag = isGroupNSFW(g);
         g.isNsfw = nsfwFlag;
-        // 过滤掉组内没有任何有效播放集数的空壳源
-        g.items = (g.items || []).filter(it => getEpisodesList(it).length > 0);
-        if (g.items.length === 0) return;
 
+        // 命名空间隔离：正常源带 norm_ 前缀，🔞专区源带 nsfw_ 前缀，绝不可能合并进同一张卡片！
         const cleanKey = (nsfwFlag ? 'nsfw_' : 'norm_') + (normalizeCleanKey(g.title) || g.title);
         if (!mergedMap.has(cleanKey)) {
           mergedMap.set(cleanKey, g);
@@ -3579,17 +3659,6 @@
 
       groupedVodList = result;
     }
-
-    async function fastStreamSearchVod(keyword) {
-      if (currentSearchAbortController) currentSearchAbortController.abort();
-      currentSearchAbortController = new AbortController();
-      const currentSignal = currentSearchAbortController.signal;
-
-      isSearchingActive = true;
-      currentSearchingWord = keyword;
-      currentCategoryFilter = 'auto';
-
-      const container = document.getElementById('channel-list');
       
       const userGroupId = currentUser?.groupId || 'def';
       const cachedResults = VodSearchCache.get(keyword, userGroupId);
@@ -3654,10 +3723,6 @@
           const vodActor = (item.vod_actor || '').trim();
           if (!rawVodName) return;
 
-          // 核心过滤：如果该片源解析出的有效播放集数为 0（空壳僵尸数据），直接丢弃，绝不展示虚假卡片
-          const tempEps = getEpisodesList({ vod: item });
-          if (tempEps.length === 0) return;
-
           const lowerName = rawVodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
@@ -3674,7 +3739,8 @@
           const isRelevant = lowerName.includes(kw) || lowerActor.includes(kw) || isExactClassic;
           if (!isRelevant) return;
 
-          const itemIsNsfw = isItemNSFW(item, site.name);
+          // 准则 1：严格按源站名是否带 🔞 划分。专区源的片源打上 isNsfw 标记
+          const itemIsNsfw = isNSFWSource(site.name);
           const rawUniqueKey = site.name + '_' + (item.vod_id || itemIdx) + '_' + rawVodName;
           let hash = 0;
           for (let c = 0; c < rawUniqueKey.length; c++) {
@@ -3694,7 +3760,7 @@
           };
 
           const cleanKey = normalizeCleanKey(canonicalTitle);
-          // 物理隔离：正常片源只合并入正常卡片，🔞片源只合并入专区卡片，绝不混居！
+          // 绝对隔离：正常片源只与正常卡片合并，🔞专区片源只与专区卡片合并！
           let group = groupedVodList.find(g => {
             return Boolean(g.isNsfw) === itemIsNsfw && (g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey);
           });
@@ -3735,7 +3801,7 @@
       consolidateVodGroups();
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = '<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《' + escapeHtml(keyword) + '》相关的有效影视作品</div>';
+        container.innerHTML = '<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《' + escapeHtml(keyword) + '》相关的影视作品</div>';
         return;
       }
 
@@ -3745,6 +3811,7 @@
       saveVodSessionState();
     }
 
+    // 准则 4：未展开时绝对不测速！只有在用户点击展开多源卡片时，才触发对组内线路自动测速并重排内部线路
     async function testGroupSources(group, panel) {
       if (!group || !group.items || group.items.length <= 1) return;
 
@@ -3767,6 +3834,7 @@
         }
       });
 
+      // 组内子线路按响应速度从快到慢排序
       group.items.sort((a, b) => {
         const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
         const pb = (b.ping === undefined || b.ping < 0) ? 99999 : b.ping;
@@ -3784,141 +3852,11 @@
       saveVodSessionState();
     }
 
-    async function startSpeedTest() {
-      if (!groupedVodList?.length) return;
-      if (isSpeedTesting) return;
-
-      isSpeedTesting = true;
-      currentVodSortType = 'speed';
-      const speedNavBtn = document.getElementById('btn-sort-speed-nav');
-      if (speedNavBtn) {
-        speedNavBtn.textContent = "⚡ 测速中";
-        speedNavBtn.classList.add('active-sort');
-      }
-
-      const targetGroups = [];
-      if (currentCategoryFilter === 'multi') {
-        groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1).forEach(g => targetGroups.push(g));
-      } else if (currentCategoryFilter === 'single') {
-        groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1).forEach(g => targetGroups.push(g));
-      } else if (currentCategoryFilter === 'nsfw') {
-        groupedVodList.filter(g => isGroupNSFW(g)).forEach(g => targetGroups.push(g));
-      }
-
-      const targetItemsToTest = [];
-      targetGroups.forEach(group => {
-        // 对已展开的卡片测试全部子源，对未展开的聚合卡片优先测试前 3 个主源以实现秒级测速排序
-        const isExp = (group.title === activeGroupTitle);
-        const listToTest = isExp ? group.items : group.items.slice(0, 3);
-        listToTest.forEach(item => {
-          targetItemsToTest.push({ group, item });
-        });
-      });
-
-      targetItemsToTest.forEach(({ item }) => {
-        const el = document.getElementById('ping-badge-' + item.id);
-        if (el) {
-          el.textContent = "测速中...";
-          el.className = "metric-ping-wait";
-        }
-      });
-
-      let finishedCount = 0;
-      await asyncPool(16, targetItemsToTest, async ({ item }) => {
-        const testUrl = getItemTestUrl(item);
-        item.ping = await probeStreamLatency(testUrl);
-
-        const el = document.getElementById('ping-badge-' + item.id);
-        if (el) {
-          const isErr = item.ping >= 9999 || item.ping < 0;
-          el.textContent = isErr ? "超时" : (item.ping + 'ms');
-          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        }
-
-        finishedCount++;
-        if (finishedCount % 16 === 0) {
-          sortGroupedVodList();
-          renderGroupedVodSources();
-        }
-      });
-
-      isSpeedTesting = false;
-      currentVodSortType = 'speed';
-      sortGroupedVodList();
-      renderGroupedVodSources();
-      saveVodSessionState();
-      showGestureTip("⚡ 测速完毕，已按响应速度从快到慢排序");
-    }
-
-    function toggleEpisodesOrder() {
-      isEpisodeReversed = !isEpisodeReversed;
-      if (currentView === 'fav') {
-        renderFavoritesView();
-      } else {
-        const activeCard = document.querySelector('.title-group-box.expanded');
-        if (activeCard) {
-          const bodyPanel = activeCard.querySelector('.group-body-panel');
-          const group = groupedVodList.find(g => g.title === activeGroupTitle);
-          if (group && bodyPanel) {
-            const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
-            const oldBox = bodyPanel.querySelector('.episodes-collapse-box');
-            if (oldBox) oldBox.remove();
-
-            const episodes = getEpisodesList(currentSubItem);
-            if (episodes.length > 1) {
-              const collapseBox = document.createElement('div');
-              collapseBox.className = 'episodes-collapse-box';
-              const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
-
-              const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
-              collapseBox.innerHTML = `
-                <div class="episodes-header">
-                  <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
-                  <div class="episodes-actions">
-                    <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
-                    <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
-                  </div>
-                </div>
-                <div class="episodes-grid" id="${gridId}"></div>
-              `;
-
-              const epGrid = collapseBox.querySelector(`#${gridId}`);
-              const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
-
-              displayEps.forEach((ep) => {
-                const epIdx = ep.originalIdx;
-                const btn = document.createElement('button');
-                btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-                btn.setAttribute('data-ep-idx', String(epIdx));
-                btn.textContent = ep.name;
-                btn.onclick = (e) => {
-                  e.stopPropagation();
-                  bodyPanel.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
-                  btn.classList.add('active');
-                  playCurrentVodSource(currentSubItem, epIdx, false);
-                  saveVodSessionState();
-                };
-                epGrid.appendChild(btn);
-              });
-
-              collapseBox.querySelector('.episodes-header').onclick = (e) => {
-                if (e.target.tagName === 'BUTTON') return;
-                e.stopPropagation();
-                const isHide = epGrid.style.display === 'none';
-                epGrid.style.display = isHide ? 'grid' : 'none';
-                collapseBox.querySelector('#ep-arrow').textContent = isHide ? '▼ 收起' : '▶ 展开选集';
-              };
-
-              bodyPanel.insertBefore(collapseBox, bodyPanel.firstChild);
-            }
-          }
-        }
-      }
-      showGestureTip(isEpisodeReversed ? "选集已切换为：倒序" : "选集已切换为：正序");
-    }
-
+    // 准则 4：切换板块时，自动恢复该板块上一次记录的独立排序状态，互不干扰！
     function setCategoryFilter(filterKey) {
       currentCategoryFilter = filterKey;
+      currentVodSortType = getCurrentSectionSortType();
+      sortGroupedVodList();
       renderGroupedVodSources();
       saveVodSessionState();
     }
