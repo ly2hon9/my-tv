@@ -3633,6 +3633,26 @@
       setCurrentSectionSortType('speed');
       sortGroupedVodList();
       renderGroupedVodSources();
+
+      // 实时同步并重排当前正展开的卡片内部子线路，确保速度最快的子线路排在最上面
+      const activeCard = document.querySelector('.title-group-box.expanded');
+      if (activeCard) {
+        const bodyPanel = activeCard.querySelector('.group-body-panel');
+        const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+        if (bodyPanel && activeGroup && activeGroup.items) {
+          activeGroup.items.sort((a, b) => {
+            const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
+            const pb = (b.ping === undefined || b.ping < 0) ? 99999 : b.ping;
+            return pa - pb;
+          });
+          const subCards = Array.from(bodyPanel.querySelectorAll('.source-sub-card'));
+          activeGroup.items.forEach(it => {
+            const matchedCard = subCards.find(c => c.querySelector('#ping-badge-' + it.id));
+            if (matchedCard) bodyPanel.appendChild(matchedCard);
+          });
+        }
+      }
+
       saveVodSessionState();
       showGestureTip("⚡ 测速完毕，已按响应速度从快到慢排序");
     }
@@ -3783,9 +3803,11 @@
           };
 
           const cleanKey = normalizeCleanKey(canonicalTitle);
-          // 绝对隔离：正常片源只与正常卡片合并，🔞专区片源只与专区卡片合并！
+
+          // 核心隔离：正常源绝对不与 🔞 源混在同一个卡片！
           let group = groupedVodList.find(g => {
-            return Boolean(g.isNsfw) === itemIsNsfw && (g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey);
+            const gIsNsfw = g.isNsfw || (g.items && g.items.some(it => isNSFWSource(it.siteName)));
+            return Boolean(gIsNsfw) === Boolean(itemIsNsfw) && (g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey);
           });
 
           if (!group) {
