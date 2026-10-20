@@ -400,30 +400,8 @@
     .channel-row.playing .channel-title { color: var(--accent); font-weight: bold; }
     .sources-panel { display: none; background: var(--bg-sub-panel); padding: 8px 12px 12px 16px; border-top: 1px solid var(--border-color); }
     .channel-row.expanded .sources-panel { display: block; }
-    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-    .source-item:hover { background: var(--bg-card-hover); }
+    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; }
     .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
-
-    /* 电视直播专属：EPG 电子节目预告与 VPS 测速面板 */
-    .tv-epg-inline-tag { font-size: 11px; color: var(--text-sub); font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
-    .channel-row.playing .tv-epg-inline-tag { color: var(--accent); }
-    .tv-epg-box { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; font-size: 12px; }
-    .tv-epg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: var(--text-sub); }
-    .tv-epg-actions { display: flex; align-items: center; gap: 6px; }
-    .tv-epg-btn { background: var(--bg-tag); border: 1px solid var(--border-light); color: var(--accent); padding: 2px 7px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 500; }
-    .tv-epg-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; line-height: 1.4; }
-    .tv-epg-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
-    .tv-epg-badge.live { background: rgba(0, 112, 243, 0.18); color: var(--accent); border: 1px solid rgba(0, 112, 243, 0.4); }
-    .tv-epg-badge.next { background: var(--bg-tag); color: var(--text-sub); }
-    .tv-epg-time { font-family: monospace; font-size: 11px; color: var(--text-sub); flex-shrink: 0; }
-    .tv-epg-title { color: var(--text-main); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-    .tv-epg-progress { width: 100%; height: 3px; background: var(--border-color); border-radius: 2px; margin: 5px 0 4px 0; overflow: hidden; }
-    .tv-epg-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
-    .tv-epg-schedule { display: none; max-height: 170px; overflow-y: auto; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-light); scrollbar-width: thin; }
-    .tv-epg-schedule.show { display: block; }
-    .tv-epg-schedule-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: 11px; color: var(--text-sub); }
-    .tv-epg-schedule-item.is-live { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-    .tv-fast-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; background: #283e2e; color: #4ade80; font-weight: 600; margin-left: 6px; }
 
     /* ===================================================================
        高级全套毛玻璃系统 (Glassmorphism Modal System)
@@ -1242,7 +1220,6 @@
     let seekStreakDir = 0;
     let seekStreakSec = 0;
     let seekStreakResetTimer = null;
-    let seekBaseTime = 0;
 
     function triggerCumulativeSeek(dir) {
       if (isLiveMode || !video.duration || !isFinite(video.duration)) {
@@ -1255,15 +1232,15 @@
       } else {
         seekStreakDir = dir;
         seekStreakSec = 10;
-        seekBaseTime = video.currentTime;
       }
 
-      const dur = video.duration;
-      const targetTime = Math.max(0, Math.min(dur, seekBaseTime + dir * seekStreakSec));
+      const targetTime = Math.max(0, Math.min(video.duration, video.currentTime + dir * 10));
       video.currentTime = targetTime;
 
-      streamTimeEl.textContent = `${formatTime(targetTime)} / ${formatTime(dur)}`;
-      progressBar.style.width = `${(targetTime / dur) * 100}%`;
+      const cur = video.currentTime;
+      const dur = video.duration;
+      streamTimeEl.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+      progressBar.style.width = `${(cur / dur) * 100}%`;
 
       showGestureTip(dir > 0 ? `⏩ 快进 ${seekStreakSec} 秒` : `⏪ 后退 ${seekStreakSec} 秒`);
 
@@ -1463,11 +1440,6 @@
       try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
     }
 
-    function getCanonicalFavTitleKey(rawTitle) {
-      if (!rawTitle) return '';
-      return normalizeCleanKey(parseTitleAndVersion(rawTitle).canonical) || normalizeCleanKey(rawTitle);
-    }
-
     /* === 实时更新收藏图标高亮状态（本地瞬时判定，0ms延迟） === */
     function updateFavIconState(favsList) {
       if (!currentPlayingMeta) {
@@ -1476,13 +1448,12 @@
       }
       const favs = favsList || getLocalFavorites();
       let isFav = false;
-      const curTitle = getCanonicalFavTitleKey(currentPlayingMeta.title);
+      const curTitle = normalizeCleanKey(currentPlayingMeta.title);
       const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
-      const rawTvUrl = window.currentRawStreamUrl || currentStreamUrl;
       if (isLiveMode) {
-        isFav = favs.some(f => f.type === 'tv' && (f.url === rawTvUrl || f.url === currentStreamUrl || normalizeCleanKey(f.title) === normalizeCleanKey(currentPlayingMeta.title)));
+        isFav = favs.some(f => f.type === 'tv' && (f.url === currentStreamUrl || normalizeCleanKey(f.title) === curTitle));
       } else {
-        isFav = favs.some(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
+        isFav = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
       }
       favToggleBtn.classList.toggle('active', isFav);
     }
@@ -1492,28 +1463,19 @@
       if (!currentPlayingMeta) { alert("请先选择播放项目！"); return; }
       let favs = getLocalFavorites();
       const currentEpName = currentPlayingMeta.epName || '正片';
-      const curTitle = getCanonicalFavTitleKey(currentPlayingMeta.title);
+      const curTitle = normalizeCleanKey(currentPlayingMeta.title);
       const curSite = normalizeCleanKey(currentPlayingMeta.siteName);
       
       if (isLiveMode) {
-        const rawTvUrl = window.currentRawStreamUrl || currentStreamUrl;
-        const normTvTitle = normalizeCleanKey(currentPlayingMeta.title);
-        const idx = favs.findIndex(f => f.type === 'tv' && (f.url === rawTvUrl || f.url === currentStreamUrl || normalizeCleanKey(f.title) === normTvTitle));
+        const idx = favs.findIndex(f => f.type === 'tv' && (f.url === currentStreamUrl || normalizeCleanKey(f.title) === curTitle));
         if (idx >= 0) {
-          if (favs[idx].url !== rawTvUrl && favs[idx].siteName !== currentPlayingMeta.siteName) {
-            favs[idx].url = rawTvUrl;
-            favs[idx].siteName = currentPlayingMeta.siteName || '直播';
-            favs[idx].savedAt = new Date().toLocaleDateString();
-            setStatus(`⭐ 已更新收藏线路为【${escapeHtml(favs[idx].siteName)}】`, true);
-          } else {
-            favs.splice(idx, 1);
-            setStatus("已取消收藏电视频道", true);
-          }
+          favs.splice(idx, 1);
+          setStatus("已取消收藏电视频道", true);
         } else {
           favs.unshift({
             title: currentPlayingMeta.title,
             epName: '直播',
-            url: rawTvUrl,
+            url: currentStreamUrl,
             type: 'tv',
             siteName: currentPlayingMeta.siteName || '直播',
             savedAt: new Date().toLocaleDateString()
@@ -1521,8 +1483,7 @@
           setStatus("⭐ 已加入电视收藏", true);
         }
       } else {
-        const canonicalTitle = parseTitleAndVersion(currentPlayingMeta.title).canonical || currentPlayingMeta.title;
-        const idx = favs.findIndex(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
+        const idx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === curSite);
         if (idx >= 0) {
           if (favs[idx].epName !== currentEpName) {
             favs[idx].epName = currentEpName;
@@ -1536,7 +1497,7 @@
           }
         } else {
           favs.unshift({
-            title: canonicalTitle,
+            title: currentPlayingMeta.title,
             siteName: cleanSiteName(currentPlayingMeta.siteName),
             epName: currentEpName,
             epIdx: (currentPlayingMeta.epIdx !== undefined) ? currentPlayingMeta.epIdx : currentActiveEp,
@@ -1563,8 +1524,9 @@
           const btn = subCard.querySelector('button[id^="fav-btn-"]');
           if (!btn) return;
           const siteTag = subCard.querySelector('.card-sitename-tag')?.textContent || '';
-          const normSubSite = normalizeCleanKey(parseTitleAndVersion(siteTag).canonical || siteTag);
-          const isFavorited = favs.some(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === curTitle && normalizeCleanKey(f.siteName) === normSubSite);
+          const normSubSite = normalizeCleanKey(siteTag);
+          const normCurTitle = normalizeCleanKey(currentPlayingMeta.title);
+          const isFavorited = favs.some(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normCurTitle && normalizeCleanKey(f.siteName) === normSubSite);
           if (isFavorited) {
             btn.textContent = `★ 已收藏 (${currentEpName})`;
             btn.style.color = '#facc15';
@@ -1619,7 +1581,8 @@
       const record = history.find(h => h.key === currentVodUniqueKey);
       if (record && record.time > 5 && (!video.duration || record.time < video.duration - 15)) {
         video.currentTime = record.time;
-        showGestureTip(`⏱ 已自动续播至 ${formatTime(record.time)}`);
+        setStatus(`已自动跳转至进度：${formatTime(record.time)}`, true);
+        setTimeout(() => setStatus("", false), 1800);
       }
     }
 
@@ -1800,35 +1763,32 @@
           arrowEl.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)';
         };
 
-        // 局部刷新函数：生成选集完整网格，按真实集数名精准匹配高亮与标题
+        // 局部刷新函数：生成如 图2 般的选集完整网格（安全使用 class 选择器，杜绝特殊符号选择器报错）
         function refreshFavEpisodesBox(curSource) {
           const oldBox = bodyEl.querySelector('.episodes-collapse-box');
           if (oldBox) oldBox.remove();
 
           const episodes = getEpisodesList(curSource);
-          const isCurrentlyPlayingThis = (
-            currentPlayingMeta?.title &&
-            getCanonicalFavTitleKey(currentPlayingMeta.title) === normKey &&
-            normalizeCleanKey(currentPlayingMeta?.siteName) === normalizeCleanKey(curSource.siteName)
-          );
-          const activeIdx = isCurrentlyPlayingThis
+          const activeIdx = (currentPlayingMeta?.title && normalizeCleanKey(currentPlayingMeta.title) === normKey && normalizeCleanKey(currentPlayingMeta?.siteName) === normalizeCleanKey(curSource.siteName))
             ? currentActiveEp
-            : findMatchingEpisodeIndex(episodes, curSource.savedFavRef?.epName, curSource.savedFavRef?.epIdx ?? 0);
+            : (curSource.savedFavRef?.epIdx ?? 0);
 
           const collapseBox = document.createElement('div');
           collapseBox.className = 'episodes-collapse-box';
-          const epStatusText = formatCurrentEpStatus(episodes, activeIdx);
-          const orderBtnLabel = isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵';
+          const epStatusText = activeIdx >= 0 
+            ? `当前第 ${activeIdx + 1} 集` 
+            : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
 
-          collapseBox.innerHTML =
-            '<div class="episodes-header">' +
-              '<span>📺 选集 (' + getDisplayEpisodesCount(episodes) + ' 集) - ' + epStatusText + '</span>' +
-              '<div class="episodes-actions">' +
-                '<button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">' + orderBtnLabel + '</button>' +
-                '<span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="episodes-grid" id="episodes-grid-list-' + normKey + '"></div>';
+          collapseBox.innerHTML = `
+            <div class="episodes-header">
+              <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
+              <div class="episodes-actions">
+                <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
+                <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
+              </div>
+            </div>
+            <div class="episodes-grid" id="episodes-grid-list-${normKey}"></div>
+          `;
 
           const epGrid = collapseBox.querySelector('.episodes-grid');
           const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
@@ -1844,7 +1804,7 @@
               epGrid.querySelectorAll('.ep-item').forEach(el => el.classList.remove('active'));
               btn.classList.add('active');
 
-              // 播放所选集数，并立即同步写回 D1 收藏夹与下方源卡片绿标
+              // 播放所选集数，并立即同步写回 D1 收藏夹
               playCurrentVodSource(curSource, epIdx, false);
               curSource.savedFavRef.epName = ep.name;
               curSource.savedFavRef.epIdx = epIdx;
@@ -1852,9 +1812,7 @@
               setD1Data(getCurrentFavKey(), favs);
 
               const trackLabel = groupCard.querySelector('.fav-meta-track');
-              if (trackLabel) trackLabel.textContent = '看到: ' + ep.name;
-              const activeSubQual = bodyEl.querySelector('.source-sub-card.active-sub .card-quality');
-              if (activeSubQual) activeSubQual.textContent = '看到: ' + ep.name;
+              if (trackLabel) trackLabel.textContent = `看到: ${ep.name}`;
               refreshFavEpisodesBox(curSource);
             };
             epGrid.appendChild(btn);
@@ -1869,14 +1827,6 @@
           };
 
           bodyEl.insertBefore(collapseBox, bodyEl.firstChild);
-
-          // 自动将当前高亮集数（如第215集）滚动到选集可视区域正中央
-          setTimeout(() => {
-            const activeBtn = epGrid.querySelector('.ep-item.active');
-            if (activeBtn && epGrid.scrollHeight > epGrid.clientHeight) {
-              epGrid.scrollTop = Math.max(0, activeBtn.offsetTop - (epGrid.clientHeight / 2) + (activeBtn.clientHeight / 2));
-            }
-          }, 20);
         }
 
         // 核心：若旧收藏数据只有单集，自动联网向源站请求并补齐整套 216 集选集网格
@@ -1969,7 +1919,7 @@
             subCard.classList.add('active-sub');
             activeSourceItem = sItem;
 
-            playCurrentVodSource(sItem, favRef.epName || favRef.epIdx || 0, false);
+            playCurrentVodSource(sItem, favRef.epIdx ?? 0, false);
             tryReplenishEpisodesAndRender(sItem);
           };
 
@@ -2425,17 +2375,6 @@
     }
 
     function logoutCurrentUser() {
-      stopRemoteTvTranscode();
-      destroyHlsInstance();
-      updatePlayBtn(false);
-      try {
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-      } catch (_) {}
-      currentStreamUrl = '';
-      currentPlayingMeta = null;
-
       currentUser = null;
       localStorage.removeItem(KEY_CURRENT_USER);
       localStorage.removeItem(KEY_SAVED_CREDS);
@@ -2608,7 +2547,6 @@
           u.groupName = defaultGroup.name;
         }
       });
-      clearVodSearchSessionCache();
       setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
       setD1Data(KEY_USERS_LIST, userList);
       renderUsersManagerList();
@@ -2655,7 +2593,6 @@
       });
       group.sites = (selected.length === checkboxes.length) ? ['*'] : selected;
 
-      clearVodSearchSessionCache();
       setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
       renderUsersManagerList();
       closeUserPermModal();
@@ -2764,7 +2701,6 @@
           disabledSites.push(siteName);
         }
       }
-      clearVodSearchSessionCache();
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
       showGestureTip(`✓ 禁用阈值已同步设置为 ${failThreshold} 次`);
@@ -2806,7 +2742,6 @@
       if (!confirm("确定重置所有源的失效统计并恢复启用吗？")) return;
       sourceFailures = {};
       disabledSites = [];
-      clearVodSearchSessionCache();
       await setD1Data(KEY_SOURCE_FAILURES, sourceFailures);
       await setD1Data(KEY_DISABLED_SITES, disabledSites);
       renderSitesManagerList();
@@ -3333,8 +3268,11 @@
       if (!item) return '';
       const episodes = getEpisodesList(item);
       const targetEp = episodes[0];
-      let testUrl = targetEp?.url || '';
-      if (!isSafeUrl(testUrl)) return '';
+      let testUrl = targetEp?.url || item.vod?.vod_play_url || '';
+      if (!isSafeUrl(testUrl)) {
+        const site = parsedSites.find(s => s.name === item.siteName);
+        testUrl = site?.api || '';
+      }
       if (window.location.protocol === 'https:' && testUrl.startsWith('http://')) {
         testUrl = testUrl.replace(/^http:\/\//i, 'https://');
       }
@@ -3388,35 +3326,28 @@
       const nsfwKeywords = [
         '🔞', '麻豆', '番号', '老色逼', '黄色仓库', '大奶子', '奶香', '黑料', '桃花',
         'souav', 'souv', '黄色', '成人', '福利', '色情', 'jkun', '森林', '辣椒',
-        '鲨鱼', '滴滴', '精品资源', '155-', '玉兔', '小鸡', '乐播', '奥斯卡', '大地',
-        '色猫', '杏吧', '美少女', '淫水', '白嫖', '探花', '番号', 'av'
+        '鲨鱼', '滴滴', '精品资源', '155-', '玉兔', '小鸡', '乐播'
       ];
       return nsfwKeywords.some(kw => lower.includes(kw));
     }
 
-    // 单条片源级严格成人判定：只要站点名、分类、标题或番号命中，立即归为 NSFW
-    function isItemNSFW(vod, siteName) {
-      if (isNSFWSource(siteName)) return true;
-      if (!vod) return false;
-      const typeStr = (vod.type_name || '').toLowerCase();
-      const titleStr = (vod.vod_name || '').toLowerCase();
-      const remarkStr = (vod.vod_remarks || '').toLowerCase();
-      const adultTypeWords = [
-        '🔞', '自拍', '真人自拍', 'cosplay', '写真', '伦理', '成人', '福利', '三级',
-        '情色', '色情', '偷拍', '无码', '有码', 'av', '女优', '同人', '里番', '3d同人',
-        '动漫同人', '丝袜', '诱惑', '国产传媒', '制片厂', '杏吧', '探花'
-      ];
-      if (adultTypeWords.some(w => typeStr.includes(w))) return true;
-      if (['🔞', '自拍', '真人自拍', '无码', '有码', 'h版', '18+', '步兵', '骑兵'].some(w => titleStr.includes(w) || remarkStr.includes(w))) return true;
-      if (detectCensorshipTag(vod, siteName)) return true;
-      return false;
-    }
-
-    // 卡片组级判定：只要标记了 isNsfw 或内部含有任何一条 NSFW 线路，100% 归入“🌶️ 专区”
     function isGroupNSFW(group) {
       if (!group) return false;
-      if (group.isNsfw) return true;
-      if (group.items && group.items.some(i => isItemNSFW(i.vod, i.siteName))) return true;
+      const typeStr = (group.type || '').toLowerCase();
+      const titleStr = (group.title || '').toLowerCase();
+      const adultTypeWords = ['自拍', '真人自拍', 'cosplay', '写真', '伦理', '成人', '福利', '三级', '情色', '色情', '偷拍', '无码', '有码', 'av', '女优', '同人'];
+
+      if (adultTypeWords.some(w => typeStr.includes(w))) return true;
+      if (['自拍', '真人自拍', 'cosplay', '无码', '有码', 'h版', '18+'].some(w => titleStr.includes(w))) return true;
+
+      if (group.items && group.items.length > 0) {
+        const nsfwItemCount = group.items.filter(i => {
+          const iSite = isNSFWSource(i.siteName);
+          const iType = (i.vod?.type_name || '').toLowerCase();
+          return iSite || adultTypeWords.some(w => iType.includes(w));
+        }).length;
+        if (nsfwItemCount >= Math.ceil(group.items.length / 2)) return true;
+      }
       return false;
     }
 
@@ -3480,8 +3411,11 @@
 
       groupedVodList.forEach(group => {
         group.items.sort((a, b) => {
-          const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
-          const pb = (b.ping === undefined || b.ping < 0) ? 99999 : b.ping;
+          const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+          const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+          if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+          const pa = (a.ping === undefined || a.ping < 0) ? 9999 : a.ping;
+          const pb = (b.ping === undefined || b.ping < 0) ? 9999 : b.ping;
           return pa - pb;
         });
       });
@@ -3491,34 +3425,37 @@
         const nsfwB = isGroupNSFW(b) ? 1 : 0;
         if (nsfwA !== nsfwB) return nsfwA - nsfwB;
 
+        const isMultiA = a.items.length > 1 ? 1 : 0;
+        const isMultiB = b.items.length > 1 ? 1 : 0;
+        if (isMultiA !== isMultiB) return isMultiB - isMultiA;
+
         if (currentVodSortType === 'speed') {
           const pa = getGroupBestPing(a);
           const pb = getGroupBestPing(b);
           const va = pa < 0 ? 99999 : pa;
           const vb = pb < 0 ? 99999 : pb;
-          if (va !== vb) return va - vb;
+          return va - vb;
         } else if (currentVodSortType === 'time_desc') {
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
-          if (timeA !== timeB) {
-            if (!timeA) return 1;
-            if (!timeB) return -1;
-            return timeB - timeA;
-          }
+          if (!timeA && !timeB) return 0;
+          if (!timeA) return 1;
+          if (!timeB) return -1;
+          return timeB - timeA;
         } else if (currentVodSortType === 'time_asc') {
           const timeA = getGroupLatestTime(a);
           const timeB = getGroupLatestTime(b);
-          if (timeA !== timeB) {
-            if (!timeA) return 1;
-            if (!timeB) return -1;
-            return timeA - timeB;
-          }
+          if (!timeA && !timeB) return 0;
+          if (!timeA) return 1;
+          if (!timeB) return -1;
+          return timeA - timeB;
+        } else {
+          return calcGroupScore(b, kw, starClassics) - calcGroupScore(a, kw, starClassics);
         }
-
-        return calcGroupScore(b, kw, starClassics) - calcGroupScore(a, kw, starClassics);
       });
     }
 
+    /* 综合/最新/最早 3 合 1 循环极简按钮调度 */
     function cycleSortMode() {
       if (currentVodSortType === 'score') {
         currentVodSortType = 'time_desc';
@@ -3548,38 +3485,6 @@
       }
     }
 
-    // 将同一部剧但因为先来后到散落在“单源”和“聚合”里的正常组二次归并，同时严格隔离 NSFW 专区
-    function consolidateVodGroups() {
-      if (!groupedVodList || groupedVodList.length === 0) return;
-      const mergedMap = new Map();
-      const result = [];
-
-      groupedVodList.forEach(g => {
-        const nsfwFlag = isGroupNSFW(g);
-        g.isNsfw = nsfwFlag;
-        // 过滤掉组内没有任何有效播放集数的空壳源
-        g.items = (g.items || []).filter(it => getEpisodesList(it).length > 0);
-        if (g.items.length === 0) return;
-
-        const cleanKey = (nsfwFlag ? 'nsfw_' : 'norm_') + (normalizeCleanKey(g.title) || g.title);
-        if (!mergedMap.has(cleanKey)) {
-          mergedMap.set(cleanKey, g);
-          result.push(g);
-        } else {
-          const target = mergedMap.get(cleanKey);
-          if (!target.poster && g.poster) target.poster = g.poster;
-          if (!target.actor && g.actor) target.actor = g.actor;
-          g.items.forEach(it => {
-            if (!target.items.some(ex => ex.rawKey === it.rawKey)) {
-              target.items.push(it);
-            }
-          });
-        }
-      });
-
-      groupedVodList = result;
-    }
-
     async function fastStreamSearchVod(keyword) {
       if (currentSearchAbortController) currentSearchAbortController.abort();
       currentSearchAbortController = new AbortController();
@@ -3595,7 +3500,6 @@
       const cachedResults = VodSearchCache.get(keyword, userGroupId);
       if (cachedResults && cachedResults.length > 0) {
         groupedVodList = cachedResults;
-        consolidateVodGroups();
         domNodeCache.clear();
         isSearchingActive = false;
         sortGroupedVodList();
@@ -3605,7 +3509,7 @@
         return;
       }
 
-      container.innerHTML = '<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《' + escapeHtml(keyword) + '》中，请稍候...</div>';
+      container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(keyword)}》中，请稍候...</div>`;
       
       groupedVodList = [];
       domNodeCache.clear();
@@ -3621,7 +3525,7 @@
 
       if (availableSites.length === 0) {
         isSearchingActive = false;
-        container.innerHTML = '<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">当前分组未开放可用的视频源，请联系主管理员</div>';
+        container.innerHTML = `<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">当前分组未开放可用的视频源，请联系主管理员</div>`;
         return;
       }
 
@@ -3654,10 +3558,6 @@
           const vodActor = (item.vod_actor || '').trim();
           if (!rawVodName) return;
 
-          // 核心过滤：如果该片源解析出的有效播放集数为 0（空壳僵尸数据），直接丢弃，绝不展示虚假卡片
-          const tempEps = getEpisodesList({ vod: item });
-          if (tempEps.length === 0) return;
-
           const lowerName = rawVodName.toLowerCase();
           const lowerActor = vodActor.toLowerCase();
 
@@ -3671,11 +3571,13 @@
             return cleanCanonical === cleanC || cleanCanonical === (cleanC + '电影') || cleanCanonical === ('电影' + cleanC);
           });
 
-          const isRelevant = lowerName.includes(kw) || lowerActor.includes(kw) || isExactClassic;
+          const isRelevant = lowerName.includes(kw) || 
+                             lowerActor.includes(kw) || 
+                             isExactClassic;
+          
           if (!isRelevant) return;
 
-          const itemIsNsfw = isItemNSFW(item, site.name);
-          const rawUniqueKey = site.name + '_' + (item.vod_id || itemIdx) + '_' + rawVodName;
+          const rawUniqueKey = `${site.name}_${item.vod_id || itemIdx}_${rawVodName}`;
           let hash = 0;
           for (let c = 0; c < rawUniqueKey.length; c++) {
             hash = ((hash << 5) - hash) + rawUniqueKey.charCodeAt(c);
@@ -3689,14 +3591,12 @@
             siteName: site.name,
             versionTag: versionTag,
             vod: item,
-            ping: -1,
-            isNsfw: itemIsNsfw
+            ping: -1
           };
 
           const cleanKey = normalizeCleanKey(canonicalTitle);
-          // 物理隔离：正常片源只合并入正常卡片，🔞片源只合并入专区卡片，绝不混居！
           let group = groupedVodList.find(g => {
-            return Boolean(g.isNsfw) === itemIsNsfw && (g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey);
+            return g.title === canonicalTitle || normalizeCleanKey(g.title) === cleanKey;
           });
 
           if (!group) {
@@ -3705,7 +3605,6 @@
               poster: isSafeUrl(item.vod_pic) ? item.vod_pic : '',
               type: vodType,
               actor: vodActor,
-              isNsfw: itemIsNsfw,
               items: []
             };
             groupedVodList.push(group);
@@ -3722,7 +3621,7 @@
 
       await asyncPool(16, searchTasks, async ({ site, term }) => {
         if (currentSignal.aborted) return;
-        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + 'ac=videolist&wd=' + encodeURIComponent(term) + '&out=json&pg=1';
+        const urlWd = site.api + (site.api.includes('?') ? '&' : '?') + `ac=videolist&wd=${encodeURIComponent(term)}&out=json&pg=1`;
         try {
           const res = await fetchWithSmartProxy(urlWd, 2500, currentSignal);
           processList(JSON.parse(res).list, site);
@@ -3732,10 +3631,9 @@
 
       if (currentSignal.aborted) return;
       isSearchingActive = false;
-      consolidateVodGroups();
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        container.innerHTML = '<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《' + escapeHtml(keyword) + '》相关的有效影视作品</div>';
+        container.innerHTML = `<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《${escapeHtml(keyword)}》相关的影视作品</div>`;
         return;
       }
 
@@ -3749,7 +3647,7 @@
       if (!group || !group.items || group.items.length <= 1) return;
 
       group.items.forEach(item => {
-        const el = document.getElementById('ping-badge-' + item.id);
+        const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           el.textContent = "测速中...";
           el.className = "metric-ping-wait";
@@ -3759,24 +3657,27 @@
       await asyncPool(16, group.items, async (item) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
-        const el = document.getElementById('ping-badge-' + item.id);
+        const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           const isErr = item.ping >= 9999 || item.ping < 0;
-          el.textContent = isErr ? "超时" : (item.ping + 'ms');
+          el.textContent = isErr ? "超时" : `${item.ping}ms`;
           el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
         }
       });
 
       group.items.sort((a, b) => {
-        const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
-        const pb = (b.ping === undefined || b.ping < 0) ? 99999 : b.ping;
+        const isNsfwA = isNSFWSource(a.siteName) ? 1 : 0;
+        const isNsfwB = isNSFWSource(b.siteName) ? 1 : 0;
+        if (isNsfwA !== isNsfwB) return isNsfwA - isNsfwB;
+        const pa = (a.ping === undefined || a.ping < 0) ? 9999 : a.ping;
+        const pb = (b.ping === undefined || b.ping < 0) ? 9999 : b.ping;
         return pa - pb;
       });
 
       const subCards = Array.from(panel.querySelectorAll('.source-sub-card'));
       if (subCards.length > 0) {
         group.items.forEach(item => {
-          const card = subCards.find(c => c.querySelector('#ping-badge-' + item.id));
+          const card = subCards.find(c => c.querySelector(`#ping-badge-${item.id}`));
           if (card) panel.appendChild(card);
         });
       }
@@ -3789,56 +3690,54 @@
       if (isSpeedTesting) return;
 
       isSpeedTesting = true;
-      currentVodSortType = 'speed';
       const speedNavBtn = document.getElementById('btn-sort-speed-nav');
       if (speedNavBtn) {
         speedNavBtn.textContent = "⚡ 测速中";
         speedNavBtn.classList.add('active-sort');
       }
 
-      const targetGroups = [];
+      const targetItemsToTest = [];
+
       if (currentCategoryFilter === 'multi') {
-        groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1).forEach(g => targetGroups.push(g));
+        const normalMulti = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length > 1);
+        normalMulti.forEach(group => {
+          group.items.forEach(item => {
+            targetItemsToTest.push({ group, item });
+          });
+        });
       } else if (currentCategoryFilter === 'single') {
-        groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1).forEach(g => targetGroups.push(g));
+        const normalSingle = groupedVodList.filter(g => !isGroupNSFW(g) && g.items.length === 1);
+        normalSingle.forEach(group => {
+          if (group.items[0]) {
+            targetItemsToTest.push({ group, item: group.items[0] });
+          }
+        });
       } else if (currentCategoryFilter === 'nsfw') {
-        groupedVodList.filter(g => isGroupNSFW(g)).forEach(g => targetGroups.push(g));
+        const nsfwGroups = groupedVodList.filter(g => isGroupNSFW(g));
+        nsfwGroups.forEach(group => {
+          group.items.forEach(item => {
+            targetItemsToTest.push({ group, item });
+          });
+        });
       }
 
-      const targetItemsToTest = [];
-      targetGroups.forEach(group => {
-        // 对已展开的卡片测试全部子源，对未展开的聚合卡片优先测试前 3 个主源以实现秒级测速排序
-        const isExp = (group.title === activeGroupTitle);
-        const listToTest = isExp ? group.items : group.items.slice(0, 3);
-        listToTest.forEach(item => {
-          targetItemsToTest.push({ group, item });
-        });
-      });
-
       targetItemsToTest.forEach(({ item }) => {
-        const el = document.getElementById('ping-badge-' + item.id);
+        const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           el.textContent = "测速中...";
           el.className = "metric-ping-wait";
         }
       });
 
-      let finishedCount = 0;
       await asyncPool(16, targetItemsToTest, async ({ item }) => {
         const testUrl = getItemTestUrl(item);
         item.ping = await probeStreamLatency(testUrl);
 
-        const el = document.getElementById('ping-badge-' + item.id);
+        const el = document.getElementById(`ping-badge-${item.id}`);
         if (el) {
           const isErr = item.ping >= 9999 || item.ping < 0;
-          el.textContent = isErr ? "超时" : (item.ping + 'ms');
+          el.textContent = isErr ? "超时" : `${item.ping}ms`;
           el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
-        }
-
-        finishedCount++;
-        if (finishedCount % 16 === 0) {
-          sortGroupedVodList();
-          renderGroupedVodSources();
         }
       });
 
@@ -3847,7 +3746,7 @@
       sortGroupedVodList();
       renderGroupedVodSources();
       saveVodSessionState();
-      showGestureTip("⚡ 测速完毕，已按响应速度从快到慢排序");
+      showGestureTip("⚡ 测速完毕，已按速度从快到慢排序");
     }
 
     function toggleEpisodesOrder() {
@@ -3868,12 +3767,14 @@
             if (episodes.length > 1) {
               const collapseBox = document.createElement('div');
               collapseBox.className = 'episodes-collapse-box';
-              const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
+              const epStatusText = currentActiveEp >= 0 
+                ? `当前第 ${currentActiveEp + 1} 集` 
+                : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
 
               const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
               collapseBox.innerHTML = `
                 <div class="episodes-header">
-                  <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
+                  <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
                   <div class="episodes-actions">
                     <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
                     <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
@@ -3939,12 +3840,14 @@ function buildGroupBodyPanel(group) {
 
     const collapseBox = document.createElement('div');
     collapseBox.className = 'episodes-collapse-box';
-    const epStatusText = formatCurrentEpStatus(episodes, currentActiveEp);
+    const epStatusText = currentActiveEp >= 0 
+      ? `当前第 ${currentActiveEp + 1} 集` 
+      : '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
 
     const gridId = `episodes-grid-list-${normalizeCleanKey(group.title)}`;
     collapseBox.innerHTML = `
       <div class="episodes-header">
-        <span>📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${epStatusText}</span>
+        <span>📺 选集 (${episodes.length} 集) - ${epStatusText}</span>
         <div class="episodes-actions">
           <button class="btn-ep-order" onclick="event.stopPropagation(); toggleEpisodesOrder()">${isEpisodeReversed ? '倒序 ⇵' : '正序 ⇵'}</button>
           <span id="ep-arrow" style="font-size:11px;color:var(--text-sub);cursor:pointer;">▼ 折叠/展开</span>
@@ -3953,14 +3856,14 @@ function buildGroupBodyPanel(group) {
       <div class="episodes-grid" id="${gridId}"></div>
     `;
 
-    const epGrid = collapseBox.querySelector('.episodes-grid');
+    const epGrid = collapseBox.querySelector(`#${gridId}`);
     const displayEps = isEpisodeReversed ? episodes.slice().reverse() : episodes;
 
     displayEps.forEach((ep) => {
       const epIdx = ep.originalIdx;
       const btn = document.createElement('button');
       btn.className = 'ep-item ' + (epIdx === currentActiveEp ? 'active' : '');
-      btn.setAttribute('data-ep-idx', String(epIdx));
+      btn.setAttribute('data-ep-idx', String(epIdx)); // ← 就是缺了这一行标记
       btn.textContent = ep.name;
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -3992,7 +3895,7 @@ function buildGroupBodyPanel(group) {
       const btn = bodyPanel.querySelector(`#fav-btn-${it.id}`);
       if (!btn) return;
       const normItSite = normalizeCleanKey(it.siteName);
-      const favRecord = favs.find(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
+      const favRecord = favs.find(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItSite);
       if (favRecord) {
         btn.textContent = `★ 已收藏 (${favRecord.epName || '正片'})`;
         btn.style.color = '#facc15';
@@ -4058,7 +3961,7 @@ function buildGroupBodyPanel(group) {
         let favs = getLocalFavorites();
         const normGroupTitle = normalizeCleanKey(group.title);
         const normItemSite = normalizeCleanKey(item.siteName);
-        const existingIdx = favs.findIndex(f => f.type !== 'tv' && getCanonicalFavTitleKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItemSite);
+        const existingIdx = favs.findIndex(f => f.type !== 'tv' && normalizeCleanKey(f.title) === normGroupTitle && normalizeCleanKey(f.siteName) === normItemSite);
 
         const episodes = getEpisodesList(item);
         const lockEpIdx = (item.id === activeSubItemId && currentActiveEp >= 0) ? currentActiveEp : 0;
@@ -4130,7 +4033,7 @@ function buildGroupBodyPanel(group) {
       const countBadgeHtml = isSingleSourceSingleEp 
         ? `<span class="group-badge-count" style="color:var(--text-sub);background:var(--bg-tag);">单集正片</span>`
         : (group.items.length === 1 
-            ? `<span class="group-badge-count">${getDisplayEpisodesCount(episodes)} 集全</span>` 
+            ? `<span class="group-badge-count">${episodes.length} 集全</span>` 
             : `<span class="group-badge-count">${group.items.length} 个版本/源</span>`);
 
       const arrowIconHtml = isSingleSourceSingleEp
@@ -4144,45 +4047,43 @@ function buildGroupBodyPanel(group) {
         singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
-      const actorHtml = group.actor
-        ? '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">' + escapeHtml(group.actor) + '</span>'
-        : '';
-
       if (!groupCard || !groupCard.classList.contains('title-group-box')) {
         const posterSrc = group.poster ? escapeHtml(group.poster) : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
         groupCard = document.createElement('div');
         groupCard.className = 'title-group-box';
-        groupCard.innerHTML =
-          '<div class="title-group-header">' +
-            '<div class="group-header-left">' +
-              '<img class="group-poster" src="' + posterSrc + '" loading="lazy" onerror="this.src=\'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E\'" />' +
-              '<div class="group-info-wrap">' +
-                '<div class="group-main-title">' + escapeHtml(group.title) + '</div>' +
-                '<div class="group-meta-tag">' +
-                  '<span>' + escapeHtml(group.type || '影视') + '</span>' +
-                  groupCensorHtml +
-                  sourceTagHtml +
-                  pubDateHtml +
-                  actorHtml +
-                  countBadgeHtml +
-                  singlePingHtml +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-            arrowIconHtml +
-          '</div>';
+        groupCard.innerHTML = `
+          <div class="title-group-header">
+            <div class="group-header-left">
+              <img class="group-poster" src="${posterSrc}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2260%22%3E%3Crect width=%2244%22 height=%2260%22 fill=%22%23222%22/%3E%3C/svg%3E'" />
+              <div class="group-info-wrap">
+                <div class="group-main-title">${escapeHtml(group.title)}</div>
+                <div class="group-meta-tag">
+                  <span>${escapeHtml(group.type || '影视')}</span>
+                  ${groupCensorHtml}
+                  ${sourceTagHtml}
+                  ${pubDateHtml}
+                  ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
+                  ${countBadgeHtml}
+                  ${singlePingHtml}
+                </div>
+              </div>
+            </div>
+            ${arrowIconHtml}
+          </div>
+        `;
         domNodeCache.set(group.title, groupCard);
       } else {
         const metaTag = groupCard.querySelector('.group-meta-tag');
         if (metaTag) {
-          metaTag.innerHTML =
-            '<span>' + escapeHtml(group.type || '影视') + '</span>' +
-            groupCensorHtml +
-            sourceTagHtml +
-            pubDateHtml +
-            actorHtml +
-            countBadgeHtml +
-            singlePingHtml;
+          metaTag.innerHTML = `
+            <span>${escapeHtml(group.type || '影视')}</span>
+            ${groupCensorHtml}
+            ${sourceTagHtml}
+            ${pubDateHtml}
+            ${group.actor ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${escapeHtml(group.actor)}</span>` : ''}
+            ${countBadgeHtml}
+            ${singlePingHtml}
+          `;
         }
       }
 
@@ -4223,11 +4124,8 @@ function buildGroupBodyPanel(group) {
           groupCard.classList.add('expanded');
           activeGroupTitle = group.title;
           if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
-            const playingMatch = (currentPlayingMeta && getCanonicalFavTitleKey(currentPlayingMeta.title) === normalizeCleanKey(group.title))
-              ? group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName))
-              : null;
-            activeSubItemId = (playingMatch || group.items[0])?.id || '';
-            currentActiveEp = playingMatch ? (currentPlayingMeta.epIdx ?? 0) : 0;
+            activeSubItemId = group.items[0]?.id || '';
+            currentActiveEp = 0;
           }
           const panel = buildGroupBodyPanel(group);
           groupCard.appendChild(panel);
@@ -4245,21 +4143,6 @@ function buildGroupBodyPanel(group) {
       if (isCurrentActiveGroup && !isSingleSourceSingleEp) {
         if (!existingPanel) {
           groupCard.appendChild(buildGroupBodyPanel(group));
-        } else {
-          // 若当前卡片正处于展开状态，实时同步内部子线路卡片的测速文字与快慢排序顺序
-          const subCards = Array.from(existingPanel.querySelectorAll('.source-sub-card'));
-          if (subCards.length > 0) {
-            group.items.forEach(item => {
-              const badge = existingPanel.querySelector('#ping-badge-' + item.id);
-              if (badge && item.ping !== undefined && item.ping >= 0) {
-                const isErr = item.ping >= 9999;
-                badge.textContent = isErr ? '超时' : (item.ping + 'ms');
-                badge.className = isErr ? 'metric-ping-err' : (item.ping < 500 ? 'metric-ping-ok' : (item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err'));
-              }
-              const card = subCards.find(c => c.querySelector('#ping-badge-' + item.id));
-              if (card) existingPanel.appendChild(card);
-            });
-          }
         }
       } else if (existingPanel) {
         existingPanel.remove();
@@ -4298,9 +4181,9 @@ function buildGroupBodyPanel(group) {
 
       if (!groupedVodList?.length) {
         if (isSearchingActive) {
-          container.innerHTML = '<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《' + escapeHtml(currentSearchingWord) + '》中，请稍候...</div>';
+          container.innerHTML = `<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《${escapeHtml(currentSearchingWord)}》中，请稍候...</div>`;
         } else {
-          container.innerHTML = '<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>';
+          container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">在上方输入关键词搜索 🔍</div>`;
         }
         return;
       }
@@ -4332,19 +4215,20 @@ function buildGroupBodyPanel(group) {
 
       const unifiedBar = document.createElement('div');
       unifiedBar.className = 'top-unified-bar';
-      unifiedBar.innerHTML =
-        '<div class="bar-left-group">' +
-          (countMulti > 0 ? '<button type="button" class="filter-pill-btn ' + (currentCategoryFilter === 'multi' ? 'active' : '') + '" onclick="setCategoryFilter(\'multi\')">🎬 聚合(' + countMulti + ')</button>' : '') +
-          (countSingle > 0 ? '<button type="button" class="filter-pill-btn ' + (currentCategoryFilter === 'single' ? 'active' : '') + '" onclick="setCategoryFilter(\'single\')">⚡ 单源(' + countSingle + ')</button>' : '') +
-          (countNsfw > 0 ? '<button type="button" class="filter-pill-btn ' + (currentCategoryFilter === 'nsfw' ? 'active' : '') + '" onclick="setCategoryFilter(\'nsfw\')">🌶️ 专区(' + countNsfw + ')</button>' : '') +
-        '</div>' +
-        '<div class="bar-right-group">' +
-          '<button type="button" class="btn-sort-action ' + (isCustomSortActive ? 'active-sort' : '') + '" onclick="cycleSortMode()" title="点击切换：综合 / 最新 / 最早">' +
-            '<span>' + sortLabel + '</span>' +
-            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>' +
-          '</button>' +
-          '<button type="button" id="btn-sort-speed-nav" class="btn-sort-action ' + (currentVodSortType === 'speed' ? 'active-sort' : '') + '" onclick="setSortType(\'speed\')">' + (isSpeedTesting ? '⚡ 测速中' : '⚡ 测速') + '</button>' +
-        '</div>';
+      unifiedBar.innerHTML = `
+        <div class="bar-left-group">
+          ${countMulti > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'multi' ? 'active' : ''}" onclick="setCategoryFilter('multi')">🎬 聚合(${countMulti})</button>` : ''}
+          ${countSingle > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'single' ? 'active' : ''}" onclick="setCategoryFilter('single')">⚡ 单源(${countSingle})</button>` : ''}
+          ${countNsfw > 0 ? `<button type="button" class="filter-pill-btn ${currentCategoryFilter === 'nsfw' ? 'active' : ''}" onclick="setCategoryFilter('nsfw')">🌶️ 专区(${countNsfw})</button>` : ''}
+        </div>
+        <div class="bar-right-group">
+          <button type="button" class="btn-sort-action ${isCustomSortActive ? 'active-sort' : ''}" onclick="cycleSortMode()" title="点击切换：综合 / 最新 / 最早">
+            <span>${sortLabel}</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8;"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+          </button>
+          <button type="button" id="btn-sort-speed-nav" class="btn-sort-action ${currentVodSortType === 'speed' ? 'active-sort' : ''}" onclick="setSortType('speed')">${isSpeedTesting ? '⚡ 测速中' : '⚡ 测速'}</button>
+        </div>
+      `;
       frag.appendChild(unifiedBar);
 
       activeDisplayCardList = [];
@@ -4355,11 +4239,6 @@ function buildGroupBodyPanel(group) {
       } else if (currentCategoryFilter === 'nsfw') {
         nsfwGroups.forEach(g => activeDisplayCardList.push(g));
       }
-
-      // 保持缓存卡片的内部展开状态与节点顺序一致
-      domNodeCache.forEach((cardEl) => {
-        if (cardEl.parentNode) cardEl.parentNode.removeChild(cardEl);
-      });
 
       currentlyRenderedCount = 0;
       const initialChunkSize = Math.min(activeDisplayCardList.length, CHUNK_PAGE_SIZE);
@@ -4390,89 +4269,36 @@ function buildGroupBodyPanel(group) {
       }
     }, { passive: true });
 
-    // 智能多播放组解析：优先取 .m3u8 播放组，若为空则自动遍历其他组提取有效直链，救回“假0集”片源
     function getEpisodesList(item) {
       if (!item?.vod) return [];
-      const playUrlStr = (item.vod.vod_play_url || '').trim();
-      if (!playUrlStr) return [];
+      const playUrlStr = item.vod.vod_play_url || '';
+      const playGroups = playUrlStr.split('$$$');
+      const m3u8Group = playGroups.find(g => g.includes('.m3u8')) || playGroups[0] || '';
+      const rawEps = m3u8Group.split('#').filter(Boolean);
 
-      const playGroups = playUrlStr.split('\x24\x24\x24').map(s => s.trim()).filter(Boolean);
-      const sortedGroups = playGroups.slice().sort((a, b) => {
-        const hasM3u8A = a.toLowerCase().includes('.m3u8') ? 0 : 1;
-        const hasM3u8B = b.toLowerCase().includes('.m3u8') ? 0 : 1;
-        return hasM3u8A - hasM3u8B;
-      });
-
-      for (const grp of sortedGroups) {
-        const rawEps = grp.split('#').map(s => s.trim()).filter(Boolean);
-        const validEps = [];
-        const seenKeyToIndex = new Map();
-
-        rawEps.forEach((ep, idx) => {
-          const parts = ep.split('\x24');
-          const urlCandidate = (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
-          if (!isSafeUrl(urlCandidate)) return;
-
-          const rawName = (parts.length > 1 ? parts[0] : ('第' + (idx + 1) + '集')).trim() || ('第' + (idx + 1) + '集');
-          const pureNumMatch = rawName.match(/^(?:第\s*)?0*(\d+)\s*(?:集|话|期)?(?![\s\S])/i);
-          const dedupKey = pureNumMatch ? ('ep_num_' + pureNumMatch[1]) : ('ep_str_' + rawName.toLowerCase());
-
-          if (seenKeyToIndex.has(dedupKey)) {
-            const existIdx = seenKeyToIndex.get(dedupKey);
-            validEps[existIdx].url = urlCandidate;
-            validEps[existIdx].name = rawName;
-          } else {
-            seenKeyToIndex.set(dedupKey, validEps.length);
-            validEps.push({
-              originalIdx: validEps.length,
-              name: rawName,
-              url: urlCandidate
-            });
-          }
-        });
-
-        if (validEps.length > 0) return validEps;
-      }
-
-      return [];
-    }
-
-    // 智能获取展示总集数：若最后一集明确为“第215集”，则以实际最新集数215为准，消除特别篇/预告造成的数量虚高
-    function getDisplayEpisodesCount(episodes) {
-      if (!episodes || episodes.length === 0) return 0;
-      const lastEpName = String(episodes[episodes.length - 1]?.name || '').trim();
-      const lastNum = parseEpisodeNumber(lastEpName);
-      if (lastNum && lastNum > 0 && /(?:第|ep|e)\s*\d+\s*(?:集|话|期)/i.test(lastEpName)) {
-        return lastNum;
-      }
-      return episodes.length;
-    }
-
-    // 智能格式化当前集数文字：直接读取按钮真实集数（如“第215集” -> “当前第 215 集”），绝不盲目用数组下标+1
-    function formatCurrentEpStatus(episodes, activeIdx) {
-      if (activeIdx < 0 || !episodes || !episodes[activeIdx]) {
-        return '<span style="color:#ef4444;font-weight:bold;">未更新当前集</span>';
-      }
-      const epName = String(episodes[activeIdx].name || '').trim();
-      const epNum = parseEpisodeNumber(epName);
-      if (epNum !== null && /(?:第|ep|e)\s*\d+\s*(?:集|话|期)?|^\d+(?![\s\S])/i.test(epName)) {
-        return '当前第 ' + epNum + ' 集';
-      }
-      return epName ? ('当前: ' + escapeHtml(epName)) : ('当前第 ' + (activeIdx + 1) + ' 集');
+      return rawEps.map((ep, idx) => {
+        const parts = ep.split('$');
+        const urlCandidate = (parts[1] || parts[0]).trim();
+        return { 
+          originalIdx: idx,
+          name: parts[0] || `第${idx+1}集`, 
+          url: isSafeUrl(urlCandidate) ? urlCandidate : '' 
+        };
+      }).filter(ep => ep.url !== '');
     }
 
     /* === 集数编号与语义提取辅助函数 === */
-    function parseEpisodeNumber(name) {
-      if (!name) return null;
-      const str = String(name).trim();
-      const mExplicit = str.match(/(?:第|ep|e)\s*(\d+)\s*(?:集|话|期)?/i);
-      if (mExplicit) return parseInt(mExplicit[1], 10);
-      const mPure = str.match(/^\s*(\d+)\s*(?![\s\S])/);
-      if (mPure) return parseInt(mPure[1], 10);
-      const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|(?![\s\S]))/);
-      if (mNum) return parseInt(mNum[1], 10);
-      return null;
-    }
+function parseEpisodeNumber(name) {
+  if (!name) return null;
+  const str = String(name).trim();
+  const mExplicit = str.match(/(?:第|ep|e)\s*(\d+)\s*(?:集|话|期)?/i);
+  if (mExplicit) return parseInt(mExplicit[1], 10);
+  const mPure = str.match(/^\s*(\d+)\s*$/);
+  if (mPure) return parseInt(mPure[1], 10);
+  const mNum = str.match(/(?:^|[^\d])(\d+)(?:[^\d]|$)/);
+  if (mNum) return parseInt(mNum[1], 10);
+  return null;
+}
 
 function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex = 0) {
   if (!targetEpisodes || targetEpisodes.length === 0) return -1;
@@ -4547,7 +4373,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     routeBadge.style.display = 'inline-block';
     routeBadge.textContent = `${item.siteName} · 未更新`;
 
-    setStatus(`⚠️ 该线路暂未更新【${escapeHtml(missingEpText)}】<br><span style="color:var(--text-sub);font-size:12px;">该源共 ${getDisplayEpisodesCount(episodes)} 集，请选择其他源播放</span>`, true);
+    setStatus(`⚠️ 该线路暂未更新【${escapeHtml(missingEpText)}】<br><span style="color:var(--text-sub);font-size:12px;">该源共 ${episodes.length} 集，请选择其他源播放</span>`, true);
     return;
   }
 
@@ -4605,16 +4431,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
             const bIdx = parseInt(b.getAttribute('data-ep-idx'), 10);
             b.classList.toggle('active', bIdx === targetEpIdx);
           });
-          const favHeaderSpan = grid.parentElement?.querySelector('.episodes-header > span');
-          if (favHeaderSpan) {
-            favHeaderSpan.innerHTML = `📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${formatCurrentEpStatus(episodes, targetEpIdx)}`;
-          }
         }
       }
     }
   });
 
-  // 主搜索视窗选集网格与集数标题联动高亮
+  // 主搜索视窗选集网格与集数标题联动高亮（已修复转义符）
   const mainEpGrid = document.getElementById(`episodes-grid-list-${cleanCurrentTitle}`);
   if (mainEpGrid) {
     mainEpGrid.querySelectorAll('.ep-item').forEach(b => {
@@ -4623,7 +4445,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     });
     const epHeaderSpan = mainEpGrid.parentElement?.querySelector('.episodes-header > span');
     if (epHeaderSpan) {
-      epHeaderSpan.innerHTML = `📺 选集 (${getDisplayEpisodesCount(episodes)} 集) - ${formatCurrentEpStatus(episodes, targetEpIdx)}`;
+      epHeaderSpan.innerHTML = `📺 选集 (${episodes.length} 集) - 当前第 ${targetEpIdx + 1} 集`;
     }
   }
 
@@ -4791,12 +4613,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    /* === 电视直播模块：持久化拉取、EPG 电子节目单与 VPS 测速排序逻辑 === */
-    const KEY_TV_EPG_URL = "custom_tv_epg_url_v1";
-    let tvEpgSourceUrl = localStorage.getItem(KEY_TV_EPG_URL) || "";
-    const tvPingCache = new Map(); // 记录直播源 VPS 测速结果: url -> ping(ms)
-    const tvEpgCache = new Map();  // 记录频道 EPG 节目预告缓存: chName -> { data, ts }
-
+    /* === 电视直播模块：持久化拉取与增量更新逻辑 === */
     async function fetchTvM3uContent(m3uUrl) {
       try {
         const res = await fetch(`${VPS_TV_BASE}/m3u?url=${encodeURIComponent(m3uUrl)}&_t=${Date.now()}`);
@@ -4832,13 +4649,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       let temp = null;
       for (let line of lines) {
         line = line.trim();
-        if (line.startsWith('#EXTM3U')) {
-          const epgMatch = line.match(/(?:x-tvg-url|url-tvg|tvg-url)="([^"]+)"/i);
-          if (epgMatch && epgMatch[1]) {
-            tvEpgSourceUrl = epgMatch[1].trim();
-            localStorage.setItem(KEY_TV_EPG_URL, tvEpgSourceUrl);
-          }
-        } else if (line.startsWith('#EXTINF:')) {
+        if (line.startsWith('#EXTINF:')) {
           const rawName = (line.split(',')[1] || '').trim();
           const tvgMatch = line.match(/tvg-name="([^"]+)"/);
           const name = tvgMatch ? tvgMatch[1] : (rawName || '未命名频道');
@@ -4860,180 +4671,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           temp = null;
         }
       }
+      // 实时全量持久化储存至 D1 和 localStorage，保证刷新/重启网页数据不丢
       if (saveToStorage && totalChannelsCount > 0) {
-        const payload = { groups, totalChannelsCount, totalStreamsCount, tvEpgSourceUrl };
+        const payload = { groups, totalChannelsCount, totalStreamsCount };
         setD1Data(KEY_TV_CHANNELS, payload);
-      }
-    }
-
-    // 向解码 VPS 请求频道 EPG 电子节目预告
-    async function loadTvChannelEpg(chName, epgContainer, inlineTagEl, forceRefresh = false) {
-      if (!epgContainer) return;
-      const cached = tvEpgCache.get(chName);
-      if (!forceRefresh && cached && (Date.now() - cached.ts < 180000)) {
-        renderTvEpgBox(chName, cached.data, epgContainer, inlineTagEl);
-        return;
-      }
-
-      try {
-        const queryUrl = `${VPS_TV_BASE}/epg?ch=${encodeURIComponent(chName)}&epg_url=${encodeURIComponent(tvEpgSourceUrl || '')}&_t=${Date.now()}`;
-        const res = await fetch(queryUrl);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        tvEpgCache.set(chName, { data, ts: Date.now() });
-        renderTvEpgBox(chName, data, epgContainer, inlineTagEl);
-      } catch (_) {
-        const bodyEl = epgContainer.querySelector('.tv-epg-body');
-        if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--text-mute);font-size:11px;padding:2px 0;">暂无该频道的电子节目单数据</div>`;
-      }
-    }
-
-    function renderTvEpgBox(chName, data, epgContainer, inlineTagEl) {
-      const bodyEl = epgContainer.querySelector('.tv-epg-body');
-      const scheduleEl = epgContainer.querySelector('.tv-epg-schedule');
-      const toggleScheduleBtn = epgContainer.querySelector('.btn-toggle-schedule');
-      if (!bodyEl) return;
-
-      if (!data || !data.ok || (!data.now && (!data.list || data.list.length === 0))) {
-        bodyEl.innerHTML = `<div style="color:var(--text-mute);font-size:11px;padding:2px 0;">暂无该频道今日节目预告</div>`;
-        if (toggleScheduleBtn) toggleScheduleBtn.style.display = 'none';
-        return;
-      }
-
-      const nowProg = data.now;
-      const nextProg = data.next;
-
-      if (nowProg && inlineTagEl) {
-        inlineTagEl.textContent = `· ${nowProg.title}`;
-      }
-
-      let html = '';
-      if (nowProg) {
-        html += `
-          <div class="tv-epg-row">
-            <span class="tv-epg-badge live">正在播出</span>
-            <span class="tv-epg-time">${escapeHtml(nowProg.start)}-${escapeHtml(nowProg.end)}</span>
-            <span class="tv-epg-title" title="${escapeHtml(nowProg.title)}">${escapeHtml(nowProg.title)}</span>
-          </div>
-          <div class="tv-epg-progress"><div class="tv-epg-progress-bar" style="width:${nowProg.progress || 20}%"></div></div>
-        `;
-      }
-      if (nextProg) {
-        html += `
-          <div class="tv-epg-row">
-            <span class="tv-epg-badge next">即将播出</span>
-            <span class="tv-epg-time">${escapeHtml(nextProg.start)}-${escapeHtml(nextProg.end)}</span>
-            <span class="tv-epg-title" style="color:var(--text-sub);font-weight:normal;" title="${escapeHtml(nextProg.title)}">${escapeHtml(nextProg.title)}</span>
-          </div>
-        `;
-      }
-      bodyEl.innerHTML = html;
-
-      if (scheduleEl && Array.isArray(data.list) && data.list.length > 0) {
-        if (toggleScheduleBtn) toggleScheduleBtn.style.display = 'inline-block';
-        scheduleEl.innerHTML = data.list.map(item => `
-          <div class="tv-epg-schedule-item ${item.status === 'live' ? 'is-live' : ''}">
-            <span style="font-family:monospace;flex-shrink:0;">${escapeHtml(item.start)} - ${escapeHtml(item.end)}</span>
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${escapeHtml(item.title)}</span>
-            ${item.status === 'live' ? '<span style="font-size:10px;flex-shrink:0;">● 直播中</span>' : ''}
-          </div>
-        `).join('');
-      }
-    }
-
-    // 通过解码 VPS 对当前频道下的所有直播源并发测速并按速度自动排序
-    async function testAndSortTvSources(chName, panelEl, rowEl, autoPlayFastest = false) {
-      const items = Array.from(panelEl.querySelectorAll('.source-item'));
-      if (items.length === 0) return;
-
-      let hasTriggeredAutoPlay = false;
-
-      // 若只有一个源，直接起播并后台测速显示延迟
-      if (autoPlayFastest && items.length === 1) {
-        hasTriggeredAutoPlay = true;
-        items[0].click();
-      }
-
-      items.forEach(el => {
-        const badge = el.querySelector('.tv-ping-badge');
-        if (badge) {
-          badge.textContent = 'VPS测速中...';
-          badge.className = 'tv-ping-badge metric-ping-wait';
-        }
-        const fastTag = el.querySelector('.tv-fast-badge');
-        if (fastTag) fastTag.remove();
-      });
-
-      // 若该频道下已有正在播放的线路，则仅测速排序，不重复触发起播断流
-      if (panelEl.querySelector('.source-item.active-source')) {
-        hasTriggeredAutoPlay = true;
-      }
-
-      // 预设兜底定时器：若自动起播模式下 1.2 秒内还未选出最快源，先起播排第一的源防等待
-      let fallbackPlayTimer = null;
-      if (autoPlayFastest && !hasTriggeredAutoPlay) {
-        fallbackPlayTimer = setTimeout(() => {
-          if (!hasTriggeredAutoPlay && !panelEl.querySelector('.source-item.active-source') && rowEl.classList.contains('expanded')) {
-            hasTriggeredAutoPlay = true;
-            const currentFirst = panelEl.querySelector('.source-item');
-            if (currentFirst) currentFirst.click();
-          }
-        }, 1200);
-      }
-
-      await Promise.all(items.map(async (itemEl) => {
-        const rawUrl = itemEl.getAttribute('data-raw-url') || '';
-        const badge = itemEl.querySelector('.tv-ping-badge');
-        let ping = 9999;
-
-        try {
-          const res = await fetch(`${VPS_TV_BASE}/ping?url=${encodeURIComponent(rawUrl)}&_t=${Date.now()}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.ok && data.ping > 0) ping = data.ping;
-          }
-        } catch (_) {}
-
-        tvPingCache.set(rawUrl, ping);
-        itemEl.setAttribute('data-ping', String(ping));
-
-        if (badge) {
-          const isErr = ping >= 9999;
-          badge.textContent = isErr ? '超时' : `${ping}ms`;
-          badge.className = 'tv-ping-badge ' + (isErr ? 'metric-ping-err' : (ping < 500 ? 'metric-ping-ok' : (ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err')));
-        }
-
-        // 一旦首个有效高速源测出结果，在自动起播模式下立即抢先起播
-        if (autoPlayFastest && !hasTriggeredAutoPlay && !panelEl.querySelector('.source-item.active-source') && ping < 9999 && rowEl.classList.contains('expanded')) {
-          hasTriggeredAutoPlay = true;
-          if (fallbackPlayTimer) clearTimeout(fallbackPlayTimer);
-          itemEl.click();
-        }
-      }));
-
-      if (fallbackPlayTimer) clearTimeout(fallbackPlayTimer);
-
-      // 按 VPS 测速延迟从快到慢实时重排 DOM 顺序
-      const sortedItems = Array.from(panelEl.querySelectorAll('.source-item')).sort((a, b) => {
-        const pa = parseInt(a.getAttribute('data-ping') || '9999', 10);
-        const pb = parseInt(b.getAttribute('data-ping') || '9999', 10);
-        return pa - pb;
-      });
-
-      sortedItems.forEach((el, index) => {
-        panelEl.appendChild(el);
-        const nameWrap = el.querySelector('.source-name-wrap');
-        if (nameWrap && index === 0 && parseInt(el.getAttribute('data-ping') || '9999', 10) < 9999 && sortedItems.length > 1) {
-          const fastTag = document.createElement('span');
-          fastTag.className = 'tv-fast-badge';
-          fastTag.textContent = '⚡ 最快';
-          nameWrap.appendChild(fastTag);
-        }
-      });
-
-      if (autoPlayFastest && !hasTriggeredAutoPlay && sortedItems[0] && rowEl.classList.contains('expanded')) {
-        hasTriggeredAutoPlay = true;
-        sortedItems[0].click();
       }
     }
 
@@ -5063,75 +4704,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           const panelEl = document.createElement('div');
           panelEl.className = 'sources-panel';
 
-          // 1. 构建顶部 EPG 电子节目预告面板
-          const epgBox = document.createElement('div');
-          epgBox.className = 'tv-epg-box';
-          epgBox.innerHTML = `
-            <div class="tv-epg-header">
-              <span style="font-weight:600;color:var(--text-main);">📅 电子节目预告 (EPG)</span>
-              <div class="tv-epg-actions">
-                <button type="button" class="tv-epg-btn btn-retest-speed">⚡ VPS测速排序</button>
-                <button type="button" class="tv-epg-btn btn-toggle-schedule" style="display:none;">全天节目单 ▼</button>
-              </div>
-            </div>
-            <div class="tv-epg-body">
-              <div style="color:var(--text-sub);font-size:11px;padding:2px 0;">⏳ 正在同步节目预告...</div>
-            </div>
-            <div class="tv-epg-schedule"></div>
-          `;
-
-          const scheduleEl = epgBox.querySelector('.tv-epg-schedule');
-          const toggleScheduleBtn = epgBox.querySelector('.btn-toggle-schedule');
-          toggleScheduleBtn.onclick = (e) => {
-            e.stopPropagation();
-            const isShow = scheduleEl.classList.toggle('show');
-            toggleScheduleBtn.textContent = isShow ? '收起节目单 ▲' : '全天节目单 ▼';
-            if (isShow) {
-              const liveItem = scheduleEl.querySelector('.is-live');
-              if (liveItem) liveItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            }
-          };
-
-          const retestBtn = epgBox.querySelector('.btn-retest-speed');
-          retestBtn.onclick = (e) => {
-            e.stopPropagation();
-            testAndSortTvSources(chName, panelEl, rowEl, false);
-          };
-
-          panelEl.appendChild(epgBox);
-
-          // 2. 构建直播源线路列表（支持读取已缓存的 VPS 测速结果预排序）
-          const indexedUrls = urls.map((u, idx) => ({
-            url: u,
-            origIdx: idx,
-            ping: tvPingCache.has(u) ? tvPingCache.get(u) : 99999
-          })).sort((a, b) => a.ping - b.ping);
-
-          indexedUrls.forEach((itemObj) => {
-            const url = itemObj.url;
-            const idx = itemObj.origIdx;
-            const cachedPing = tvPingCache.get(url);
-
+          urls.forEach((url, idx) => {
             const itemEl = document.createElement('div');
             itemEl.className = 'source-item';
-            itemEl.setAttribute('data-raw-url', url);
-            itemEl.setAttribute('data-ping', cachedPing !== undefined ? String(cachedPing) : '9999');
-
-            let pingText = '待测速';
-            let pingCls = 'metric-ping-wait';
-            if (cachedPing !== undefined) {
-              const isErr = cachedPing >= 9999;
-              pingText = isErr ? '超时' : `${cachedPing}ms`;
-              pingCls = isErr ? 'metric-ping-err' : (cachedPing < 500 ? 'metric-ping-ok' : (cachedPing < 1200 ? 'metric-ping-warn' : 'metric-ping-err'));
-            }
-
-            itemEl.innerHTML = `
-              <span class="source-name-wrap" style="display:flex;align-items:center;">
-                <span class="source-name">线路 ${idx + 1}</span>
-              </span>
-              <span class="tv-ping-badge ${pingCls}" style="font-family:monospace;font-size:11px;">${pingText}</span>
-            `;
-
+            itemEl.innerHTML = `<span class="source-name">线路 ${idx + 1}</span>`;
             itemEl.onclick = (e) => {
               e.stopPropagation();
               isLiveMode = true;
@@ -5153,25 +4729,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
           const mainEl = document.createElement('div');
           mainEl.className = 'channel-main';
-          const cachedEpgNow = tvEpgCache.get(chName)?.data?.now?.title;
           mainEl.innerHTML = `
-            <div class="channel-title" style="min-width:0;flex:1;">
-              <span class="channel-arrow">▶</span>
-              <span style="flex-shrink:0;">${escapeHtml(chName)}</span>
-              <span class="tv-epg-inline-tag">${cachedEpgNow ? '· ' + escapeHtml(cachedEpgNow) : ''}</span>
-            </div>
-            <div class="channel-right-tools" style="flex-shrink:0;"><span class="badge-lines">${urls.length} 路线</span></div>
+            <div class="channel-title"><span class="channel-arrow">▶</span><span>${escapeHtml(chName)}</span></div>
+            <div class="channel-right-tools"><span class="badge-lines">${urls.length} 路线</span></div>
           `;
-
-          const inlineTagEl = mainEl.querySelector('.tv-epg-inline-tag');
 
           mainEl.onclick = () => {
             const isExpanded = rowEl.classList.contains('expanded');
             document.querySelectorAll('.channel-row.expanded').forEach(el => el !== rowEl && el.classList.remove('expanded'));
             if (!isExpanded) {
               rowEl.classList.add('expanded');
-              loadTvChannelEpg(chName, epgBox, inlineTagEl, false);
-              testAndSortTvSources(chName, panelEl, rowEl, true);
+              panelEl.querySelector('.source-item')?.click();
             } else {
               rowEl.classList.remove('expanded');
             }
@@ -5283,7 +4851,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               groups = parsedTv.groups || parsedTv;
               totalChannelsCount = parsedTv.totalChannelsCount || 0;
               totalStreamsCount = parsedTv.totalStreamsCount || 0;
-              if (parsedTv.tvEpgSourceUrl) tvEpgSourceUrl = parsedTv.tvEpgSourceUrl;
             }
           } catch (_) {}
         }
@@ -5400,10 +4967,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               groups = parsedTv.groups || parsedTv;
               totalChannelsCount = parsedTv.totalChannelsCount || 0;
               totalStreamsCount = parsedTv.totalStreamsCount || 0;
-              if (parsedTv.tvEpgSourceUrl) {
-                tvEpgSourceUrl = parsedTv.tvEpgSourceUrl;
-                localStorage.setItem(KEY_TV_EPG_URL, tvEpgSourceUrl);
-              }
               if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
             }
           } catch (_) {}
