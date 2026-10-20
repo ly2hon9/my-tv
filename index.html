@@ -400,8 +400,30 @@
     .channel-row.playing .channel-title { color: var(--accent); font-weight: bold; }
     .sources-panel { display: none; background: var(--bg-sub-panel); padding: 8px 12px 12px 16px; border-top: 1px solid var(--border-color); }
     .channel-row.expanded .sources-panel { display: block; }
-    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; }
+    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .source-item:hover { background: var(--bg-card-hover); }
     .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
+
+    /* 电视直播专属：EPG 电子节目预告与 VPS 测速面板 */
+    .tv-epg-inline-tag { font-size: 11px; color: var(--text-sub); font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+    .channel-row.playing .tv-epg-inline-tag { color: var(--accent); }
+    .tv-epg-box { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; font-size: 12px; }
+    .tv-epg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: var(--text-sub); }
+    .tv-epg-actions { display: flex; align-items: center; gap: 6px; }
+    .tv-epg-btn { background: var(--bg-tag); border: 1px solid var(--border-light); color: var(--accent); padding: 2px 7px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 500; }
+    .tv-epg-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; line-height: 1.4; }
+    .tv-epg-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+    .tv-epg-badge.live { background: rgba(0, 112, 243, 0.18); color: var(--accent); border: 1px solid rgba(0, 112, 243, 0.4); }
+    .tv-epg-badge.next { background: var(--bg-tag); color: var(--text-sub); }
+    .tv-epg-time { font-family: monospace; font-size: 11px; color: var(--text-sub); flex-shrink: 0; }
+    .tv-epg-title { color: var(--text-main); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .tv-epg-progress { width: 100%; height: 3px; background: var(--border-color); border-radius: 2px; margin: 5px 0 4px 0; overflow: hidden; }
+    .tv-epg-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+    .tv-epg-schedule { display: none; max-height: 170px; overflow-y: auto; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-light); scrollbar-width: thin; }
+    .tv-epg-schedule.show { display: block; }
+    .tv-epg-schedule-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: 11px; color: var(--text-sub); }
+    .tv-epg-schedule-item.is-live { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .tv-fast-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; background: #283e2e; color: #4ade80; font-weight: 600; margin-left: 6px; }
 
     /* ===================================================================
        高级全套毛玻璃系统 (Glassmorphism Modal System)
@@ -4613,7 +4635,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    /* === 电视直播模块：持久化拉取与增量更新逻辑 === */
+    /* === 电视直播模块：持久化拉取、EPG 电子节目单与 VPS 测速排序逻辑 === */
+    const KEY_TV_EPG_URL = "custom_tv_epg_url_v1";
+    let tvEpgSourceUrl = localStorage.getItem(KEY_TV_EPG_URL) || "";
+    const tvPingCache = new Map(); // 记录直播源 VPS 测速结果: url -> ping(ms)
+    const tvEpgCache = new Map();  // 记录频道 EPG 节目预告缓存: chName -> { data, ts }
+
     async function fetchTvM3uContent(m3uUrl) {
       try {
         const res = await fetch(`${VPS_TV_BASE}/m3u?url=${encodeURIComponent(m3uUrl)}&_t=${Date.now()}`);
@@ -4649,7 +4676,13 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       let temp = null;
       for (let line of lines) {
         line = line.trim();
-        if (line.startsWith('#EXTINF:')) {
+        if (line.startsWith('#EXTM3U')) {
+          const epgMatch = line.match(/(?:x-tvg-url|url-tvg|tvg-url)="([^"]+)"/i);
+          if (epgMatch && epgMatch[1]) {
+            tvEpgSourceUrl = epgMatch[1].trim();
+            localStorage.setItem(KEY_TV_EPG_URL, tvEpgSourceUrl);
+          }
+        } else if (line.startsWith('#EXTINF:')) {
           const rawName = (line.split(',')[1] || '').trim();
           const tvgMatch = line.match(/tvg-name="([^"]+)"/);
           const name = tvgMatch ? tvgMatch[1] : (rawName || '未命名频道');
@@ -4671,10 +4704,175 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           temp = null;
         }
       }
-      // 实时全量持久化储存至 D1 和 localStorage，保证刷新/重启网页数据不丢
       if (saveToStorage && totalChannelsCount > 0) {
-        const payload = { groups, totalChannelsCount, totalStreamsCount };
+        const payload = { groups, totalChannelsCount, totalStreamsCount, tvEpgSourceUrl };
         setD1Data(KEY_TV_CHANNELS, payload);
+      }
+    }
+
+    // 向解码 VPS 请求频道 EPG 电子节目预告
+    async function loadTvChannelEpg(chName, epgContainer, inlineTagEl, forceRefresh = false) {
+      if (!epgContainer) return;
+      const cached = tvEpgCache.get(chName);
+      if (!forceRefresh && cached && (Date.now() - cached.ts < 180000)) {
+        renderTvEpgBox(chName, cached.data, epgContainer, inlineTagEl);
+        return;
+      }
+
+      try {
+        const queryUrl = `${VPS_TV_BASE}/epg?ch=${encodeURIComponent(chName)}&epg_url=${encodeURIComponent(tvEpgSourceUrl || '')}&_t=${Date.now()}`;
+        const res = await fetch(queryUrl);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        tvEpgCache.set(chName, { data, ts: Date.now() });
+        renderTvEpgBox(chName, data, epgContainer, inlineTagEl);
+      } catch (_) {
+        const bodyEl = epgContainer.querySelector('.tv-epg-body');
+        if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--text-mute);font-size:11px;padding:2px 0;">暂无该频道的电子节目单数据</div>`;
+      }
+    }
+
+    function renderTvEpgBox(chName, data, epgContainer, inlineTagEl) {
+      const bodyEl = epgContainer.querySelector('.tv-epg-body');
+      const scheduleEl = epgContainer.querySelector('.tv-epg-schedule');
+      const toggleScheduleBtn = epgContainer.querySelector('.btn-toggle-schedule');
+      if (!bodyEl) return;
+
+      if (!data || !data.ok || (!data.now && (!data.list || data.list.length === 0))) {
+        bodyEl.innerHTML = `<div style="color:var(--text-mute);font-size:11px;padding:2px 0;">暂无该频道今日节目预告</div>`;
+        if (toggleScheduleBtn) toggleScheduleBtn.style.display = 'none';
+        return;
+      }
+
+      const nowProg = data.now;
+      const nextProg = data.next;
+
+      if (nowProg && inlineTagEl) {
+        inlineTagEl.textContent = `· ${nowProg.title}`;
+      }
+
+      let html = '';
+      if (nowProg) {
+        html += `
+          <div class="tv-epg-row">
+            <span class="tv-epg-badge live">正在播出</span>
+            <span class="tv-epg-time">${escapeHtml(nowProg.start)}-${escapeHtml(nowProg.end)}</span>
+            <span class="tv-epg-title" title="${escapeHtml(nowProg.title)}">${escapeHtml(nowProg.title)}</span>
+          </div>
+          <div class="tv-epg-progress"><div class="tv-epg-progress-bar" style="width:${nowProg.progress || 20}%"></div></div>
+        `;
+      }
+      if (nextProg) {
+        html += `
+          <div class="tv-epg-row">
+            <span class="tv-epg-badge next">即将播出</span>
+            <span class="tv-epg-time">${escapeHtml(nextProg.start)}-${escapeHtml(nextProg.end)}</span>
+            <span class="tv-epg-title" style="color:var(--text-sub);font-weight:normal;" title="${escapeHtml(nextProg.title)}">${escapeHtml(nextProg.title)}</span>
+          </div>
+        `;
+      }
+      bodyEl.innerHTML = html;
+
+      if (scheduleEl && Array.isArray(data.list) && data.list.length > 0) {
+        if (toggleScheduleBtn) toggleScheduleBtn.style.display = 'inline-block';
+        scheduleEl.innerHTML = data.list.map(item => `
+          <div class="tv-epg-schedule-item ${item.status === 'live' ? 'is-live' : ''}">
+            <span style="font-family:monospace;flex-shrink:0;">${escapeHtml(item.start)} - ${escapeHtml(item.end)}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${escapeHtml(item.title)}</span>
+            ${item.status === 'live' ? '<span style="font-size:10px;flex-shrink:0;">● 直播中</span>' : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    // 通过解码 VPS 对当前频道下的所有直播源并发测速并按速度自动排序
+    async function testAndSortTvSources(chName, panelEl, rowEl, autoPlayFastest = false) {
+      const items = Array.from(panelEl.querySelectorAll('.source-item'));
+      if (items.length === 0) return;
+
+      let hasTriggeredAutoPlay = false;
+
+      // 若只有一个源，直接起播并后台测速显示延迟
+      if (autoPlayFastest && items.length === 1) {
+        hasTriggeredAutoPlay = true;
+        items[0].click();
+      }
+
+      items.forEach(el => {
+        const badge = el.querySelector('.tv-ping-badge');
+        if (badge) {
+          badge.textContent = 'VPS测速中...';
+          badge.className = 'tv-ping-badge metric-ping-wait';
+        }
+        const fastTag = el.querySelector('.tv-fast-badge');
+        if (fastTag) fastTag.remove();
+      });
+
+      // 预设兜底定时器：若自动起播模式下 1.2 秒内还未选出最快源，先起播排第一的源防等待
+      let fallbackPlayTimer = null;
+      if (autoPlayFastest && !hasTriggeredAutoPlay) {
+        fallbackPlayTimer = setTimeout(() => {
+          if (!hasTriggeredAutoPlay && rowEl.classList.contains('expanded')) {
+            hasTriggeredAutoPlay = true;
+            const currentFirst = panelEl.querySelector('.source-item');
+            if (currentFirst) currentFirst.click();
+          }
+        }, 1200);
+      }
+
+      await Promise.all(items.map(async (itemEl) => {
+        const rawUrl = itemEl.getAttribute('data-raw-url') || '';
+        const badge = itemEl.querySelector('.tv-ping-badge');
+        let ping = 9999;
+
+        try {
+          const res = await fetch(`${VPS_TV_BASE}/ping?url=${encodeURIComponent(rawUrl)}&_t=${Date.now()}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.ok && data.ping > 0) ping = data.ping;
+          }
+        } catch (_) {}
+
+        tvPingCache.set(rawUrl, ping);
+        itemEl.setAttribute('data-ping', String(ping));
+
+        if (badge) {
+          const isErr = ping >= 9999;
+          badge.textContent = isErr ? '超时' : `${ping}ms`;
+          badge.className = 'tv-ping-badge ' + (isErr ? 'metric-ping-err' : (ping < 500 ? 'metric-ping-ok' : (ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err')));
+        }
+
+        // 一旦首个有效高速源测出结果，在自动起播模式下立即抢先起播
+        if (autoPlayFastest && !hasTriggeredAutoPlay && ping < 9999 && rowEl.classList.contains('expanded')) {
+          hasTriggeredAutoPlay = true;
+          if (fallbackPlayTimer) clearTimeout(fallbackPlayTimer);
+          itemEl.click();
+        }
+      }));
+
+      if (fallbackPlayTimer) clearTimeout(fallbackPlayTimer);
+
+      // 按 VPS 测速延迟从快到慢实时重排 DOM 顺序
+      const sortedItems = Array.from(panelEl.querySelectorAll('.source-item')).sort((a, b) => {
+        const pa = parseInt(a.getAttribute('data-ping') || '9999', 10);
+        const pb = parseInt(b.getAttribute('data-ping') || '9999', 10);
+        return pa - pb;
+      });
+
+      sortedItems.forEach((el, index) => {
+        panelEl.appendChild(el);
+        const nameWrap = el.querySelector('.source-name-wrap');
+        if (nameWrap && index === 0 && parseInt(el.getAttribute('data-ping') || '9999', 10) < 9999 && sortedItems.length > 1) {
+          const fastTag = document.createElement('span');
+          fastTag.className = 'tv-fast-badge';
+          fastTag.textContent = '⚡ 最快';
+          nameWrap.appendChild(fastTag);
+        }
+      });
+
+      if (autoPlayFastest && !hasTriggeredAutoPlay && sortedItems[0] && rowEl.classList.contains('expanded')) {
+        hasTriggeredAutoPlay = true;
+        sortedItems[0].click();
       }
     }
 
@@ -4704,10 +4902,75 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           const panelEl = document.createElement('div');
           panelEl.className = 'sources-panel';
 
-          urls.forEach((url, idx) => {
+          // 1. 构建顶部 EPG 电子节目预告面板
+          const epgBox = document.createElement('div');
+          epgBox.className = 'tv-epg-box';
+          epgBox.innerHTML = `
+            <div class="tv-epg-header">
+              <span style="font-weight:600;color:var(--text-main);">📅 电子节目预告 (EPG)</span>
+              <div class="tv-epg-actions">
+                <button type="button" class="tv-epg-btn btn-retest-speed">⚡ VPS测速排序</button>
+                <button type="button" class="tv-epg-btn btn-toggle-schedule" style="display:none;">全天节目单 ▼</button>
+              </div>
+            </div>
+            <div class="tv-epg-body">
+              <div style="color:var(--text-sub);font-size:11px;padding:2px 0;">⏳ 正在同步节目预告...</div>
+            </div>
+            <div class="tv-epg-schedule"></div>
+          `;
+
+          const scheduleEl = epgBox.querySelector('.tv-epg-schedule');
+          const toggleScheduleBtn = epgBox.querySelector('.btn-toggle-schedule');
+          toggleScheduleBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isShow = scheduleEl.classList.toggle('show');
+            toggleScheduleBtn.textContent = isShow ? '收起节目单 ▲' : '全天节目单 ▼';
+            if (isShow) {
+              const liveItem = scheduleEl.querySelector('.is-live');
+              if (liveItem) liveItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+          };
+
+          const retestBtn = epgBox.querySelector('.btn-retest-speed');
+          retestBtn.onclick = (e) => {
+            e.stopPropagation();
+            testAndSortTvSources(chName, panelEl, rowEl, false);
+          };
+
+          panelEl.appendChild(epgBox);
+
+          // 2. 构建直播源线路列表（支持读取已缓存的 VPS 测速结果预排序）
+          const indexedUrls = urls.map((u, idx) => ({
+            url: u,
+            origIdx: idx,
+            ping: tvPingCache.has(u) ? tvPingCache.get(u) : 99999
+          })).sort((a, b) => a.ping - b.ping);
+
+          indexedUrls.forEach((itemObj) => {
+            const url = itemObj.url;
+            const idx = itemObj.origIdx;
+            const cachedPing = tvPingCache.get(url);
+
             const itemEl = document.createElement('div');
             itemEl.className = 'source-item';
-            itemEl.innerHTML = `<span class="source-name">线路 ${idx + 1}</span>`;
+            itemEl.setAttribute('data-raw-url', url);
+            itemEl.setAttribute('data-ping', cachedPing !== undefined ? String(cachedPing) : '9999');
+
+            let pingText = '待测速';
+            let pingCls = 'metric-ping-wait';
+            if (cachedPing !== undefined) {
+              const isErr = cachedPing >= 9999;
+              pingText = isErr ? '超时' : `${cachedPing}ms`;
+              pingCls = isErr ? 'metric-ping-err' : (cachedPing < 500 ? 'metric-ping-ok' : (cachedPing < 1200 ? 'metric-ping-warn' : 'metric-ping-err'));
+            }
+
+            itemEl.innerHTML = `
+              <span class="source-name-wrap" style="display:flex;align-items:center;">
+                <span class="source-name">线路 ${idx + 1}</span>
+              </span>
+              <span class="tv-ping-badge ${pingCls}" style="font-family:monospace;font-size:11px;">${pingText}</span>
+            `;
+
             itemEl.onclick = (e) => {
               e.stopPropagation();
               isLiveMode = true;
@@ -4729,17 +4992,25 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
           const mainEl = document.createElement('div');
           mainEl.className = 'channel-main';
+          const cachedEpgNow = tvEpgCache.get(chName)?.data?.now?.title;
           mainEl.innerHTML = `
-            <div class="channel-title"><span class="channel-arrow">▶</span><span>${escapeHtml(chName)}</span></div>
-            <div class="channel-right-tools"><span class="badge-lines">${urls.length} 路线</span></div>
+            <div class="channel-title" style="min-width:0;flex:1;">
+              <span class="channel-arrow">▶</span>
+              <span style="flex-shrink:0;">${escapeHtml(chName)}</span>
+              <span class="tv-epg-inline-tag">${cachedEpgNow ? '· ' + escapeHtml(cachedEpgNow) : ''}</span>
+            </div>
+            <div class="channel-right-tools" style="flex-shrink:0;"><span class="badge-lines">${urls.length} 路线</span></div>
           `;
+
+          const inlineTagEl = mainEl.querySelector('.tv-epg-inline-tag');
 
           mainEl.onclick = () => {
             const isExpanded = rowEl.classList.contains('expanded');
             document.querySelectorAll('.channel-row.expanded').forEach(el => el !== rowEl && el.classList.remove('expanded'));
             if (!isExpanded) {
               rowEl.classList.add('expanded');
-              panelEl.querySelector('.source-item')?.click();
+              loadTvChannelEpg(chName, epgBox, inlineTagEl, false);
+              testAndSortTvSources(chName, panelEl, rowEl, true);
             } else {
               rowEl.classList.remove('expanded');
             }
