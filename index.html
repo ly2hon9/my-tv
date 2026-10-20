@@ -3153,12 +3153,18 @@
       return extractSitesFromAnyJson(parsed);
     }
 
+    function getGroupUniqueKey(g) {
+      if (!g) return '';
+      return (isGroupNSFW(g) ? 'nsfw_' : 'norm_') + g.title;
+    }
+
     function slimGroupForStorage(g) {
       return {
         title: g.title,
         poster: g.poster,
         type: g.type,
         actor: g.actor,
+        isNsfw: Boolean(isGroupNSFW(g)),
         _latestTimestamp: g._latestTimestamp,
         _displayDate: g._displayDate,
         items: (g.items || []).map(item => ({
@@ -3595,7 +3601,7 @@
       const targetItemsToTest = [];
       targetGroups.forEach(group => {
         // 未展开的卡片只测首选前2条源以实现秒级排序；已展开的卡片测试全部子源
-        const isExp = (group.title === activeGroupTitle);
+        const isExp = (getGroupUniqueKey(group) === activeGroupTitle);
         const listToTest = isExp ? group.items : group.items.slice(0, 2);
         listToTest.forEach(item => {
           targetItemsToTest.push({ group, item });
@@ -3638,7 +3644,7 @@
       const activeCard = document.querySelector('.title-group-box.expanded');
       if (activeCard) {
         const bodyPanel = activeCard.querySelector('.group-body-panel');
-        const activeGroup = groupedVodList.find(g => g.title === activeGroupTitle);
+        const activeGroup = groupedVodList.find(g => getGroupUniqueKey(g) === activeGroupTitle;
         if (bodyPanel && activeGroup && activeGroup.items) {
           activeGroup.items.sort((a, b) => {
             const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
@@ -3703,7 +3709,19 @@
 
       const container = document.getElementById('channel-list');
 
-      // 彻底禁用会话缓存，确保每次检索或切换板块均由独立命名空间强隔离渲染，绝不交叉串扰
+      const userGroupId = currentUser?.groupId || 'def';
+      const cachedResults = VodSearchCache.get(keyword, userGroupId);
+      if (cachedResults && cachedResults.length > 0) {
+        groupedVodList = cachedResults;
+        consolidateVodGroups();
+        domNodeCache.clear();
+        isSearchingActive = false;
+        sortGroupedVodList();
+        renderGroupedVodSources();
+        saveVodSessionState();
+        showGestureTip("⚡ 已从极速缓存秒开");
+        return;
+      }
 
       container.innerHTML = '<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《' + escapeHtml(keyword) + '》中，请稍候...</div>';
       
@@ -3893,7 +3911,7 @@
         const activeCard = document.querySelector('.title-group-box.expanded');
         if (activeCard) {
           const bodyPanel = activeCard.querySelector('.group-body-panel');
-          const group = groupedVodList.find(g => g.title === activeGroupTitle);
+          const group = groupedVodList.find(g => getGroupUniqueKey(g) === activeGroupTitle;
           if (group && bodyPanel) {
             const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
             const oldBox = bodyPanel.querySelector('.episodes-collapse-box');
@@ -4140,7 +4158,8 @@ function buildGroupBodyPanel(group) {
 }
 
     function renderCardNode(group) {
-      let groupCard = domNodeCache.get(group.title);
+      const groupUniqueKey = getGroupUniqueKey(group);
+      let groupCard = domNodeCache.get(groupUniqueKey);
 
       const isSpecial = isGroupNSFW(group);
       let groupCensorTag = '';
@@ -4209,8 +4228,13 @@ function buildGroupBodyPanel(group) {
             '</div>' +
             arrowIconHtml +
           '</div>';
-        domNodeCache.set(group.title, groupCard);
+        domNodeCache.set(groupUniqueKey, groupCard);
       } else {
+        const posterImg = groupCard.querySelector('.group-poster');
+        const expectedSrc = group.poster || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="60"%3E%3Crect width="44" height="60" fill="%23222"/%3E%3C/svg%3E';
+        if (posterImg && posterImg.getAttribute('src') !== expectedSrc) {
+          posterImg.setAttribute('src', expectedSrc);
+        }
         const metaTag = groupCard.querySelector('.group-meta-tag');
         if (metaTag) {
           metaTag.innerHTML =
@@ -4224,7 +4248,7 @@ function buildGroupBodyPanel(group) {
         }
       }
 
-      const isCurrentActiveGroup = (group.title === activeGroupTitle);
+      const isCurrentActiveGroup = (groupUniqueKey === activeGroupTitle);
       groupCard.className = 'title-group-box' + (isCurrentActiveGroup ? ' active-group expanded' : '');
 
       const headerEl = groupCard.querySelector('.title-group-header');
@@ -4233,7 +4257,7 @@ function buildGroupBodyPanel(group) {
         if (isSingleSourceSingleEp) {
           document.querySelectorAll('.title-group-box').forEach(el => el.classList.remove('active-group'));
           groupCard.classList.add('active-group');
-          activeGroupTitle = group.title;
+          activeGroupTitle = groupUniqueKey;
           activeSubItemId = firstItem.id;
           currentActiveEp = 0;
           playCurrentVodSource(firstItem, 0);
@@ -4259,7 +4283,7 @@ function buildGroupBodyPanel(group) {
           activeGroupTitle = '';
         } else {
           groupCard.classList.add('expanded');
-          activeGroupTitle = group.title;
+          activeGroupTitle = groupUniqueKey;
           if (!activeSubItemId || !group.items.some(i => i.id === activeSubItemId)) {
             const playingMatch = (currentPlayingMeta && getCanonicalFavTitleKey(currentPlayingMeta.title) === normalizeCleanKey(group.title))
               ? group.items.find(i => normalizeCleanKey(i.siteName) === normalizeCleanKey(currentPlayingMeta.siteName))
