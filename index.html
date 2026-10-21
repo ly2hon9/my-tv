@@ -3644,7 +3644,7 @@
       const activeCard = document.querySelector('.title-group-box.expanded');
       if (activeCard) {
         const bodyPanel = activeCard.querySelector('.group-body-panel');
-        const activeGroup = groupedVodList.find(g => getGroupUniqueKey(g) === activeGroupTitle;
+        const activeGroup = groupedVodList.find(g => getGroupUniqueKey(g) === activeGroupTitle);
         if (bodyPanel && activeGroup && activeGroup.items) {
           activeGroup.items.sort((a, b) => {
             const pa = (a.ping === undefined || a.ping < 0) ? 99999 : a.ping;
