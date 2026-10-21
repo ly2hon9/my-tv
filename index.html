@@ -3911,7 +3911,7 @@
         const activeCard = document.querySelector('.title-group-box.expanded');
         if (activeCard) {
           const bodyPanel = activeCard.querySelector('.group-body-panel');
-          const group = groupedVodList.find(g => getGroupUniqueKey(g) === activeGroupTitle;
+          const group = groupedVodList.find(g => getGroupUniqueKey(g) === activeGroupTitle);
           if (group && bodyPanel) {
             const currentSubItem = group.items.find(r => r.id === activeSubItemId) || group.items[0];
             const oldBox = bodyPanel.querySelector('.episodes-collapse-box');
