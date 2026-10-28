@@ -844,6 +844,27 @@ body:not(.theme-light){background:radial-gradient(ellipse 90% 60% at 75% 0%,#1b2
 @media(max-width:650px){#sg-home .sg-container{padding-left:16px!important;padding-right:16px!important;padding-bottom:88px!important}#sg-home .sg-nav{padding:12px 16px!important}#sg-home .sg-links{overflow-x:auto;max-width:100%;scrollbar-width:none}#sg-home .sg-links::-webkit-scrollbar{display:none}#sg-home .sg-hero{min-height:340px!important;padding:28px 22px!important}#sg-home .sg-hero:after{right:-12%;font-size:62px;opacity:.4}#sg-home .sg-hero h1{font-size:clamp(33px,9vw,48px)!important}#sg-home .sg-hero p{font-size:13px!important}#sg-home .sg-actions button{flex:1 1 140px!important}#sg-home .sg-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}#sg-home .sg-quick{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}#sg-home .sg-tile{min-height:74px!important}#sg-home .sg-container section{margin-top:30px!important}#sg-home .sg-container h2{font-size:21px!important}}
 @media(prefers-reduced-motion:reduce){#sg-home .sg-poster img,#sg-home .sg-tile{transition:none!important}}
 
+
+/* 2.0 unified detail, selection, player shell */
+#sg-home.sg-work-active .sg-container{display:none}
+#sg-home #sg-workspace[hidden]{display:none}
+#sg-home #sg-workspace{display:block;max-width:1450px;margin:auto;padding:26px max(5%,22px) 120px;min-height:75vh}
+#sg-home .sg-work-head{display:flex;align-items:center;gap:18px;margin-bottom:22px}
+#sg-home .sg-work-head h2{margin:0;font-size:clamp(21px,3vw,34px)}
+#sg-home .sg-back,#sg-home .sg-ep,#sg-home .sg-source{border:1px solid #ffffff26;background:#1b2230;color:#fff;border-radius:12px;padding:12px 16px}
+#sg-home .sg-back:hover,#sg-home .sg-ep:hover,#sg-home .sg-source:hover{border-color:#fa6379}
+#sg-home .sg-detail{display:grid;grid-template-columns:minmax(140px,220px) 1fr;gap:28px;align-items:start}
+#sg-home .sg-detail-poster{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:18px;background:#232c3d}
+#sg-home .sg-detail h1{font-size:clamp(25px,4vw,45px);margin:0 0 14px}
+#sg-home .sg-detail p{color:#c2c9d6;line-height:1.8}
+#sg-home .sg-ep-grid,#sg-home .sg-source-grid{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 26px}
+#sg-home .sg-ep{min-width:72px}.sg-ep.sg-selected{background:#c73554!important;border-color:#ef6882!important}
+#sg-home .sg-player-slot{width:100%;max-width:1100px;margin:0 auto 28px}
+#sg-home .sg-player-slot #player-wrap{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:240px;aspect-ratio:16/9;display:block!important;border-radius:18px;overflow:hidden;background:#05070b}
+#sg-home .sg-player-slot video{max-width:100%}
+#sg-home .sg-note{padding:16px;border:1px solid #ffffff1c;border-radius:14px;color:#bbc4d1;background:#ffffff08}
+#sg-home .sg-loading{padding:35px;color:#aab7c8}
+@media(max-width:620px){#sg-home .sg-detail{grid-template-columns:105px 1fr;gap:14px}#sg-home .sg-detail h1{font-size:22px}#sg-home .sg-detail-poster{border-radius:10px}#sg-home .sg-work-head{gap:10px}#sg-home .sg-back{padding:9px}#sg-home .sg-ep{min-width:60px;padding:10px}#sg-home #sg-workspace{padding:18px 14px 100px}}
 </style>
 </head>
 <body>
@@ -856,6 +877,7 @@ body:not(.theme-light){background:radial-gradient(ellipse 90% 60% at 75% 0%,#1b2
  <section><h2>📺 热门剧集 · 真实片源</h2><div class="sg-grid" id="sg-public-series"><div class="sg-empty">正在从可用影视源加载…</div></div></section>
  <section><h2>📡 电视直播</h2><div class="sg-quick"><button class="sg-tile" onclick="sgHomeTo('tv')">📺 进入直播频道</button><button class="sg-tile" onclick="sgHomeTo('vod')">🎬 浏览影视资源</button><button class="sg-tile" onclick="sgHomeTo('fav')">☆ 我的收藏</button><button class="sg-tile" onclick="sgHomeTo('history')">◷ 我的观看历史</button></div></section>
  <section><h2>🔎 搜索更多真实影视</h2><p class="sg-muted">推荐并非实时热度排行榜；只展示当前账号可用片源中能够查到有效播放地址的作品。影片实际播放能力取决于片源状态。</p><div class="sg-quick"><button class="sg-tile" onclick="sgHomeQuery('电影')">电影搜索</button><button class="sg-tile" onclick="sgHomeQuery('电视剧')">电视剧搜索</button><button class="sg-tile" onclick="sgHomeQuery('动漫')">动漫搜索</button><button class="sg-tile" onclick="sgHomeQuery('纪录片')">纪录片搜索</button></div></section></main>
+ <section id="sg-workspace" hidden aria-live="polite"><div class="sg-work-head"><button class="sg-back" onclick="sgHomeOpen()">← 返回首页</button><h2 id="sg-work-title">影视详情</h2></div><div id="sg-work-body"></div></section>
  <nav class="sg-bottom"><button onclick="sgHomeOpen()">⌂<br>首页</button><button onclick="sgHomeTo('vod')">▣<br>影视</button><button onclick="sgHomeTo('tv')">▤<br>直播</button><button onclick="sgHomeTo('fav')">☆<br>收藏</button><button onclick="sgHomeTo('settings')">⚙<br>设置</button></nav>
 </div>
 
@@ -5858,11 +5880,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 (function(){
  
  function gateHidden(){const g=document.getElementById('auth-gate-screen');return g && getComputedStyle(g).display==='none';}
- window.sgHomeOpen=async function(){if(!gateHidden())return;document.body.classList.add('sg-home-open');await sgHomeRender();};
+ window.sgHomeOpen=async function(){if(!gateHidden())return;document.body.classList.add('sg-home-open');document.getElementById('sg-home').classList.remove('sg-work-active');document.getElementById('sg-workspace').hidden=true;await sgHomeRender();};
  window.sgHomeClose=function(){document.body.classList.remove('sg-home-open');};
- window.sgHomeTo=function(view){sgHomeClose();try{if(view==='tv'||view==='vod'){switchMode(view);}else if(view==='fav'||view==='history'){switchMode('vod');switchSidebarView(view);}else if(view==='settings'){handleMainSettingsButtonClick();}}catch(e){console.warn('首页导航:',e);}};
+ window.sgHomeTo=function(view){if(view==='settings'){handleMainSettingsButtonClick();return;}sgWorkspace(view);};
  window.sgHomeSearch=function(e){e.preventDefault();sgHomeQuery(document.getElementById('sg-query').value);};
- window.sgHomeQuery=function(q){q=String(q||'').trim();if(!q)return;sgHomeTo('vod');const input=document.getElementById('filter');if(input){input.value=q;toggleClearBtn(q);triggerSearch();}};
+ window.sgHomeQuery=function(q){q=String(q||'').trim();if(q)sgSearch(q);};
  function card(item,click){const b=document.createElement('button');b.className='sg-card';const p=document.createElement('div');p.className='sg-poster';const url=item.vod?.vod_pic||item.thumb||'';if(/^https?:\/\//i.test(url)){const im=document.createElement('img');im.src=url;im.alt='';im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{p.textContent='🎬';};p.appendChild(im);}else p.textContent='🎬';const box=document.createElement('div');box.className='sg-info';const title=document.createElement('div');title.className='sg-title';title.textContent=item.title||item.vod?.vod_name||'未命名影片';const meta=document.createElement('div');meta.className='sg-meta';meta.textContent=[item.epName,item.siteName].filter(Boolean).join(' · ')||'点击播放';box.append(title,meta);b.append(p,box);b.onclick=click;return b;}
  const SG_RECOMMEND_SEEDS = [
    {name:'流浪地球2',section:'movies'}, {name:'哪吒之魔童闹海',section:'movies'},
@@ -5916,7 +5938,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
      for(const [section,node] of [['movies',movies],['series',series]]){
        node.replaceChildren();const filtered=rows.filter(x=>x.section===section);
        for(const row of filtered){node.appendChild(card(row,()=>{
-         sgHomeClose();switchMode('vod');playCurrentVodSource(row.item,0,false);
+         sgDetail(row.item,row.title);
        }));}
        if(!filtered.length)sgEmpty(node,'暂未找到可播放的精选影片，可使用顶部搜索查找更多内容。');
      }
@@ -5937,7 +5959,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
                node.appendChild(card(row,async()=>{
                  // Never play unverified URLs from shared metadata.
                  const match=await sgFindPlayable({name:row.title},sgAllowedSites());
-                 if(match){sgHomeClose();switchMode('vod');playCurrentVodSource(match.item,0,false);}
+                 if(match){sgDetail(match.item,row.title);}
                  else alert('当前账号的视频源没有找到可播放的《'+row.title+'》，请使用搜索尝试其他线路。');
                }));
              }
@@ -5962,7 +5984,35 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
    })().finally(()=>{publicHomePromise=null;});
    return publicHomePromise;
  };
- function setup(){const gate=document.getElementById('auth-gate-screen');if(!gate)return;const observer=new MutationObserver(()=>{if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(()=>{if(gateHidden())sgHomeOpen();},200);}});observer.observe(gate,{attributes:true,attributeFilter:['style','class']});if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(sgHomeOpen,400);}const nav=document.createElement('button');nav.type='button';nav.textContent='⌂ 首页';nav.title='返回拾光影视首页';nav.style.cssText='position:fixed;right:12px;bottom:16px;z-index:3000;border:1px solid #ffffff45;border-radius:14px;padding:9px 14px;background:#1b3e75ed;color:white;font-weight:700;box-shadow:0 5px 18px #0007';nav.onclick=sgHomeOpen;document.body.appendChild(nav);}
+
+ const sgWorkspaceEl=()=>document.getElementById('sg-workspace');
+ function sgSetWork(title){document.body.classList.add('sg-home-open');document.getElementById('sg-home').classList.add('sg-work-active');const w=sgWorkspaceEl();w.hidden=false;document.getElementById('sg-work-title').textContent=title;const b=document.getElementById('sg-work-body');b.replaceChildren();document.getElementById('sg-home').scrollTop=0;return b;}
+ function sgMsg(node,msg){const p=document.createElement('div');p.className='sg-note';p.textContent=msg;node.appendChild(p);}
+ function sgWorkspace(view){
+  if(view==='vod'){const b=sgSetWork('影视剧场');sgMsg(b,'搜索你想看的电影、电视剧或动漫。选择影片后可以切换线路、选择集数。');const f=document.createElement('form');f.className='sg-search';f.style.cssText='margin:24px 0;max-width:680px';const i=document.createElement('input');i.placeholder='输入影片名称';i.required=true;const btn=document.createElement('button');btn.textContent='搜索';f.append(i,btn);f.onsubmit=e=>{e.preventDefault();sgSearch(i.value)};b.appendChild(f);return;}
+  if(view==='tv'||view==='fav'||view==='history'){
+    const labels={tv:'电视直播',fav:'我的收藏',history:'观看历史'};const b=sgSetWork(labels[view]);
+    // Reuse the original fully functional channel/source list while keeping the new shell visible.
+    try{switchMode(view==='tv'?'tv':'vod');if(view!=='tv')switchSidebarView(view);}catch(e){sgMsg(b,'加载失败：'+e.message);return;}
+    const shell=document.createElement('div');shell.className='sg-legacy-list';shell.style.cssText='border:1px solid #ffffff22;border-radius:18px;overflow:hidden;min-height:420px';
+    const old=document.getElementById('sidebar');if(old){if(!old.dataset.sgOriginalParent){old.dataset.sgOriginalParent='body';}shell.appendChild(old);old.style.cssText+=';display:block!important;position:relative!important;width:100%!important;height:auto!important;max-height:none!important;';}b.appendChild(shell);
+    const tip=document.createElement('p');tip.className='sg-note';tip.textContent='频道与收藏列表仍复用原有功能组件，后续将替换为原生新版卡片。';b.appendChild(tip);return;
+  }
+ }
+ async function sgSearch(q){const b=sgSetWork('搜索 · '+q);const loading=document.createElement('div');loading.className='sg-loading';loading.textContent='正在从可用影视源搜索…';b.appendChild(loading);const grid=document.createElement('div');grid.className='sg-grid';b.appendChild(grid);let found=0;
+  const sites=sgAllowedSites();for(const site of sites){try{const data=await sgGetJson(sgApiUrl(site,'videolist','wd='+encodeURIComponent(q)+'&pg=1'));for(const vod of (Array.isArray(data.list)?data.list:[]).slice(0,15)){if(!vod.vod_name)continue;const item={id:'sg_search_'+site.name+'_'+vod.vod_id,siteName:site.name,versionTag:'',vod};grid.appendChild(card({title:vod.vod_name,thumb:vod.vod_pic,siteName:site.name},()=>sgDetail(item,vod.vod_name,site)));found++;}}catch(e){console.warn('source search failed',site.name,e);}}
+  loading.remove();if(!found)sgMsg(b,'没有找到结果，请换一个关键词或检查影视源。');
+ }
+ async function sgDetail(item,title,site){const b=sgSetWork('影视详情');const vod=item.vod||{};if(!getEpisodesList(item).length && vod.vod_id!=null){try{const source=site||sgAllowedSites().find(s=>s.name===item.siteName);if(source){const data=await sgGetJson(sgApiUrl(source,'detail','ids='+encodeURIComponent(vod.vod_id)));const v=(data.list||[]).find(x=>String(x.vod_id)===String(vod.vod_id))||(data.list||[])[0];if(v)item={...item,vod:v};}}catch(e){console.warn('detail fetch failed',e);}}
+  const v=item.vod||{};const wrap=document.createElement('div');wrap.className='sg-detail';const poster=document.createElement('img');poster.className='sg-detail-poster';poster.alt=title||v.vod_name||'影片海报';if(/^https?:\/\//.test(v.vod_pic||'')){poster.src=v.vod_pic;poster.referrerPolicy='no-referrer';}const info=document.createElement('div');const h=document.createElement('h1');h.textContent=title||v.vod_name||'影视详情';info.appendChild(h);const p=document.createElement('p');p.textContent=[v.vod_year,v.vod_area,v.vod_class,item.siteName].filter(Boolean).join(' · ');info.appendChild(p);const desc=document.createElement('p');desc.textContent=String(v.vod_content||v.vod_blurb||'').replace(/<[^>]*>/g,'').slice(0,450);info.appendChild(desc);wrap.append(poster,info);b.appendChild(wrap);
+  const episodes=getEpisodesList(item);const heading=document.createElement('h2');heading.textContent='选集 · '+episodes.length+' 集';b.appendChild(heading);const grid=document.createElement('div');grid.className='sg-ep-grid';b.appendChild(grid);
+  if(!episodes.length){sgMsg(b,'此线路没有可用剧集，试试搜索其他片源。');return;}
+  const slot=document.createElement('div');slot.className='sg-player-slot';b.insertBefore(slot,wrap);
+  episodes.forEach((ep,idx)=>{const btn=document.createElement('button');btn.className='sg-ep';btn.textContent=ep.name||('第'+(idx+1)+'集');btn.onclick=()=>{grid.querySelectorAll('.sg-ep').forEach(x=>x.classList.remove('sg-selected'));btn.classList.add('sg-selected');try{playCurrentVodSource(item,idx,false);const player=document.getElementById('player-wrap');if(player)slot.appendChild(player);slot.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){alert('播放失败：'+e.message);}};grid.appendChild(btn);});
+  const alt=document.createElement('button');alt.className='sg-source';alt.textContent='🔁 搜索其他播放线路';alt.onclick=()=>sgSearch(title||v.vod_name);b.appendChild(alt);
+ }
+
+ function setup(){const gate=document.getElementById('auth-gate-screen');if(!gate)return;const observer=new MutationObserver(()=>{if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(()=>{if(gateHidden())sgHomeOpen();},200);}});observer.observe(gate,{attributes:true,attributeFilter:['style','class']});if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(sgHomeOpen,400);}}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
 })();
 
