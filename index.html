@@ -4821,7 +4821,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       const markPlaySuccess = () => {
         if (hasStarted || generation !== playbackGeneration) return;
         hasStarted = true;
-        recordV4Outcome(true);
         clearPlayWatchdog();
         setStatus("", false);
         updatePlayBtn(true);
@@ -4836,8 +4835,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         }
       }, 20000);
 
-      video.onplaying = markPlaySuccess;
-      video.onloadeddata = markPlaySuccess;
+      // V4.1: 仅在真正进入播放或获得媒体数据时记录线路成功；
+      // 元数据/可播放事件仍沿用原有 UI 和看门狗行为，避免改变播放逻辑。
+      video.onplaying = () => { recordV4Outcome(true); markPlaySuccess(); };
+      video.onloadeddata = () => { recordV4Outcome(true); markPlaySuccess(); };
       video.onloadedmetadata = markPlaySuccess;
       video.oncanplay = markPlaySuccess;
       video.onerror = () => {
