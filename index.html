@@ -5103,8 +5103,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return pa - pb;
       });
 
+      // 仅当测速结果改变了顺序时才移动节点，避免重复触发布局更新。
+      // 保留原有测速、自动起播、标签与排序规则。
+      const currentItems = Array.from(panelEl.querySelectorAll('.source-item'));
+      const orderChanged = sortedItems.some((el, index) => el !== currentItems[index]);
+      if (orderChanged) {
+        const sortedFragment = document.createDocumentFragment();
+        sortedItems.forEach(el => sortedFragment.appendChild(el));
+        panelEl.appendChild(sortedFragment);
+      }
       sortedItems.forEach((el, index) => {
-        panelEl.appendChild(el);
         const nameWrap = el.querySelector('.source-name-wrap');
         if (nameWrap && index === 0 && parseInt(el.getAttribute('data-ping') || '9999', 10) < 9999 && sortedItems.length > 1) {
           const fastTag = document.createElement('span');
