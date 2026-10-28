@@ -718,6 +718,132 @@ html,body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFan
 }
 @media(prefers-reduced-motion:reduce){#sg-home .sg-card{transition:none}}
 
+
+/* SHIGUANG 2.0 — structural cinema redesign; preserve original event handlers */
+:root{--accent:#338cff;--bg-base:#080a10;--bg-workspace:#090c14;--bg-sidebar:#111725;--bg-card:#161d2d;--bg-card-hover:#222c41;--border-light:#ffffff22;--text-main:#f7f9ff}
+body{background:radial-gradient(ellipse at 80% 0%,#172443 0%,#090b12 43%,#06070c 100%);color:#f2f5ff}
+#auth-gate-screen{background:radial-gradient(circle at 50% 10%,#20375e 0%,#101522 42%,#07090f 100%)!important}
+#auth-gate-screen:before{content:'拾光影视 · YOUR PRIVATE CINEMA';position:absolute;top:11vh;left:0;width:100%;text-align:center;color:#c4d3ef;letter-spacing:3px;font-size:12px;pointer-events:none}
+#auth-gate-screen .gate-card{background:linear-gradient(150deg,#1a2539e8,#101522f5)!important;border:1px solid #9bb9ef36!important;box-shadow:0 35px 100px #0009!important;border-radius:26px!important;max-width:440px!important;padding:38px!important}
+#auth-gate-screen input:not([type=checkbox]){border-radius:14px!important;background:#090e1b!important;border:1px solid #ffffff29!important;min-height:48px!important;color:white!important}
+#auth-gate-screen .gate-submit-btn{border-radius:14px!important;background:linear-gradient(100deg,#1765e5,#539eff)!important;box-shadow:0 10px 30px #1765e544!important}
+#player-wrap{background:#05070b!important;box-shadow:0 12px 44px #0008;border-bottom:1px solid #ffffff17}
+#top-bar{background:linear-gradient(90deg,#111827,#0c111d)!important;padding:14px 20px!important;min-height:58px}
+#current-title{font-size:clamp(15px,1.6vw,21px)!important;font-weight:700!important;letter-spacing:.3px}
+#custom-controls{background:linear-gradient(0deg,#0a0f1d,#141b2a)!important;padding:10px 14px 13px!important}
+#custom-controls button{border-radius:11px!important}
+#sidebar{background:linear-gradient(180deg,#0f1523,#090d17)!important;padding:16px!important;gap:12px!important}
+#search-box{background:#141c2b!important;border:1px solid #ffffff16!important;border-radius:20px!important;padding:16px!important;box-shadow:0 12px 32px #0003}
+#filter{background:#0b1220!important;border:1px solid #ffffff2b!important;border-radius:13px!important;min-height:48px!important;color:#fff!important}
+.btn-search,.mode-tab.active{background:linear-gradient(115deg,#1966dd,#3c8efb)!important;color:#fff!important;border-radius:13px!important}
+#sidebar .btn-tool-mid,#sidebar .mode-tab{border-radius:13px!important;min-height:44px!important}
+#channel-list{background:transparent!important;border:0!important;padding-top:12px!important}
+.glass-modal-mask{background:#03060bd9!important;backdrop-filter:blur(18px)!important}
+.glass-modal-card{background:linear-gradient(145deg,#192337,#101623)!important;color:#f6f8ff!important;border:1px solid #ffffff29!important;border-radius:24px!important;box-shadow:0 30px 90px #000a!important;padding:23px!important}
+.glass-modal-card input,.glass-modal-card select,.glass-modal-card textarea{border-radius:11px!important;background:#0b1220!important;color:#f3f7ff!important;border:1px solid #ffffff2b!important}
+#sg-home{background:radial-gradient(ellipse at 60% 0%,#172b4b 0%,#090c14 52%,#06080c 100%)!important}
+#sg-home .sg-nav{background:#0a0e18e8!important}
+#sg-home .sg-hero{min-height:390px!important;background:linear-gradient(110deg,#08152fe8,#15264db0 55%,#304e7280)!important;border-radius:28px!important}
+#sg-home .sg-primary,#sg-home .sg-search button{background:linear-gradient(110deg,#1666eb,#4b9dff)!important}
+#sg-home .sg-card{background:#151c2b!important;border-radius:18px!important}
+#sg-home .sg-tile{background:linear-gradient(130deg,#1c2d49,#121a2c)!important;border-radius:17px!important}
+#sg-home .sg-bottom{background:#090e19f5!important}
+#sg-home .sg-brand b{color:#4898ff!important}
+.sg-home-open #player-wrap,.sg-home-open #sidebar{visibility:hidden}
+@media(min-width:900px){#sidebar{padding:24px!important}#search-box{padding:20px!important}#sg-home .sg-container{max-width:1500px!important}}
+@media(max-width:700px){#sidebar{padding:10px!important}#search-box{padding:12px!important;border-radius:16px!important}#top-bar{padding:11px 13px!important}#custom-controls{padding:8px!important}#auth-gate-screen .gate-card{max-width:calc(100vw - 28px)!important;padding:26px 20px!important}#sg-home .sg-hero{min-height:295px!important}}
+
+
+
+/* SG 2.0 stage four: visual redesign only. Existing handlers, IDs and logic preserved. */
+:root{--accent:#e8b76d;--accent-soft:rgba(232,183,109,.14);--bg-base:#08090d;--bg-workspace:#08090d;--bg-sidebar:#11131a;--bg-search-box:#151820;--bg-input:#11151e;--bg-card:#181b25;--border-color:#30333d;--text-main:#f4f4f7;--text-sub:#b1b5c0}
+body:not(.theme-light){background:radial-gradient(ellipse 90% 60% at 75% 0%,#1b2334 0%,#08090d 68%)!important}
+#auth-gate-screen,#auth-gate-screen.dark-theme{background:radial-gradient(ellipse at 50% 10%,#253047 0%,#10141e 42%,#08090d 100%)!important}
+#auth-gate-screen:before{content:'SHIGUANG CINEMA';position:absolute;top:8%;left:0;right:0;text-align:center;font-size:clamp(12px,2vw,18px);font-weight:750;letter-spacing:.5em;color:#d3ad79;opacity:.75;pointer-events:none}
+#auth-gate-screen .gate-card,#auth-gate-screen.dark-theme .gate-card{background:linear-gradient(145deg,rgba(34,39,53,.94),rgba(15,18,27,.97))!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 35px 110px #000a,0 0 80px #9d713d18!important;border-radius:30px!important;max-width:440px!important;width:calc(100% - 36px)!important;padding:44px 36px!important;color:#f7f7f9!important}
+#auth-gate-screen .gate-logo{font-size:clamp(26px,5vw,35px)!important;font-weight:850!important;letter-spacing:.09em!important;color:#fff!important;margin-bottom:16px!important}
+#auth-gate-screen .gate-sub-tip{color:#aeb4c3!important;line-height:1.7!important}
+#auth-gate-screen .gate-input-box{background:#121721!important;border:1px solid #343a49!important;border-radius:15px!important;overflow:hidden!important;margin-top:15px!important}
+#auth-gate-screen .gate-input-box input{color:#fff!important;background:transparent!important}
+#auth-gate-screen .gate-submit-btn{background:linear-gradient(110deg,#e9bf7f,#b78047)!important;color:#1a1511!important;border:0!important;border-radius:14px!important;min-height:48px!important;box-shadow:0 12px 32px #d9a86b28!important}
+#auth-gate-screen .gate-switch-link{color:#e9bf7f!important}
+#player-wrap{background:#050608!important}
+#top-bar{background:linear-gradient(180deg,#151923,#0d1118)!important;border-bottom:1px solid #ffffff14!important;min-height:62px!important;padding:13px 20px!important}
+#current-title{font-size:clamp(15px,2vw,20px)!important;font-weight:750!important;letter-spacing:.015em!important}
+#current-route-badge{border-radius:999px!important;background:#b8844030!important;color:#f3ce9c!important}
+#video{background:#020304!important}
+#custom-controls{background:linear-gradient(0deg,#0a0c11f5,#171b25ee)!important;border-top:1px solid #ffffff16!important;padding:13px 18px!important}
+#custom-controls .ctrl-btn,#custom-controls .ext-btn{border-radius:12px!important;transition:background .2s,transform .2s!important}
+#custom-controls .ctrl-btn:hover{background:#ffffff20!important}
+#progress-bar{background:#e7b677!important}
+#sidebar{background:linear-gradient(155deg,#141923,#0b0e15)!important;border-color:#ffffff12!important}
+#search-box{background:linear-gradient(160deg,#202635,#141924)!important;border:1px solid #ffffff12!important;border-radius:22px!important;padding:18px!important;box-shadow:0 14px 42px #0003!important}
+#search-box input{border-radius:13px!important;background:#0e131c!important;color:#fff!important;border:1px solid #ffffff20!important}
+#search-box .btn-search{border-radius:12px!important;background:linear-gradient(120deg,#eac287,#c99554)!important;color:#17120e!important;font-weight:750!important}
+#search-box button:not(.btn-search){border-radius:12px!important}
+#search-box .mode-tab.active{background:#d4a66d!important;color:#17120e!important;font-weight:800!important}
+#channel-list{background:transparent!important}
+#channel-list .group-poster{border-radius:10px!important;box-shadow:0 6px 20px #0007!important}
+.glass-modal-mask{backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important;background:#020408c9!important}
+.glass-modal-card{background:linear-gradient(155deg,#222838,#11151f)!important;border:1px solid #ffffff20!important;border-radius:25px!important;box-shadow:0 32px 90px #000a!important;color:#f5f6fa!important}
+.glass-modal-card input,.glass-modal-card select,.glass-modal-card textarea{border-radius:12px!important}
+#sg-home{background:radial-gradient(ellipse at 70% 0%,#1e283a 0%,#08090d 60%)!important}
+#sg-home .sg-nav{background:#090b11e8!important;border-bottom:1px solid #ffffff16!important;backdrop-filter:blur(20px)!important}
+#sg-home .sg-brand{font-weight:850!important;letter-spacing:.06em!important}
+#sg-home .sg-brand b{color:#e8b76d!important}
+#sg-home .sg-hero{min-height:440px!important;border-radius:30px!important;background:radial-gradient(ellipse at 75% 35%,#7053378a,transparent 46%),linear-gradient(105deg,#141824,#252435 65%,#0c111b)!important;box-shadow:0 22px 90px #0007!important;border:1px solid #ffffff16!important}
+#sg-home .sg-kicker{color:#e7bc81!important;letter-spacing:.28em!important}
+#sg-home .sg-hero h1{font-size:clamp(35px,5.4vw,76px)!important;line-height:1.12!important;letter-spacing:-.04em!important}
+#sg-home .sg-primary,#sg-home .sg-search button{background:linear-gradient(110deg,#eac187,#bc8b51)!important;color:#18120e!important;font-weight:800!important;border-radius:13px!important}
+#sg-home .sg-secondary{border:1px solid #ffffff55!important;border-radius:13px!important;background:#ffffff0d!important}
+#sg-home .sg-container section{margin-top:42px!important}
+#sg-home .sg-container h2{font-size:clamp(19px,2.5vw,26px)!important;letter-spacing:.02em!important}
+#sg-home .sg-card{background:#171b26!important;border:1px solid #ffffff12!important;border-radius:19px!important;overflow:hidden!important;transition:transform .18s,box-shadow .18s!important}
+#sg-home .sg-card:hover{transform:translateY(-4px)!important;box-shadow:0 20px 50px #0009!important}
+#sg-home .sg-poster{background:linear-gradient(150deg,#4b3d39,#1a2233)!important}
+#sg-home .sg-tile{background:linear-gradient(145deg,#242a38,#151922)!important;border:1px solid #ffffff13!important;border-radius:19px!important}
+#sg-home .sg-bottom{background:#0c0e16f0!important;border-top:1px solid #ffffff24!important}
+@media(max-width:700px){#auth-gate-screen .gate-card{padding:34px 22px!important}#sg-home .sg-hero{min-height:330px!important;border-radius:20px!important}#sg-home .sg-container section{margin-top:28px!important}#search-box{padding:12px!important;border-radius:16px!important}#top-bar{padding:10px 12px!important}#custom-controls{padding:9px!important}}
+@media(prefers-reduced-motion:reduce){#sg-home .sg-card,#custom-controls .ctrl-btn{transition:none!important}}
+
+
+/* CINEMA POLISH / only CSS: preserves all existing handlers and data flow */
+:root{color-scheme:dark}
+#sg-home .sg-container{max-width:1480px!important;padding-left:clamp(18px,4vw,68px)!important;padding-right:clamp(18px,4vw,68px)!important}
+#sg-home .sg-nav{min-height:74px!important;padding:12px clamp(18px,4vw,64px)!important;gap:18px!important}
+#sg-home .sg-brand{font-size:clamp(18px,2vw,24px)!important;white-space:nowrap!important}
+#sg-home .sg-links{display:flex;gap:clamp(6px,1vw,18px)!important;align-items:center}
+#sg-home .sg-links button{font-size:14px!important;min-height:40px!important;border-radius:10px!important;padding:8px 12px!important;transition:background .2s ease!important}
+#sg-home .sg-links button:hover,#sg-home .sg-links button:focus-visible{background:#ffffff19!important}
+#sg-home .sg-search{border-radius:13px!important;border:1px solid #ffffff22!important;background:#121722!important;overflow:hidden}
+#sg-home .sg-search input{background:transparent!important;min-height:43px!important}
+#sg-home .sg-hero{position:relative!important;overflow:hidden!important;isolation:isolate!important;padding:clamp(28px,5vw,72px)!important;display:flex!important;align-items:center!important}
+#sg-home .sg-hero:before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 82% 36%,#e1a86d36,transparent 36%),radial-gradient(ellipse at 67% 75%,#3e5a7840,transparent 47%),linear-gradient(110deg,#090d18 8%,#242a3a 78%);pointer-events:none}
+#sg-home .sg-hero:after{content:'SHIGUANG\A CINEMA';white-space:pre;position:absolute;right:5%;top:50%;transform:translateY(-50%);font-size:clamp(48px,9vw,145px);font-weight:900;line-height:.92;letter-spacing:-.075em;color:#ffffff08;z-index:-1;pointer-events:none}
+#sg-home .sg-hero>div{max-width:680px!important;position:relative;z-index:1}
+#sg-home .sg-hero p{max-width:530px!important;font-size:clamp(14px,1.4vw,17px)!important;line-height:1.8!important;color:#c4c8d1!important}
+#sg-home .sg-actions{display:flex!important;gap:12px!important;flex-wrap:wrap!important;margin-top:28px!important}
+#sg-home .sg-actions button{min-height:48px!important;padding:12px 22px!important;box-shadow:0 8px 24px #0004!important}
+#sg-home .sg-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))!important;gap:clamp(14px,2vw,24px)!important}
+#sg-home .sg-card{cursor:pointer!important;min-width:0!important}
+#sg-home .sg-card:focus-visible,#sg-home button:focus-visible,.gate-card button:focus-visible{outline:2px solid #eac187!important;outline-offset:3px!important}
+#sg-home .sg-poster{aspect-ratio:2/3!important;min-height:0!important;overflow:hidden!important}
+#sg-home .sg-poster img{width:100%!important;height:100%!important;object-fit:cover!important;transition:transform .35s ease!important}
+#sg-home .sg-card:hover .sg-poster img{transform:scale(1.035)!important}
+#sg-home .sg-quick{gap:14px!important}
+#sg-home .sg-tile{min-height:76px!important;font-size:clamp(14px,1.5vw,17px)!important;font-weight:700!important;transition:transform .2s,background .2s!important}
+#sg-home .sg-tile:hover{transform:translateY(-2px)!important;background:#31394b!important}
+#auth-gate-screen{background:radial-gradient(ellipse at 50% 15%,#343f54 0%,#0d111b 43%,#06080d 100%)!important}
+#auth-gate-screen .gate-card{border:1px solid #ffffff24!important;box-shadow:0 35px 100px #000a!important;max-width:450px!important}
+#auth-gate-screen .gate-logo{font-size:clamp(27px,3vw,36px)!important;letter-spacing:.08em!important}
+#auth-gate-screen .gate-input-box{border:1px solid #ffffff20!important;border-radius:14px!important;min-height:50px!important}
+#auth-gate-screen .gate-submit-btn{min-height:48px!important;border-radius:13px!important;background:linear-gradient(115deg,#f0ca96,#c79557)!important;color:#19120b!important;font-weight:800!important}
+#player-wrap{box-shadow:0 14px 55px #0008!important}
+#source-modal{max-height:calc(100dvh - 36px)!important;overflow:auto!important}
+@media(max-width:900px){#sg-home .sg-grid{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))!important}#sg-home .sg-hero:after{font-size:70px;opacity:.65}}
+@media(max-width:650px){#sg-home .sg-container{padding-left:16px!important;padding-right:16px!important;padding-bottom:88px!important}#sg-home .sg-nav{padding:12px 16px!important}#sg-home .sg-links{overflow-x:auto;max-width:100%;scrollbar-width:none}#sg-home .sg-links::-webkit-scrollbar{display:none}#sg-home .sg-hero{min-height:340px!important;padding:28px 22px!important}#sg-home .sg-hero:after{right:-12%;font-size:62px;opacity:.4}#sg-home .sg-hero h1{font-size:clamp(33px,9vw,48px)!important}#sg-home .sg-hero p{font-size:13px!important}#sg-home .sg-actions button{flex:1 1 140px!important}#sg-home .sg-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}#sg-home .sg-quick{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}#sg-home .sg-tile{min-height:74px!important}#sg-home .sg-container section{margin-top:30px!important}#sg-home .sg-container h2{font-size:21px!important}}
+@media(prefers-reduced-motion:reduce){#sg-home .sg-poster img,#sg-home .sg-tile{transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -5796,6 +5922,32 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
      }
    };
    if(cached){show(cached);return;}
+   // Public D1 cache contains poster metadata only, not playable URLs.
+   // Resolve each selected title using this account's allowed sources before playback.
+   try {
+     const response=await fetch('/api/recommendations',{cache:'default'});
+     if(response.ok){
+       const data=await response.json();
+       if(Array.isArray(data.items)&&data.items.length){
+         const rows=data.items.filter(x=>x&&x.name).map(x=>({title:x.name,thumb:x.poster||'',section:x.category==='series'?'series':'movies',siteName:'公共推荐',_sgPublicMetadata:true}));
+         const showPublic=()=>{
+           for(const [section,node] of [['movies',movies],['series',series]]){
+             node.replaceChildren();
+             for(const row of rows.filter(x=>x.section===section)){
+               node.appendChild(card(row,async()=>{
+                 // Never play unverified URLs from shared metadata.
+                 const match=await sgFindPlayable({name:row.title},sgAllowedSites());
+                 if(match){sgHomeClose();switchMode('vod');playCurrentVodSource(match.item,0,false);}
+                 else alert('当前账号的视频源没有找到可播放的《'+row.title+'》，请使用搜索尝试其他线路。');
+               }));
+             }
+             if(!node.children.length)sgEmpty(node,'暂无此类公共推荐');
+           }
+         };
+         showPublic();return;
+       }
+     }
+   } catch(_) { /* cache unavailable: preserve existing live-source fallback */ }
    publicHomePromise=(async()=>{
      const results=[];
      // 分批请求，避免同时向所有采集源发起大量连接。
@@ -5810,7 +5962,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
    })().finally(()=>{publicHomePromise=null;});
    return publicHomePromise;
  };
- function setup(){const gate=document.getElementById('auth-gate-screen');if(!gate)return;const observer=new MutationObserver(()=>{if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(()=>{if(gateHidden())sgHomeOpen();},200);}});observer.observe(gate,{attributes:true,attributeFilter:['style','class']});if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(sgHomeOpen,400);}const nav=document.createElement('button');nav.type='button';nav.textContent='⌂ 首页';nav.title='返回拾光影视首页';nav.style.cssText='position:fixed;right:12px;bottom:12px;z-index:3000;border:1px solid #ffffff40;border-radius:20px;padding:9px 15px;background:#172a49e8;color:white;font-weight:700;box-shadow:0 5px 18px #0007';nav.onclick=sgHomeOpen;document.body.appendChild(nav);}
+ function setup(){const gate=document.getElementById('auth-gate-screen');if(!gate)return;const observer=new MutationObserver(()=>{if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(()=>{if(gateHidden())sgHomeOpen();},200);}});observer.observe(gate,{attributes:true,attributeFilter:['style','class']});if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(sgHomeOpen,400);}const nav=document.createElement('button');nav.type='button';nav.textContent='⌂ 首页';nav.title='返回拾光影视首页';nav.style.cssText='position:fixed;right:12px;bottom:16px;z-index:3000;border:1px solid #ffffff45;border-radius:14px;padding:9px 14px;background:#1b3e75ed;color:white;font-weight:700;box-shadow:0 5px 18px #0007';nav.onclick=sgHomeOpen;document.body.appendChild(nav);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
 })();
 
