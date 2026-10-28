@@ -1164,6 +1164,7 @@
     let isDraggingProgress = false;
     let dragTargetTime = 0;
     let hls = null;
+    let playbackGeneration = 0;
     let playWatchdogTimer = null;
     let gestureTipTimer = null;
     let controlsTimer = null;
@@ -4713,6 +4714,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     function showFailTip(msg) {
       clearPlayWatchdog();
+      playbackGeneration++; // 使旧线路的异步回调失效
       destroyHlsInstance();
       updatePlayBtn(false);
       try { video.pause(); } catch(_) {}
@@ -4763,14 +4765,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       url = playUrl;
 
+      const generation = ++playbackGeneration;
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
+      try { video.pause(); video.removeAttribute("src"); video.load(); } catch (_) {}
       setStatus(isLiveMode ? "正在通过 VPS 解码直播流，请稍候..." : "正在建立连接，请稍候...");
 
       let hasStarted = false;
       const markPlaySuccess = () => {
-        if (hasStarted) return;
+        if (hasStarted || generation !== playbackGeneration) return;
         hasStarted = true;
         clearPlayWatchdog();
         setStatus("", false);
@@ -4781,7 +4785,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       // 给 VPS 首次跨国拉流预留 20 秒缓冲时间
       playWatchdogTimer = setTimeout(() => {
-        if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
+        if (generation === playbackGeneration && !hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
           showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
       }, 20000);
@@ -4791,6 +4795,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       video.onloadedmetadata = markPlaySuccess;
       video.oncanplay = markPlaySuccess;
       video.onerror = () => {
+        if (generation !== playbackGeneration) return;
         showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
       };
 
@@ -4801,6 +4806,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(err => {
+            if (generation !== playbackGeneration) return;
             if (err && err.name === 'NotAllowedError') {
               video.muted = true;
               video.play().then(markPlaySuccess).catch(() => {});
@@ -4812,8 +4818,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return;
       }
 
-      if (Hls.isSupported()) {
-        hls = new Hls({
+      if (typeof Hls !== "undefined" && Hls.isSupported()) {
+        let mediaRecoveryAttempts = 0;
+        const player = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 60,
@@ -4824,21 +4831,28 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           fragLoadingMaxRetry: 3,
           xhrSetup: (xhr) => { xhr.withCredentials = false; }
         });
-        hls.loadSource(url);
-        hls.attachMedia(video);
+        hls = player;
+        player.loadSource(url);
+        player.attachMedia(video);
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        player.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (generation !== playbackGeneration) return;
           video.play().catch(() => {});
         });
 
-        hls.on(Hls.Events.ERROR, (_, data) => {
+        player.on(Hls.Events.ERROR, (_, data) => {
+          if (generation !== playbackGeneration || player !== hls) return;
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 showFailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
+                if (mediaRecoveryAttempts++ < 2) {
+                  player.recoverMediaError();
+                } else {
+                  showFailTip("当前线路受限 (媒体解码连续失败)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源</span>");
+                }
                 break;
               default:
                 showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
@@ -4850,6 +4864,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         video.src = url;
         video.load();
         video.play().catch(() => {});
+      } else {
+        showFailTip("当前浏览器不支持此视频格式，请尝试外部播放器");
       }
     }
 
@@ -4891,6 +4907,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       totalChannelsCount = 0;
       totalStreamsCount = 0;
       const lines = content.split('\n');
+      // 临时集合加速线路去重，保持原有输出顺序。
+      const seenUrls = Object.create(null);
       let temp = null;
       for (let line of lines) {
         line = line.trim();
@@ -4914,7 +4932,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               groups[temp.group][temp.name] = [];
               totalChannelsCount++;
             }
-            if (!groups[temp.group][temp.name].includes(line)) {
+            if (!seenUrls[temp.group]) seenUrls[temp.group] = Object.create(null);
+            if (!seenUrls[temp.group][temp.name]) seenUrls[temp.group][temp.name] = new Set();
+            if (!seenUrls[temp.group][temp.name].has(line)) {
+              seenUrls[temp.group][temp.name].add(line);
               groups[temp.group][temp.name].push(line);
               totalStreamsCount++;
             }
@@ -5102,6 +5123,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     function renderList(targetGroups, isSearchMode = false) {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
+      // 离屏构建直播频道列表，最后统一挂载。
+      const listFragment = document.createDocumentFragment();
       for (let groupName in targetGroups) {
         const channels = targetGroups[groupName];
         if (Object.keys(channels).length === 0) continue;
@@ -5243,9 +5266,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           rowEl.appendChild(panelEl);
           subList.appendChild(rowEl);
         }
-        container.appendChild(groupEl);
-        container.appendChild(subList);
+        listFragment.appendChild(groupEl);
+        listFragment.appendChild(subList);
       }
+      container.appendChild(listFragment);
     }
 
     function handleSearchTv() {
