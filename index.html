@@ -4712,6 +4712,40 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
+    // V4: 被动线路健康统计。仅用于记录，不改变选线、重试、UI 或 D1 行为。
+    const V4_HEALTH_KEY = 'mytv_v4_line_health';
+    function recordV4LineHealth(url, success, elapsedMs) {
+      try {
+        if (!url || typeof localStorage === 'undefined') return;
+        // 不存储完整播放地址（可能包含私有令牌），仅保存不可逆的短哈希。
+        let hash = 2166136261;
+        for (let i = 0; i < url.length; i++) {
+          hash ^= url.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        const key = (hash >>> 0).toString(16);
+        const old = JSON.parse(localStorage.getItem(V4_HEALTH_KEY) || '{}');
+        const data = old && typeof old === 'object' && !Array.isArray(old) ? old : {};
+        const item = data[key] || { ok: 0, fail: 0, avgMs: 0, updated: 0 };
+        if (success) {
+          item.ok = Math.min(100000, (item.ok || 0) + 1);
+          if (Number.isFinite(elapsedMs) && elapsedMs >= 0) {
+            item.avgMs = item.avgMs ? Math.round(item.avgMs * 0.75 + elapsedMs * 0.25) : Math.round(elapsedMs);
+          }
+        } else {
+          item.fail = Math.min(100000, (item.fail || 0) + 1);
+        }
+        item.updated = Date.now();
+        data[key] = item;
+        const entries = Object.entries(data);
+        if (entries.length > 80) {
+          entries.sort((a, b) => (b[1]?.updated || 0) - (a[1]?.updated || 0));
+          for (const [staleKey] of entries.slice(80)) delete data[staleKey];
+        }
+        localStorage.setItem(V4_HEALTH_KEY, JSON.stringify(data));
+      } catch (_) { /* 存储被禁用、空间不足等情况不能影响播放 */ }
+    }
+
     function showFailTip(msg) {
       clearPlayWatchdog();
       playbackGeneration++; // 使旧线路的异步回调失效
@@ -4766,6 +4800,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       url = playUrl;
 
       const generation = ++playbackGeneration;
+      const v4StartedAt = Date.now();
+      let v4OutcomeRecorded = false;
+      const recordV4Outcome = (success) => {
+        if (v4OutcomeRecorded || generation !== playbackGeneration) return;
+        v4OutcomeRecorded = true;
+        recordV4LineHealth(url, success, Date.now() - v4StartedAt);
+      };
+      const v4FailTip = (message) => {
+        recordV4Outcome(false);
+        showFailTip(message);
+      };
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
@@ -4776,6 +4821,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       const markPlaySuccess = () => {
         if (hasStarted || generation !== playbackGeneration) return;
         hasStarted = true;
+        recordV4Outcome(true);
         clearPlayWatchdog();
         setStatus("", false);
         updatePlayBtn(true);
@@ -4786,7 +4832,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       // 给 VPS 首次跨国拉流预留 20 秒缓冲时间
       playWatchdogTimer = setTimeout(() => {
         if (generation === playbackGeneration && !hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
-          showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
+          v4FailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
       }, 20000);
 
@@ -4796,7 +4842,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       video.oncanplay = markPlaySuccess;
       video.onerror = () => {
         if (generation !== playbackGeneration) return;
-        showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+        v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
       };
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
@@ -4811,7 +4857,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               video.muted = true;
               video.play().then(markPlaySuccess).catch(() => {});
             } else if (err && err.name === 'NotSupportedError') {
-              showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+              v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
             }
           });
         }
@@ -4845,17 +4891,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                showFailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
+                v4FailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 if (mediaRecoveryAttempts++ < 2) {
                   player.recoverMediaError();
                 } else {
-                  showFailTip("当前线路受限 (媒体解码连续失败)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源</span>");
+                  v4FailTip("当前线路受限 (媒体解码连续失败)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源</span>");
                 }
                 break;
               default:
-                showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+                v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
                 break;
             }
           }
@@ -4865,7 +4911,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         video.load();
         video.play().catch(() => {});
       } else {
-        showFailTip("当前浏览器不支持此视频格式，请尝试外部播放器");
+        v4FailTip("当前浏览器不支持此视频格式，请尝试外部播放器");
       }
     }
 
