@@ -4746,6 +4746,34 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       } catch (_) { /* 存储被禁用、空间不足等情况不能影响播放 */ }
     }
 
+    // V4.2: 只读线路健康推荐数据。不自动选线、不修改 UI 或播放规则。
+    // 在浏览器控制台执行 mytvLineHealthReport() 可查看匿名线路评分。
+    function getV42LineHealthReport() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(V4_HEALTH_KEY) || '{}');
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+        const now = Date.now();
+        return Object.entries(parsed).filter(([key, item]) =>
+          /^[0-9a-f]{1,8}$/.test(key) && item && typeof item === 'object'
+        ).map(([key, item]) => {
+          const ok = Math.max(0, Number(item.ok) || 0);
+          const fail = Math.max(0, Number(item.fail) || 0);
+          const samples = ok + fail;
+          const avgMs = Math.max(0, Number(item.avgMs) || 0);
+          const ageDays = Math.max(0, (now - (Number(item.updated) || 0)) / 86400000);
+          // 少量样本使用平滑成功率；旧记录降低可信度，不改变播放顺序。
+          const successRate = (ok + 1) / (samples + 2);
+          const confidence = Math.min(1, samples / 8) * Math.exp(-ageDays / 30);
+          const speedFactor = avgMs > 0 ? 1 / (1 + avgMs / 10000) : 0.5;
+          const score = Math.round(100 * confidence * (successRate * 0.8 + speedFactor * 0.2));
+          return { lineId: key, successes: ok, failures: fail, avgLoadMs: avgMs,
+            samples, score, lastSeen: Number(item.updated) || 0 };
+        }).sort((a, b) => b.score - a.score || b.lastSeen - a.lastSeen);
+      } catch (_) { return []; }
+    }
+    // 只读诊断入口：不暴露播放 URL，不写数据库或本地存储。
+    window.mytvLineHealthReport = getV42LineHealthReport;
+
     function showFailTip(msg) {
       clearPlayWatchdog();
       playbackGeneration++; // 使旧线路的异步回调失效
