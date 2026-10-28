@@ -600,9 +600,28 @@
         overflow: hidden;
       }
     }
-  </style>
+  
+/* 拾光影视 2.0 - 独立首页，不覆盖旧播放器 */
+#sg-home{position:fixed;inset:0;z-index:8000;overflow-y:auto;background:radial-gradient(ellipse at 70% 0%,#172846 0%,#080c16 48%,#05070d 100%);color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:none}
+#sg-home *{box-sizing:border-box}#sg-home button{cursor:pointer;font:inherit}#sg-home .sg-nav{height:72px;display:flex;align-items:center;gap:22px;position:sticky;top:0;z-index:2;background:#080c16e8;backdrop-filter:blur(18px);padding:0 max(5%,24px);border-bottom:1px solid #ffffff12}#sg-home .sg-brand{font-size:23px;font-weight:800;letter-spacing:1px;white-space:nowrap}#sg-home .sg-brand b{color:#4d9bff}#sg-home .sg-links{display:flex;gap:8px;flex-wrap:wrap}#sg-home .sg-links button,#sg-home .sg-more{background:transparent;border:0;color:#cbd5e1;padding:10px 12px;border-radius:12px}#sg-home .sg-links button:hover,#sg-home .sg-more:hover{background:#ffffff17;color:white}#sg-home .sg-search{margin-left:auto;display:flex;gap:8px;min-width:180px}#sg-home .sg-search input{width:100%;border:1px solid #ffffff30;border-radius:22px;padding:11px 16px;color:white;background:#ffffff10;outline:none}#sg-home .sg-search button,#sg-home .sg-primary{border:0;border-radius:14px;background:#1676f3;color:#fff;padding:12px 19px;font-weight:700}#sg-home .sg-container{max-width:1520px;margin:auto;padding:22px max(5%,24px) 100px}#sg-home .sg-hero{min-height:330px;border-radius:25px;overflow:hidden;background:linear-gradient(90deg,#10192df0,#10192d60),radial-gradient(circle at 78% 35%,#4262a0,#10192d 65%);display:flex;align-items:center;padding:44px;position:relative}#sg-home .sg-hero:after{content:'▶';font-size:180px;color:#ffffff12;position:absolute;right:12%;top:8%}#sg-home .sg-hero>div{position:relative;z-index:1;max-width:620px}#sg-home .sg-kicker{color:#81b8ff;letter-spacing:3px;font-weight:700;font-size:12px}#sg-home h1{font-size:clamp(35px,5vw,64px);margin:15px 0}#sg-home .sg-muted{color:#a8b3c5;line-height:1.8}#sg-home .sg-actions{display:flex;gap:12px;margin-top:23px;flex-wrap:wrap}#sg-home .sg-secondary{border:1px solid #ffffff4a;background:#ffffff17;color:white;border-radius:14px;padding:12px 19px}#sg-home section{margin-top:36px}#sg-home h2{font-size:23px;margin:0 0 18px}#sg-home .sg-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}#sg-home .sg-card{border:1px solid #ffffff15;background:#141b2a;border-radius:16px;overflow:hidden;color:white;text-align:left;padding:0;min-width:0;transition:transform .2s}#sg-home .sg-card:hover{transform:translateY(-5px);border-color:#448cf7}#sg-home .sg-poster{aspect-ratio:2/3;background:linear-gradient(145deg,#263d65,#0c1222);display:flex;align-items:center;justify-content:center;font-size:48px;overflow:hidden}#sg-home .sg-poster img{width:100%;height:100%;object-fit:cover}#sg-home .sg-info{padding:12px}#sg-home .sg-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#sg-home .sg-meta{font-size:12px;color:#91a2b8;margin-top:7px}#sg-home .sg-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}#sg-home .sg-tile{padding:24px 12px;text-align:center;background:linear-gradient(125deg,#1d3354,#101b2d);border:1px solid #ffffff20;border-radius:18px;color:white;font-size:17px;font-weight:700}#sg-home .sg-empty{padding:25px;background:#ffffff0b;border:1px solid #ffffff12;border-radius:16px;color:#aab8ce}#sg-home .sg-bottom{display:none}#auth-gate-screen{z-index:9000!important}body.sg-home-open{overflow:hidden}body.sg-home-open #sg-home{display:block}
+@media(max-width:950px){#sg-home .sg-grid{grid-template-columns:repeat(4,minmax(0,1fr))}#sg-home .sg-links{display:none}#sg-home .sg-hero{min-height:290px;padding:30px}}
+@media(max-width:620px){#sg-home .sg-nav{height:62px;padding:0 15px;gap:10px}#sg-home .sg-brand{font-size:17px}#sg-home .sg-search{min-width:0}#sg-home .sg-search input{font-size:12px;padding:9px 10px}#sg-home .sg-search button{padding:9px}#sg-home .sg-container{padding:12px 14px 90px}#sg-home .sg-hero{min-height:260px;padding:24px;border-radius:18px}#sg-home .sg-hero:after{font-size:110px;right:3%;top:18%}#sg-home .sg-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}#sg-home .sg-info{padding:8px}#sg-home .sg-title{font-size:12px}#sg-home .sg-quick{grid-template-columns:repeat(2,1fr);gap:9px}#sg-home .sg-tile{padding:17px 6px;font-size:14px}#sg-home h2{font-size:19px}#sg-home .sg-bottom{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:4;background:#0a1122f5;border-top:1px solid #ffffff22;justify-content:space-around;padding:10px 5px max(12px,env(safe-area-inset-bottom))}#sg-home .sg-bottom button{border:0;background:transparent;color:#d9e5f8;font-size:12px;padding:5px 8px}}
+
+</style>
 </head>
 <body>
+
+<div id="sg-home" aria-label="拾光影视首页">
+ <header class="sg-nav"><div class="sg-brand"><b>▶</b> 拾光影视</div><nav class="sg-links"><button onclick="sgHomeOpen()">首页</button><button onclick="sgHomeTo('vod')">影视</button><button onclick="sgHomeTo('tv')">直播</button><button onclick="sgHomeTo('fav')">收藏</button><button onclick="sgHomeTo('history')">历史</button><button onclick="sgHomeTo('settings')">设置</button></nav><form class="sg-search" onsubmit="sgHomeSearch(event)"><input id="sg-query" aria-label="搜索影视" placeholder="搜索真实片源…"><button type="submit">搜索</button></form></header>
+ <main class="sg-container"><div class="sg-hero"><div><div class="sg-kicker">SHIGUANG · YOUR CINEMA</div><h1>好电影，随时开场。</h1><p class="sg-muted">精选影视来自已配置的视频源，所有用户都能浏览自己有权限观看的真实片源。</p><div class="sg-actions"><button class="sg-primary" onclick="sgHomeTo('vod')">▶ 进入影视剧场</button><button class="sg-secondary" onclick="sgHomeTo('tv')">▣ 观看电视直播</button></div></div></div>
+ <section><h2>快捷入口</h2><div class="sg-quick"><button class="sg-tile" onclick="sgHomeTo('vod')">🎬 电影与剧集</button><button class="sg-tile" onclick="sgHomeTo('tv')">📺 电视直播</button><button class="sg-tile" onclick="sgHomeTo('fav')">☆ 我的收藏</button><button class="sg-tile" onclick="sgHomeTo('history')">◷ 继续观看</button></div></section>
+ <section><h2>🔥 精选电影 · 真实片源</h2><div class="sg-grid" id="sg-public-movies"><div class="sg-empty">正在从可用影视源加载…</div></div></section>
+ <section><h2>📺 热门剧集 · 真实片源</h2><div class="sg-grid" id="sg-public-series"><div class="sg-empty">正在从可用影视源加载…</div></div></section>
+ <section><h2>📡 电视直播</h2><div class="sg-quick"><button class="sg-tile" onclick="sgHomeTo('tv')">📺 进入直播频道</button><button class="sg-tile" onclick="sgHomeTo('vod')">🎬 浏览影视资源</button><button class="sg-tile" onclick="sgHomeTo('fav')">☆ 我的收藏</button><button class="sg-tile" onclick="sgHomeTo('history')">◷ 我的观看历史</button></div></section>
+ <section><h2>🔎 搜索更多真实影视</h2><p class="sg-muted">推荐并非实时热度排行榜；只展示当前账号可用片源中能够查到有效播放地址的作品。影片实际播放能力取决于片源状态。</p><div class="sg-quick"><button class="sg-tile" onclick="sgHomeQuery('电影')">电影搜索</button><button class="sg-tile" onclick="sgHomeQuery('电视剧')">电视剧搜索</button><button class="sg-tile" onclick="sgHomeQuery('动漫')">动漫搜索</button><button class="sg-tile" onclick="sgHomeQuery('纪录片')">纪录片搜索</button></div></section></main>
+ <nav class="sg-bottom"><button onclick="sgHomeOpen()">⌂<br>首页</button><button onclick="sgHomeTo('vod')">▣<br>影视</button><button onclick="sgHomeTo('tv')">▤<br>直播</button><button onclick="sgHomeTo('fav')">☆<br>收藏</button><button onclick="sgHomeTo('settings')">⚙<br>设置</button></nav>
+</div>
+
 
   <!-- 全屏门禁系统 -->
   <div id="auth-gate-screen">
@@ -5596,5 +5615,94 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       checkAutoSyncSchedule();
     });
   </script>
+<script>
+
+/* 拾光影视 2.0：首页独立模块，复用原项目真实播放与收藏数据 */
+(function(){
+ 
+ function gateHidden(){const g=document.getElementById('auth-gate-screen');return g && getComputedStyle(g).display==='none';}
+ window.sgHomeOpen=async function(){if(!gateHidden())return;document.body.classList.add('sg-home-open');await sgHomeRender();};
+ window.sgHomeClose=function(){document.body.classList.remove('sg-home-open');};
+ window.sgHomeTo=function(view){sgHomeClose();try{if(view==='tv'||view==='vod'){switchMode(view);}else if(view==='fav'||view==='history'){switchMode('vod');switchSidebarView(view);}else if(view==='settings'){handleMainSettingsButtonClick();}}catch(e){console.warn('首页导航:',e);}};
+ window.sgHomeSearch=function(e){e.preventDefault();sgHomeQuery(document.getElementById('sg-query').value);};
+ window.sgHomeQuery=function(q){q=String(q||'').trim();if(!q)return;sgHomeTo('vod');const input=document.getElementById('filter');if(input){input.value=q;toggleClearBtn(q);triggerSearch();}};
+ function card(item,click){const b=document.createElement('button');b.className='sg-card';const p=document.createElement('div');p.className='sg-poster';const url=item.vod?.vod_pic||item.thumb||'';if(/^https?:\/\//i.test(url)){const im=document.createElement('img');im.src=url;im.alt='';im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{p.textContent='🎬';};p.appendChild(im);}else p.textContent='🎬';const box=document.createElement('div');box.className='sg-info';const title=document.createElement('div');title.className='sg-title';title.textContent=item.title||item.vod?.vod_name||'未命名影片';const meta=document.createElement('div');meta.className='sg-meta';meta.textContent=[item.epName,item.siteName].filter(Boolean).join(' · ')||'点击播放';box.append(title,meta);b.append(p,box);b.onclick=click;return b;}
+ const SG_RECOMMEND_SEEDS = [
+   {name:'流浪地球2',section:'movies'}, {name:'哪吒之魔童闹海',section:'movies'},
+   {name:'星际穿越',section:'movies'}, {name:'肖申克的救赎',section:'movies'},
+   {name:'漫长的季节',section:'series'}, {name:'繁花',section:'series'},
+   {name:'狂飙',section:'series'}, {name:'三体',section:'series'}
+ ];
+ let publicHomePromise=null;
+ function sgEmpty(node,message){node.replaceChildren();const div=document.createElement('div');div.className='sg-empty';div.textContent=message;node.appendChild(div);}
+ function sgAllowedSites(){
+   let sites=parsedSites.filter(s=>s && s.api && !disabledSites.includes(s.name) && !isNSFWSource(s.name));
+   if(currentUser && currentUser.role!=='admin'){
+     const group=sourceGroups.find(g=>g.id===currentUser.groupId)||sourceGroups.find(g=>g.isDefault)||sourceGroups[0];
+     if(group && Array.isArray(group.sites) && group.sites[0]!=='*') sites=sites.filter(s=>group.sites.includes(s.name));
+   }
+   return sites.slice(0,5);
+ }
+ async function sgGetJson(url){const raw=await fetchWithSmartProxy(url,3000);return JSON.parse(raw);}
+ function sgApiUrl(site,action,query){return site.api+(site.api.includes('?')?'&':'?')+'ac='+action+'&'+query+'&out=json';}
+ async function sgFindPlayable(seed,sites){
+   for(const site of sites){
+     try{
+       const list=await sgGetJson(sgApiUrl(site,'videolist','wd='+encodeURIComponent(seed.name)+'&pg=1'));
+       const items=(Array.isArray(list.list)?list.list:[]).filter(v=>String(v.vod_name||'').trim()===seed.name);
+       for(const found of items.slice(0,2)){
+         let vod=found;
+         if(!getEpisodesList({vod}).length && vod.vod_id!==undefined && vod.vod_id!==null){
+           const detail=await sgGetJson(sgApiUrl(site,'detail','ids='+encodeURIComponent(vod.vod_id)));
+           vod=(Array.isArray(detail.list)?detail.list:[]).find(x=>String(x.vod_name||'').trim()===seed.name)||vod;
+         }
+         if(getEpisodesList({vod}).length){
+           return {title:seed.name,thumb:isSafeUrl(vod.vod_pic)?vod.vod_pic:'',siteName:site.name,
+             item:{id:'sg_public_'+String(vod.vod_id||seed.name),siteName:site.name,versionTag:'',vod}};
+         }
+       }
+     }catch(_){/* 单源失败不影响其他推荐 */}
+   }
+   return null;
+ }
+ window.sgHomeRender=async function(){
+   if(publicHomePromise) return publicHomePromise;
+   const movies=document.getElementById('sg-public-movies'),series=document.getElementById('sg-public-series');
+   if(!movies||!series)return;
+   const sites=sgAllowedSites();
+   if(!sites.length){sgEmpty(movies,'当前账号没有可用影视源，请在设置中配置或联系管理员。');sgEmpty(series,'暂无可用影视源。');return;}
+   const scope=String(currentUser?.groupId||'def')+'|'+sites.map(s=>s.name+':'+s.api).join('|');
+   const cacheKey='sg_public_home_v1_'+scope;
+   let cached=null;
+   try{const obj=JSON.parse(sessionStorage.getItem(cacheKey)||'null');if(obj && Date.now()-obj.at<15*60*1000)cached=obj.rows;}catch(_){}
+   const show=(rows)=>{
+     for(const [section,node] of [['movies',movies],['series',series]]){
+       node.replaceChildren();const filtered=rows.filter(x=>x.section===section);
+       for(const row of filtered){node.appendChild(card(row,()=>{
+         sgHomeClose();switchMode('vod');playCurrentVodSource(row.item,0,false);
+       }));}
+       if(!filtered.length)sgEmpty(node,'暂未找到可播放的精选影片，可使用顶部搜索查找更多内容。');
+     }
+   };
+   if(cached){show(cached);return;}
+   publicHomePromise=(async()=>{
+     const results=[];
+     // 分批请求，避免同时向所有采集源发起大量连接。
+     for(let i=0;i<SG_RECOMMEND_SEEDS.length;i+=2){
+       const batch=await Promise.all(SG_RECOMMEND_SEEDS.slice(i,i+2).map(async seed=>{
+         const row=await sgFindPlayable(seed,sites);return row?{...row,section:seed.section}:null;
+       }));
+       results.push(...batch.filter(Boolean));show(results);
+     }
+     try{sessionStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),rows:results}));}catch(_){}
+     show(results);
+   })().finally(()=>{publicHomePromise=null;});
+   return publicHomePromise;
+ };
+ function setup(){const gate=document.getElementById('auth-gate-screen');if(!gate)return;const observer=new MutationObserver(()=>{if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(()=>{if(gateHidden())sgHomeOpen();},200);}});observer.observe(gate,{attributes:true,attributeFilter:['style','class']});if(gateHidden()&&!sessionStorage.getItem('sg_home_seen')){sessionStorage.setItem('sg_home_seen','1');setTimeout(sgHomeOpen,400);}const nav=document.createElement('button');nav.type='button';nav.textContent='⌂ 首页';nav.title='返回拾光影视首页';nav.style.cssText='position:fixed;right:12px;bottom:12px;z-index:3000;border:1px solid #ffffff40;border-radius:20px;padding:9px 15px;background:#172a49e8;color:white;font-weight:700;box-shadow:0 5px 18px #0007';nav.onclick=sgHomeOpen;document.body.appendChild(nav);}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
+})();
+
+</script>
 </body>
 </html>
