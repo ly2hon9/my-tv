@@ -607,6 +607,117 @@
 @media(max-width:950px){#sg-home .sg-grid{grid-template-columns:repeat(4,minmax(0,1fr))}#sg-home .sg-links{display:none}#sg-home .sg-hero{min-height:290px;padding:30px}}
 @media(max-width:620px){#sg-home .sg-nav{height:62px;padding:0 15px;gap:10px}#sg-home .sg-brand{font-size:17px}#sg-home .sg-search{min-width:0}#sg-home .sg-search input{font-size:12px;padding:9px 10px}#sg-home .sg-search button{padding:9px}#sg-home .sg-container{padding:12px 14px 90px}#sg-home .sg-hero{min-height:260px;padding:24px;border-radius:18px}#sg-home .sg-hero:after{font-size:110px;right:3%;top:18%}#sg-home .sg-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}#sg-home .sg-info{padding:8px}#sg-home .sg-title{font-size:12px}#sg-home .sg-quick{grid-template-columns:repeat(2,1fr);gap:9px}#sg-home .sg-tile{padding:17px 6px;font-size:14px}#sg-home h2{font-size:19px}#sg-home .sg-bottom{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:4;background:#0a1122f5;border-top:1px solid #ffffff22;justify-content:space-around;padding:10px 5px max(12px,env(safe-area-inset-bottom))}#sg-home .sg-bottom button{border:0;background:transparent;color:#d9e5f8;font-size:12px;padding:5px 8px}}
 
+
+
+/* SHIGUANG 2.0 / full-surface design layer — presentation only; all original IDs, handlers and data flows retained. */
+:root {
+ --bg-base:#08090d;--bg-workspace:#08090d;--bg-sidebar:#10131b;
+ --bg-search-box:#10131b;--bg-input:#161b26;--bg-card:#171c27;
+ --bg-card-hover:#222a38;--bg-tag:#242b38;--bg-sub-panel:#121721;
+ --border-color:#ffffff18;--border-light:#ffffff27;
+ --text-main:#f7f8fb;--text-sub:#b0b8c8;--text-mute:#808a9d;
+ --accent:#d83b52;--accent-soft:rgba(216,59,82,.16);
+ --card-shadow:0 14px 40px rgba(0,0,0,.32);
+ --glass-bg:rgba(21,25,35,.95);--glass-border:rgba(255,255,255,.13);
+ --glass-shadow:0 28px 85px rgba(0,0,0,.7);--glass-mask:rgba(0,0,0,.78);
+}
+/* Honor existing light-mode functionality while giving the dark theme a consistent default. */
+body.theme-light {
+ --bg-base:#f2f4f8;--bg-workspace:#e9edf4;--bg-sidebar:#fff;
+ --bg-search-box:#f8fafc;--bg-input:#fff;--bg-card:#fff;--bg-card-hover:#edf0f6;
+ --bg-tag:#eef1f5;--bg-sub-panel:#f8fafc;--border-color:#dce2eb;
+ --border-light:#cbd4e0;--text-main:#182132;--text-sub:#536074;
+ --text-mute:#7b8798;--accent:#c52d48;--accent-soft:rgba(197,45,72,.1);
+ --glass-bg:rgba(255,255,255,.96);--glass-border:#dce2eb;
+ --glass-shadow:0 25px 60px rgba(20,32,55,.16);--glass-mask:rgba(10,20,40,.4);
+}
+html,body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif}
+/* Authentication, including registration and administrator initialization: existing inputs/actions preserved. */
+#auth-gate-screen,#auth-gate-screen.dark-theme{
+ background:radial-gradient(ellipse at 70% 15%,#29233a 0%,transparent 38%),radial-gradient(ellipse at 10% 95%,#22283b 0%,transparent 48%),#07090e!important;
+ color:#f7f8fb!important;padding:22px;
+}
+#auth-gate-screen:before{content:'SHIGUANG  ·  CINEMA';position:absolute;top:clamp(28px,7vh,80px);left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;letter-spacing:4px;color:#9ba5b7;white-space:nowrap}
+#auth-gate-screen .gate-card,#auth-gate-screen.dark-theme .gate-card{
+ width:min(92vw,410px);max-width:410px;padding:46px 34px 38px;
+ border-radius:25px;background:rgba(22,26,36,.83)!important;
+ border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);
+ box-shadow:0 28px 90px rgba(0,0,0,.55)!important;
+}
+#auth-gate-screen .gate-logo{color:#fff;font-size:30px;letter-spacing:4px;margin-bottom:35px}
+#auth-gate-screen .gate-logo:after{content:'每一刻，都值得好好观看';display:block;margin-top:10px;font-size:11px;letter-spacing:2px;font-weight:400;color:#a5afc0}
+#auth-gate-screen .gate-sub-tip{color:#c4cad6}
+#auth-gate-screen .gate-input-box,#auth-gate-screen.dark-theme .gate-input-box{
+ height:52px;border-radius:13px;background:rgba(255,255,255,.055)!important;
+ border:1px solid rgba(255,255,255,.15)!important;margin-bottom:15px;padding:0 15px;
+}
+#auth-gate-screen .gate-input-box:focus-within,#auth-gate-screen.dark-theme .gate-input-box:focus-within{border-color:#e15a70!important;background:rgba(255,255,255,.08)!important}
+#auth-gate-screen .gate-input-box input,#auth-gate-screen.dark-theme .gate-input-box input{font-size:14px;color:#fff!important}
+#auth-gate-screen .gate-input-icon{font-size:16px}
+#auth-gate-screen .gate-options-row{margin:8px 0 24px;color:#c4cad6}
+#auth-gate-screen .gate-remember-wrap{color:#c4cad6}
+#auth-gate-screen .gate-remember-wrap input{accent-color:#d83b52}
+#auth-gate-screen .gate-switch-link{color:#ff8597}
+#auth-gate-screen .gate-submit-btn,#auth-gate-screen .gate-submit-btn.btn-ready{
+ height:51px;border-radius:13px;background:linear-gradient(105deg,#bb2946,#ed5167)!important;
+ box-shadow:0 10px 25px rgba(198,44,73,.24)!important;font-size:15px;letter-spacing:2px;
+}
+#auth-gate-screen .gate-top-bar{top:22px;right:22px}
+#auth-gate-screen .gate-theme-btn{color:#d7dce6}
+/* Player and browsing workspace */
+#player-wrap{background:#000;border-color:var(--border-color)}
+#sidebar{background:var(--bg-sidebar);border-color:var(--border-color)}
+#search-box{background:var(--bg-search-box);padding:14px;gap:10px}
+#search-box input{border-radius:12px;padding:11px 34px 11px 14px;font-size:14px}
+.btn-search,.btn-tool-mid,.btn-quick-theme,.mode-tab,.pill-btn{border-radius:11px}
+.btn-search{background:var(--accent);font-weight:700;padding:11px 17px}
+.btn-tool-mid{padding:10px 5px}
+#current-route-badge{background:#be3049;border-radius:8px}
+#progress-bar{background:#ec4b65}
+#player-wrap:not(.pseudo-fullscreen){border-radius:0 0 16px 16px}
+/* Settings, account management, sources, history, episodes, all use existing functional markup. */
+.glass-modal-mask{background:var(--glass-mask)!important;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.glass-modal-card,.custom-modal-content.glass-modal-card{
+ background:var(--glass-bg)!important;color:var(--text-main)!important;
+ border:1px solid var(--glass-border)!important;border-radius:22px!important;
+ box-shadow:var(--glass-shadow)!important;
+}
+.glass-modal-card input,.glass-modal-card select,.glass-modal-card textarea{
+ background:var(--bg-input);color:var(--text-main);border-color:var(--border-light);border-radius:10px;
+}
+.glass-modal-card button{border-radius:10px}
+.group-card-item,.source-card,.history-card,.episode-btn,.site-toggle-row,.tv-epg-row{border-radius:12px}
+/* Consistent homepage, while preserving its actual data loading and click handlers. */
+#sg-home{background:radial-gradient(ellipse at 78% -10%,#282239 0%,transparent 42%),#08090d;color:#f7f8fb}
+#sg-home .sg-nav{background:rgba(10,12,17,.91);border-bottom:1px solid #ffffff16;backdrop-filter:blur(22px)}
+#sg-home .sg-brand b{color:#ee526b}
+#sg-home .sg-links button,#sg-home .sg-more{color:#c5cad4}
+#sg-home .sg-links button:hover,#sg-home .sg-more:hover{background:#ffffff16;color:#fff}
+#sg-home .sg-search input{border-color:#ffffff25;background:#ffffff0d}
+#sg-home .sg-search button,#sg-home .sg-primary{background:linear-gradient(110deg,#c42b47,#eb5268);border-radius:12px}
+#sg-home .sg-container{max-width:1480px}
+#sg-home .sg-hero{border:1px solid #ffffff15;border-radius:25px;min-height:350px;background:linear-gradient(100deg,#111421 0%,#15192bdc 50%,#4a263e 100%);box-shadow:0 25px 70px #0006}
+#sg-home .sg-hero:after{color:#ffffff0d}
+#sg-home .sg-kicker{color:#ff899a}
+#sg-home .sg-secondary{border-color:#ffffff38;background:#ffffff14;border-radius:12px}
+#sg-home h2{font-size:22px;letter-spacing:.3px}
+#sg-home .sg-card{background:#161b25;border-color:#ffffff17;border-radius:15px;box-shadow:0 8px 24px #0003}
+#sg-home .sg-card:hover{border-color:#e34d67;transform:translateY(-4px)}
+#sg-home .sg-poster{background:linear-gradient(140deg,#34314b,#151722)}
+#sg-home .sg-meta{color:#aeb6c5}
+#sg-home .sg-tile{background:linear-gradient(135deg,#252335,#151a26);border-color:#ffffff18;border-radius:15px}
+#sg-home .sg-empty{background:#ffffff09;border-color:#ffffff14}
+#sg-home .sg-bottom{background:rgba(12,14,21,.96);border-color:#ffffff1c}
+#sg-home .sg-bottom button{color:#e1e5ed}
+@media(max-width:700px){
+ #auth-gate-screen .gate-card{padding:37px 25px 31px;border-radius:20px}
+ #auth-gate-screen .gate-logo{font-size:26px}
+ #sg-home .sg-hero{min-height:280px;padding:25px;border-radius:19px}
+ #sg-home .sg-container{padding-bottom:105px}
+ .glass-modal-card{max-width:calc(100vw - 24px)!important}
+}
+@media(prefers-reduced-motion:reduce){#sg-home .sg-card{transition:none}}
+
 </style>
 </head>
 <body>
