@@ -2795,6 +2795,110 @@
       body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag { row-gap:3px !important; }
     }
 
+  
+    /* AURORA 3.15 | three minimal layout corrections. */
+    /* If an expanded search result spans both columns, place it directly under
+       the toolbar. Otherwise CSS grid leaves the upper-right cell blank when
+       expanding card #2 (or any card from the right-hand column). Collapsed
+       cards keep their original search order. This is visual-only: no source
+       selection, playback state, or search-sorting behavior is changed. */
+    body:not(.aurora-home-view) #channel-list.sg-results-grid > .top-unified-bar {
+      order:-2 !important;
+    }
+    body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded {
+      order:-1 !important;
+      grid-column:1 / -1 !important;
+      grid-row:auto !important;
+    }
+    body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box:not(.expanded) {
+      order:0 !important;
+      grid-row:auto !important;
+    }
+
+    /* Keep the action buttons visible at natural mobile browser zoom.
+       The left-side category counts may ellipsize on very narrow screens,
+       but the manual speed-test button always remains tappable. */
+    @media (max-width:760px) {
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar {
+        display:grid !important;
+        grid-template-columns:minmax(0,1fr) max-content !important;
+        align-items:center !important;
+        column-gap:clamp(3px,1vw,7px) !important;
+        overflow:hidden !important;
+        width:100% !important;
+        min-width:0 !important;
+        box-sizing:border-box !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-left-group {
+        grid-column:1 !important;
+        display:flex !important;
+        flex:1 1 auto !important;
+        justify-content:flex-start !important;
+        flex-wrap:nowrap !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        gap:3px !important;
+        overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-right-group {
+        grid-column:2 !important;
+        display:flex !important;
+        flex:0 0 auto !important;
+        align-items:center !important;
+        justify-content:flex-end !important;
+        gap:3px !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        overflow:visible !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .filter-pill-btn {
+        flex:0 1 auto !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        overflow:hidden !important;
+        text-overflow:ellipsis !important;
+        white-space:nowrap !important;
+        padding-inline:clamp(2px,.6vw,5px) !important;
+        font-size:clamp(9px,2.45vw,11px) !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .btn-sort-action {
+        flex:0 0 auto !important;
+        min-width:0 !important;
+        width:auto !important;
+        max-width:none !important;
+        padding-inline:clamp(4px,1.1vw,8px) !important;
+        white-space:nowrap !important;
+        overflow:visible !important;
+        text-overflow:clip !important;
+        font-size:clamp(10px,2.6vw,11px) !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar #btn-sort-speed-nav {
+        flex:0 0 auto !important;
+        min-width:43px !important;
+        width:auto !important;
+        white-space:nowrap !important;
+        visibility:visible !important;
+        opacity:1 !important;
+      }
+    }
+    @media (max-width:350px) {
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar {
+        padding-inline:3px !important;
+        column-gap:2px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-left-group,
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-right-group {
+        gap:2px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .btn-sort-action {
+        font-size:9px !important;
+        padding-inline:3px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar #btn-sort-speed-nav {
+        min-width:40px !important;
+      }
+    }
+
   </style>
 </head>
 <body class="aurora-home-view shiguang-booting">
@@ -2905,7 +3009,7 @@
     <div id="gesture-tip"></div>
 
     <video id="video" playsinline webkit-playsinline></video>
-    <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true"></div>
+    <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true"><div class="aurora-player-empty-mark">▶</div></div>
 
     <div id="custom-controls">
       <div id="progress-container">
