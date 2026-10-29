@@ -1401,6 +1401,109 @@
       }
     }
 
+
+/* AURORA 3.5 — mobile-first controls, stable workspace, separate hero action */
+.aurora-hero { position:relative !important; }
+.aurora-hero-controls {
+  left:auto !important; right:clamp(88px,9vw,122px) !important; bottom:22px !important;
+  transform:none !important; gap:7px !important; z-index:8 !important;
+  height:46px; padding:5px 9px !important; border-radius:999px;
+}
+.aurora-hero-controls > button { flex-shrink:0; }
+.aurora-play-glass.aurora-hero-play-float {
+  position:absolute !important; left:auto !important; top:auto !important;
+  right:24px !important; bottom:22px !important; z-index:9 !important;
+  display:grid !important; place-items:center !important; transform:none !important;
+  width:46px !important; height:46px !important; min-width:46px !important; min-height:46px !important;
+  padding:0 !important; margin:0 !important; border-radius:50% !important;
+  border:1px solid rgba(255,255,255,.52) !important;
+  background:rgba(255,255,255,.19) !important;
+  box-shadow:0 5px 20px #0007,inset 0 1px #fff5 !important;
+  backdrop-filter:blur(18px) saturate(150%); -webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.aurora-play-glass.aurora-hero-play-float:hover { transform:scale(1.07) !important; background:rgba(255,255,255,.28) !important; }
+.aurora-play-glass.aurora-hero-play-float svg {
+  width:44px !important; height:44px !important; padding:13px !important;
+  background:transparent !important; flex:none !important;
+}
+#aurora-topnav { align-content:center; }
+.aurora-nav-link { min-width:0; }
+/* The desktop player and source pane remain in separate fixed grid areas even while a card expands. */
+@media(min-width:900px) {
+  body:not(.aurora-home-view) { min-height:0 !important; }
+  body:not(.aurora-home-view) #player-wrap { position:relative !important; min-height:0 !important; max-height:100% !important; }
+  body:not(.aurora-home-view) #sidebar { min-height:0 !important; overflow:hidden !important; }
+  body:not(.aurora-home-view) #channel-list { overflow-y:auto !important; min-height:0 !important; }
+}
+@media(min-width:601px) and (max-width:899px) {
+  body:not(.aurora-home-view) { display:grid !important; grid-template-columns:1fr !important; grid-template-rows:auto minmax(270px,44dvh) minmax(0,1fr) !important; grid-template-areas:'header' 'player' 'sidebar' !important; height:100dvh !important; min-height:0 !important; overflow:hidden !important; }
+  body:not(.aurora-home-view) #player-wrap { position:relative !important; order:initial !important; height:auto !important; min-height:0 !important; max-height:none !important; }
+  body:not(.aurora-home-view) #sidebar { order:initial !important; height:auto !important; min-height:0 !important; overflow:hidden !important; }
+  body:not(.aurora-home-view) #channel-list { overflow-y:auto !important; max-height:none !important; min-height:0 !important; }
+}
+@media(max-width:760px) {
+  #aurora-topnav { display:grid !important; grid-template-columns:auto minmax(0,1fr) !important; grid-template-areas:'brand search' 'links links' !important; gap:6px 8px !important; padding:8px max(8px,env(safe-area-inset-left)) !important; min-height:0 !important; overflow:visible !important; }
+  .aurora-brand { grid-area:brand; flex:none !important; min-width:0 !important; gap:6px !important; margin:0 !important; }
+  .aurora-brand-mark { width:32px !important; height:32px !important; border-radius:9px !important; font-size:16px !important; }
+  .aurora-brand-copy strong { font-size:clamp(12px,3.1vw,16px) !important; white-space:nowrap; }
+  .aurora-brand-copy small { display:none !important; }
+  #aurora-nav-search { grid-area:search; order:initial !important; width:100% !important; min-width:0 !important; max-width:none !important; flex:none !important; gap:5px !important; }
+  #aurora-nav-search input { height:35px !important; min-width:0 !important; font-size:12px !important; padding:0 8px !important; border-radius:10px !important; }
+  #aurora-nav-search button { height:35px !important; padding:0 8px !important; min-width:35px; border-radius:10px !important; }
+  #aurora-nav-search button span { display:none !important; }
+  .aurora-nav-links { grid-area:links; order:initial !important; display:grid !important; grid-template-columns:repeat(8,minmax(0,1fr)) !important; flex:none !important; gap:0 !important; width:100% !important; min-width:0 !important; overflow:visible !important; padding:0 !important; }
+  .aurora-nav-link, .aurora-nav-link.aurora-nav-settings { font-size:0 !important; padding:0 !important; min-width:0 !important; min-height:34px !important; height:34px !important; width:100% !important; margin:0 !important; gap:0 !important; border-radius:9px !important; }
+  .aurora-nav-link span { font-size:clamp(15px,4.1vw,20px) !important; }
+  .aurora-hero { min-height:clamp(330px,94vw,450px) !important; }
+  .aurora-hero-copy { padding-bottom:88px !important; }
+  .aurora-hero-controls { left:auto !important; right:75px !important; bottom:14px !important; transform:none !important; height:42px; gap:5px !important; padding:5px 7px !important; }
+  .aurora-hero-controls > button { width:29px; height:29px; }
+  .aurora-hero-dots { gap:4px !important; }
+  .aurora-hero-dot { width:5px !important; height:5px !important; }
+  .aurora-hero-dot.active { width:15px !important; }
+  .aurora-play-glass.aurora-hero-play-float { right:14px !important; bottom:14px !important; width:42px !important; min-width:42px !important; height:42px !important; min-height:42px !important; }
+  .aurora-play-glass.aurora-hero-play-float svg { width:40px !important; height:40px !important; padding:12px !important; }
+}
+@media(max-width:600px) {
+  /* Fill the available video width; the controls overlay stays in its own reserved area. */
+  body:not(.aurora-home-view) {
+    display:grid !important; grid-template-columns:minmax(0,1fr) !important;
+    grid-template-rows:auto minmax(0,1fr) !important;
+    grid-template-areas:'header' 'sidebar' !important;
+    height:100dvh !important; min-height:0 !important; overflow:hidden !important; padding:5px !important; gap:6px !important;
+  }
+  body:not(.aurora-home-view) #player-wrap {
+    grid-area:unset !important; position:sticky !important; top:0 !important; z-index:15 !important;
+    width:100% !important; height:auto !important; aspect-ratio:16/9 !important; min-height:clamp(200px,55vw,270px) !important; max-height:40dvh !important;
+    flex:none !important; order:initial !important; border-radius:12px !important; overflow:hidden !important;
+  }
+  body:not(.aurora-home-view) { grid-template-rows:auto auto minmax(0,1fr) !important; grid-template-areas:'header' 'player' 'sidebar' !important; }
+  body:not(.aurora-home-view) #player-wrap { grid-area:player !important; }
+  body:not(.aurora-home-view) #sidebar { grid-area:sidebar !important; min-height:0 !important; height:auto !important; overflow:hidden !important; order:initial !important; }
+  body:not(.aurora-home-view) #channel-list { overflow-y:auto !important; overflow-x:hidden !important; min-height:0 !important; max-height:none !important; padding:8px !important; }
+  body:not(.aurora-home-view) #channel-list .title-group-box { width:100% !important; min-width:0 !important; margin:5px 0 9px !important; }
+  #top-bar { padding:8px 10px !important; }
+  #custom-controls { padding:0 6px 6px !important; }
+  #progress-container { margin-bottom:3px !important; }
+  .controls-inner { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; height:59px !important; min-height:59px !important; gap:1px !important; padding:0 2px !important; }
+  .ctrl-left { display:flex !important; justify-content:space-between !important; width:100% !important; min-width:0 !important; gap:2px !important; }
+  .ctrl-right { display:flex !important; justify-content:flex-end !important; width:100% !important; min-width:0 !important; gap:3px !important; }
+  .controls-inner .ctrl-btn { width:26px !important; min-width:26px !important; height:28px !important; padding:2px !important; }
+  .controls-inner .pill-btn { width:auto !important; min-width:31px !important; padding:0 4px !important; font-size:10px !important; }
+  .controls-inner .volume-box { gap:0 !important; flex:0 0 auto !important; }
+  .controls-inner .volume-slider { display:none !important; }
+  .controls-inner .ctrl-time { font-size:9px !important; white-space:nowrap !important; max-width:81px !important; letter-spacing:-.35px !important; }
+  .external-group { display:flex !important; max-width:none !important; min-width:0 !important; overflow-x:auto !important; gap:2px !important; padding:2px !important; flex:1 1 auto !important; scrollbar-width:none; }
+  .external-group .ext-btn { flex:0 0 23px !important; width:23px !important; height:23px !important; }
+  .controls-inner .pip-btn { display:inline-flex !important; }
+}
+@media(max-width:375px) {
+  .aurora-nav-link span { font-size:16px !important; }
+  .aurora-brand-copy strong { font-size:12px !important; }
+  .controls-inner #ratio-btn { display:inline-flex !important; }
+  .controls-inner .ctrl-time { max-width:62px !important; font-size:8px !important; }
+}
+
   </style>
 </head>
 <body>
@@ -1451,14 +1554,14 @@
       <button type="submit" aria-label="搜索">⌕ <span>搜索</span></button>
     </form>
     <nav class="aurora-nav-links" aria-label="主导航">
-      <button type="button" class="aurora-nav-link" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span>▣</span> 电影</button>
-      <button type="button" class="aurora-nav-link" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span>▤</span> 剧集</button>
-      <button type="button" class="aurora-nav-link" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span>✦</span> 综艺</button>
-      <button type="button" class="aurora-nav-link" data-aurora-nav="anime" onclick="openAuroraCategory('动漫')"><span>◇</span> 动漫</button>
-      <button type="button" class="aurora-nav-link" data-aurora-nav="live" onclick="switchMode('tv')"><span>▤</span> 直播</button>
-      <button type="button" class="aurora-nav-link" data-aurora-nav="favorites" onclick="openAuroraWorkspace();switchSidebarView('fav')"><span>☆</span> 收藏</button>
-      <button type="button" class="aurora-nav-link" data-aurora-nav="history" onclick="openAuroraWorkspace();switchSidebarView('history')"><span>◷</span> 历史</button>
-      <button type="button" class="aurora-nav-link aurora-nav-settings" onclick="openAuroraWorkspace();handleMainSettingsButtonClick()"><span>⚙</span> 设置</button>
+      <button type="button" class="aurora-nav-link" title="电影" aria-label="电影" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span>▣</span> 电影</button>
+      <button type="button" class="aurora-nav-link" title="剧集" aria-label="剧集" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span>▤</span> 剧集</button>
+      <button type="button" class="aurora-nav-link" title="综艺" aria-label="综艺" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span>✦</span> 综艺</button>
+      <button type="button" class="aurora-nav-link" title="动漫" aria-label="动漫" data-aurora-nav="anime" onclick="openAuroraCategory('动漫')"><span>◇</span> 动漫</button>
+      <button type="button" class="aurora-nav-link" title="直播" aria-label="直播" data-aurora-nav="live" onclick="switchMode('tv')"><span>▤</span> 直播</button>
+      <button type="button" class="aurora-nav-link" title="收藏" aria-label="收藏" data-aurora-nav="favorites" onclick="openAuroraWorkspace();switchSidebarView('fav')"><span>☆</span> 收藏</button>
+      <button type="button" class="aurora-nav-link" title="历史" aria-label="历史" data-aurora-nav="history" onclick="openAuroraWorkspace();switchSidebarView('history')"><span>◷</span> 历史</button>
+      <button type="button" class="aurora-nav-link aurora-nav-settings" title="设置" aria-label="设置" onclick="openAuroraWorkspace();handleMainSettingsButtonClick()"><span>⚙</span> 设置</button>
     </nav>
     <button type="button" class="aurora-theme-action" onclick="toggleGlobalThemeClick()" title="切换明暗主题" aria-label="切换明暗主题">☼</button>
   </header>
@@ -1477,11 +1580,11 @@
       <div class="aurora-hero-controls" aria-label="热门推荐轮播">
         <button type="button" onclick="stepAuroraHero(-1)" aria-label="上一部">‹</button>
         <div id="aurora-hero-dots" class="aurora-hero-dots"></div>
-        <button class="aurora-play-glass" id="aurora-hero-play" type="button" onclick="openAuroraSearch(document.getElementById('aurora-hero-title').dataset.title || '')" aria-label="查找可播放片源" title="查找可播放片源">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8c0-.78.85-1.25 1.5-.83l9.2 5.7a1.55 1.55 0 0 1 0 2.66l-9.2 5.7A.98.98 0 0 1 8 18.2V5.8Z" fill="currentColor"/></svg>
-        </button>
         <button type="button" onclick="stepAuroraHero(1)" aria-label="下一部">›</button>
       </div>
+      <button class="aurora-play-glass aurora-hero-play-float" id="aurora-hero-play" type="button" onclick="openAuroraSearch(document.getElementById('aurora-hero-title').dataset.title || '')" aria-label="查找可播放片源" title="查找可播放片源">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8c0-.78.85-1.25 1.5-.83l9.2 5.7a1.55 1.55 0 0 1 0 2.66l-9.2 5.7A.98.98 0 0 1 8 18.2V5.8Z" fill="currentColor"/></svg>
+      </button>
     </section>
 
     <section class="aurora-home-section">
@@ -4168,7 +4271,7 @@
       if (!host) return;
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
-        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '热门榜暂时没有' + escapeHtml(auroraActiveCategory) + '数据' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '请先确认每日同步 Worker 已包含该分类；也可点击刷新重试。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
+        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '热门榜暂时没有' + escapeHtml(auroraActiveCategory) + '数据' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '请在拾光影视 Pages 生产环境配置 TMDB_API_KEY (v3)，再通过分类接口更新 D1；每日聚合 Worker 当前只同步电影与电视剧。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
         if (heroTitle) { heroTitle.textContent = '你的私人影院'; heroTitle.dataset.title = ''; }
         if (heroDesc) heroDesc.textContent = '连接你自己的影视源后，这里会显示真实影片与海报。';
         if (heroMeta) heroMeta.innerHTML = '<span>个人影视源</span><span>不展示收藏和历史</span>';
