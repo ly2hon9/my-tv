@@ -2943,6 +2943,90 @@
         bottom: 5px !important;
       }
     }
+
+    /* AURORA 3.19: full-frame video and floating transparent controls.
+       Keep the video in the same coordinate system as the play area at ALL
+       responsive widths, even after controls auto-hide. No reserved footer. */
+    body:not(.aurora-home-view) #player-wrap > video {
+      position:absolute !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      min-height:0 !important;
+      max-height:none !important;
+      display:block !important;
+      object-fit:contain !important;
+    }
+    /* A regular 16:9 phone player should not be 16:9 PLUS an extra footer.
+       The removed footer gives the freed height back to the programme list. */
+    @media (max-width:600px) {
+      body:not(.aurora-home-view) #player-wrap {
+        height:auto !important;
+        aspect-ratio:16 / 9 !important;
+        min-height:0 !important;
+        max-height:min(56.25vw,56dvh) !important;
+      }
+    }
+    body:not(.aurora-home-view) #player-wrap.pseudo-fullscreen {
+      width:100vw !important;
+      height:100dvh !important;
+      max-height:none !important;
+      min-height:0 !important;
+      aspect-ratio:auto !important;
+      border-radius:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap > video.fit-cover { object-fit:cover !important; }
+    body:not(.aurora-home-view) #player-wrap > video.fit-fill { object-fit:fill !important; }
+    body:not(.aurora-home-view) #player-wrap > .aurora-player-empty {
+      inset:0 !important;
+      bottom:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      position:absolute !important;
+      left:0 !important;
+      right:0 !important;
+      bottom:0 !important;
+      height:54px !important;
+      min-height:0 !important;
+      background:linear-gradient(to top,rgba(1,4,12,.57),rgba(1,4,12,.22) 65%,rgba(1,4,12,0)) !important;
+      border:none !important;
+      box-shadow:none !important;
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+      z-index:15 !important;
+      transition:opacity .28s ease !important;
+    }
+    /* Safari can swallow touches on the native media element. This hit layer
+       stays active while the UI hides; top bar (z10) and controls (z15)
+       remain clickable above it. */
+    body:not(.aurora-home-view) #player-gesture-surface {
+      position:absolute;
+      inset:0;
+      display:block;
+      z-index:5;
+      background:transparent;
+      cursor:default;
+      touch-action:manipulation;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    body:not(.aurora-home-view) #player-wrap.controls-hidden #player-gesture-surface {
+      pointer-events:auto;
+      cursor:default;
+    }
+    #player-wrap.controls-hidden #custom-controls,
+    #player-wrap.controls-hidden #top-bar {
+      opacity:0 !important;
+      pointer-events:none !important;
+    }
+    /* Preserve hidden mouse cursor on desktop, but allow touch interaction. */
+    @media (hover:none) {
+      body:not(.aurora-home-view) #player-wrap.controls-hidden { cursor:default; }
+    }
+    @media (hover:hover) and (pointer:fine) {
+      body:not(.aurora-home-view) #player-wrap.controls-hidden #player-gesture-surface { cursor:none; }
+    }
   </style>
 </head>
 <body class="aurora-home-view shiguang-booting">
@@ -3053,6 +3137,7 @@
     <div id="gesture-tip"></div>
 
     <video id="video" playsinline webkit-playsinline></video>
+    <div id="player-gesture-surface" aria-label="视频手势区域：双击左侧后退、右侧快进、中间播放或暂停"></div>
     <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true"><div class="aurora-player-empty-mark">▶</div></div>
 
     <div id="custom-controls">
@@ -3682,54 +3767,71 @@
       }, 1200);
     }
 
+    // Process taps regardless of whether the floating toolbar is visible.
+    // Pointer gestures are handled on a separate transparent layer so that
+    // mobile Safari never needs to forward native <video> click events.
+    function handlePlayerStageTap(clientX) {
+      const rect = wrap.getBoundingClientRect();
+      const ratio = (clientX - rect.left) / (rect.width || 1);
+      const zone = ratio < 0.35 ? 'left' : (ratio > 0.65 ? 'right' : 'center');
+      const now = performance.now();
+      if (lastTapTime > 0 && now - lastTapTime < 330 && lastTapZone === zone) {
+        if (singleTapTimer) { clearTimeout(singleTapTimer); singleTapTimer = null; }
+        lastTapTime = 0;
+        if (zone === 'left') triggerCumulativeSeek(-1);
+        else if (zone === 'right') triggerCumulativeSeek(1);
+        else {
+          const wasPaused = video.paused;
+          togglePlay();
+          if (currentStreamUrl) showGestureTip(wasPaused ? '▶ 继续播放' : '⏸ 已暂停');
+        }
+      } else {
+        lastTapTime = now;
+        lastTapZone = zone;
+        if (singleTapTimer) clearTimeout(singleTapTimer);
+        singleTapTimer = setTimeout(() => {
+          singleTapTimer = null;
+          lastTapTime = 0;
+          if (wrap.classList.contains('controls-hidden')) showControls();
+          else {
+            wrap.classList.add('controls-hidden');
+            if (controlsTimer) clearTimeout(controlsTimer);
+          }
+        }, 350);
+      }
+    }
+
     if (wrap) {
       wrap.style.touchAction = 'manipulation';
       wrap.style.userSelect = 'none';
       wrap.style.webkitUserSelect = 'none';
-
-      wrap.addEventListener('mousemove', showControls);
-      wrap.addEventListener('click', (e) => {
-        if (e.target.closest('#custom-controls') || e.target.closest('#top-bar') || e.target.closest('#status-layer')) return;
-
-        const rect = wrap.getBoundingClientRect();
-        const ratio = (e.clientX - rect.left) / (rect.width || 1);
-        const zone = ratio < 0.35 ? 'left' : (ratio > 0.65 ? 'right' : 'center');
-        const now = performance.now();
-
-        if (lastTapTime > 0 && (now - lastTapTime) < 300 && lastTapZone === zone) {
-          // 命中双击（左退 / 右进 / 中间暂停或播放）
-          if (singleTapTimer) {
-            clearTimeout(singleTapTimer);
-            singleTapTimer = null;
-          }
-          lastTapTime = 0;
-
-          if (zone === 'left') {
-            triggerCumulativeSeek(-1);
-          } else if (zone === 'right') {
-            triggerCumulativeSeek(1);
-          } else {
-            togglePlay();
-            showGestureTip(video.paused ? "⏸ 已暂停" : "▶ 继续播放");
-          }
-        } else {
-          // 首次点击：等待 260ms 判断是否升级为双击
-          lastTapTime = now;
-          lastTapZone = zone;
-          if (singleTapTimer) clearTimeout(singleTapTimer);
-
-          singleTapTimer = setTimeout(() => {
-            singleTapTimer = null;
-            lastTapTime = 0;
-            // 若正处于连续双击快进/快退的展示周期内，不闪烁控制栏
-            if (seekStreakResetTimer) return;
-            if (wrap.classList.contains('controls-hidden')) {
-              showControls();
-            } else {
-              wrap.classList.add('controls-hidden');
-            }
-          }, 260);
-        }
+      wrap.addEventListener('mousemove', () => {
+        // Mobile Safari may synthesize mousemove after a finger tap. Do not
+        // reveal the toolbar during an otherwise valid double-tap gesture.
+        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) showControls();
+      });
+      const stage = document.getElementById('player-gesture-surface');
+      if (stage) {
+        let pointerDown = null;
+        stage.addEventListener('pointerdown', e => {
+          if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+          pointerDown = { id:e.pointerId, x:e.clientX, y:e.clientY };
+        }, {passive:true});
+        stage.addEventListener('pointerup', e => {
+          if (!pointerDown || pointerDown.id !== e.pointerId) return;
+          const distance = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
+          pointerDown = null;
+          if (distance > 18) return; // don't steal scrolls or swipes
+          handlePlayerStageTap(e.clientX);
+        }, {passive:true});
+        stage.addEventListener('pointercancel', () => { pointerDown=null; }, {passive:true});
+        // Prevent the pointer's synthesized click from also reaching wrap.
+        stage.addEventListener('click', e => { e.stopPropagation(); }, false);
+      }
+      // Fallback for direct wrap clicks; controls and badges are excluded.
+      wrap.addEventListener('click', e => {
+        if (e.target.closest('#player-gesture-surface,#custom-controls,#top-bar,#status-layer')) return;
+        handlePlayerStageTap(e.clientX);
       });
     }
 
