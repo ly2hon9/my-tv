@@ -5561,35 +5561,28 @@
       }
       return sites;
     }
-    /* AURORA 3.11: preserve the actual grid columns and hide empty tail slots.
-       Do NOT stretch or wrap real posters: invisible spacers fill the missing
-       cells only, so poster aspect ratio and size stay identical on all devices. */
+    /* AURORA 3.12: real category posters instead of invisible empty grid slots.
+       Keep original poster dimensions and gently center incomplete filtered rows. */
     let sgPosterRowResizeRaf = 0;
     function sgBalancePosterRows() {
       const host = document.getElementById('aurora-recommendations');
       if (!host) return;
       host.querySelectorAll(':scope > .sg-poster-spacer').forEach(el => el.remove());
-      // Unwrap legacy 3.10 final-row wrappers if the DOM was updated in place.
       host.querySelectorAll(':scope > .sg-poster-tail').forEach(tail => {
         while (tail.firstChild) host.insertBefore(tail.firstChild, tail);
         tail.remove();
       });
       const cards = Array.from(host.children).filter(el => el.classList.contains('aurora-poster-card'));
+      cards.forEach(card => card.style.gridColumnStart = '');
       if (!cards.length) return;
       const tracks = getComputedStyle(host).gridTemplateColumns;
-      const actualColumns = tracks && !/repeat\(/i.test(tracks) ? tracks.trim().split(/\s+/).length : 0;
-      const viewport = window.innerWidth || document.documentElement.clientWidth;
-      const fallbackColumns = viewport <= 760 ? 3 : viewport <= 1100 ? 4 : 6;
-      const columns = actualColumns >= 1 && actualColumns <= 12 ? actualColumns : fallbackColumns;
-      const missing = (columns - cards.length % columns) % columns;
-      const fragment = document.createDocumentFragment();
-      for (let i = 0; i < missing; i++) {
-        const spacer = document.createElement('span');
-        spacer.className = 'sg-poster-spacer';
-        spacer.setAttribute('aria-hidden', 'true');
-        fragment.appendChild(spacer);
+      const columns = tracks && !/repeat\(/i.test(tracks) ? tracks.trim().split(/\s+/).length : 0;
+      if (!columns || columns < 2 || columns > 12) return;
+      const tailCount = cards.length % columns;
+      if (tailCount > 0) {
+        const firstIndex = cards.length - tailCount;
+        cards[firstIndex].style.gridColumnStart = String(Math.floor((columns - tailCount) / 2) + 1);
       }
-      host.appendChild(fragment);
     }
     window.addEventListener('resize', () => {
       if (sgPosterRowResizeRaf) cancelAnimationFrame(sgPosterRowResizeRaf);
@@ -5634,7 +5627,7 @@
     // Older D1/local caches sometimes labeled everything from /trending/tv as 电视剧.
     // Reclassify on read as well as at sync time; an explicit genre takes priority.
     const SG_TV_VARIETY_TITLES = /(?:你好，?星期六|明星大侦探|大侦探(?:第|·|\d)|奔跑吧|乘风(?:20\d\d|破浪|第|\s)|披荆斩棘|极限挑战|向往的生活|现在就出发|哈哈哈哈哈|喜人奇妙夜|密室大逃脱|种地吧|声生不息|再见爱人|令人心动的offer|歌手20\d\d|脱口秀大会|无限超越班|花儿与少年|非诚勿扰|快乐大本营|王牌对王牌)/i;
-    const SG_TV_ANIME_TITLES = /(?:妖神记|仙逆|凡人修仙传|斗罗大陆|斗破苍穹|完美世界|吞噬星空|神印王座|猪猪侠|沧元图|灵笼|遮天(?:动画|年番)|一人之下|画江湖之不良人|狐妖小红娘|鬼灭之刃|海贼王|火影忍者|名侦探柯南|动漫|动画版|动画剧集|动画片)/i;
+    const SG_TV_ANIME_TITLES = /(?:妖神记|仙逆|凡人修仙传|斗罗大陆|斗破苍穹|完美世界|吞噬星空|神印王座|猪猪侠|沧元图|灵笼|遮天(?:动画|年番)|一人之下|画江湖之不良人|狐妖小红娘|鬼灭之刃|海贼王|航海王|ONE\s*PIECE|海绵宝宝|SpongeBob|火影忍者|名侦探柯南|动漫|动画版|动画剧集|动画片)/i;
     function classifyAuroraMedia(item, fallback = '电影') {
       const rawType = String(item?.type || item?.media_type || fallback || '').trim();
       const ids = (Array.isArray(item?.genreIds) ? item.genreIds : Array.isArray(item?.genre_ids) ? item.genre_ids : Array.isArray(item?.genres) ? item.genres : [])
