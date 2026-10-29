@@ -1064,23 +1064,24 @@
         if (res.ok) {
           const data = await res.json();
           if (data && data.value !== null && data.value !== undefined) {
-            if (key !== KEY_ADMIN_INFO && key !== KEY_USERS_LIST) localStorage.setItem(key, data.value);
+            localStorage.setItem(key, data.value);
             return data.value;
           }
         }
       } catch (_) {}
-      return (key === KEY_ADMIN_INFO || key === KEY_USERS_LIST) ? defaultVal : (localStorage.getItem(key) || defaultVal);
+      return localStorage.getItem(key) || defaultVal;
     }
 
     async function setD1Data(key, value) {
       const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
-      localStorage.setItem(key, valStr);
+      if (key !== KEY_ADMIN_INFO && key !== KEY_USERS_LIST) localStorage.setItem(key, valStr);
       try {
-        await fetch('/api/data', {
+        const response = await fetch('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value: valStr })
         });
+        if (!response.ok) throw new Error('保存失败：' + response.status);
       } catch (_) {}
     }
 
@@ -1164,6 +1165,7 @@
     let isDraggingProgress = false;
     let dragTargetTime = 0;
     let hls = null;
+    let playbackGeneration = 0;
     let playWatchdogTimer = null;
     let gestureTipTimer = null;
     let controlsTimer = null;
@@ -2357,40 +2359,26 @@
     }
 
     async function submitGateAuth() {
-      const u = (document.getElementById('gate-username').value || '').trim();
-      const p = (document.getElementById('gate-password').value || '').trim();
-      const remember = document.getElementById('gate-remember-pwd').checked;
-
-      if (!u || !p) {
-        showGateError("账号或密码错误");
-        return;
-      }
-
+      const u = document.getElementById('gate-username').value.trim();
+      const p = document.getElementById('gate-password').value;
+      if (!u || !p) { showGateError('请输入账号和密码'); return; }
+      const btn = document.getElementById('gate-submit-btn');
+      btn.disabled = true;
       try {
-        const action = gateAuthMode === 'init_admin' ? 'bootstrap' : gateAuthMode === 'register' ? 'register' : 'login';
-        const resp = await fetch('/api/auth', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,username:u,password:p})});
-        const result = await resp.json();
-        if (!resp.ok || !result.user) { showGateError(result.error || '账号或密码错误'); return; }
-        currentUser = result.user;
-        // 从 D1 加载最新的账户及播放配置，保留原有功能结构。
-        const loadKeys = [KEY_ADMIN_INFO,KEY_USERS_LIST,KEY_SOURCE_GROUPS,KEY_AUTH_CONFIG,KEY_SITES,KEY_DISABLED_SITES,KEY_SUB,KEY_M3U];
-        await Promise.all(loadKeys.map(k => getD1Data(k,'')));
-        try { adminAccount = JSON.parse(localStorage.getItem(KEY_ADMIN_INFO)||'null'); } catch(_){}
-        try { userList = JSON.parse(localStorage.getItem(KEY_USERS_LIST)||'[]'); } catch(_){}
-        try { sourceGroups = JSON.parse(localStorage.getItem(KEY_SOURCE_GROUPS)||'[]'); } catch(_){}
-        try { parsedSites = JSON.parse(localStorage.getItem(KEY_SITES)||'[]'); } catch(_){}
-        try { disabledSites = JSON.parse(localStorage.getItem(KEY_DISABLED_SITES)||'[]'); } catch(_){}
-        gateAuthMode = 'login';
-        document.getElementById('gate-submit-btn').textContent = '登 录';
-        document.getElementById('gate-switch-link').style.display = '';
-        updateMainRoleButton();
-        document.getElementById('auth-gate-screen').style.display = 'none';
-        showGestureTip('✓ 登录成功');
-      } catch (e) { showGateError('服务器登录失败，请检查 D1 和 SESSION_SECRET 配置'); }
+        const action = gateAuthMode === 'init_admin' ? 'bootstrap' : gateAuthMode;
+        const response = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action,username:u,password:p})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '登录失败');
+        localStorage.removeItem(KEY_SAVED_CREDS);
+        localStorage.removeItem(KEY_CURRENT_USER);
+        document.getElementById('gate-password').value = '';
+        location.reload();
+      } catch (e) { showGateError(e.message || '请求失败'); }
+      finally { btn.disabled = false; }
     }
 
-    function logoutCurrentUser() {
-      fetch('/api/auth',{method:'DELETE'}).catch(()=>{});
+    async function logoutCurrentUser() {
+      try { await fetch('/api/auth', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})}); } catch (_) {}
       stopRemoteTvTranscode();
       destroyHlsInstance();
       updatePlayBtn(false);
@@ -2414,7 +2402,7 @@
       document.getElementById('gate-password').value = '';
       checkGateInputsReady();
       
-      if (authConfig.requireLogin) {
+      if (true) {
         document.getElementById('auth-gate-screen').style.display = 'flex';
       } else {
         document.getElementById('auth-gate-screen').style.display = 'none';
@@ -2897,29 +2885,9 @@
         return;
       }
       
-      if (!adminAccount) {
-        const u = prompt("系统首次配置，请设定主管理员账号：", "admin");
-        if (!u) return;
-        const p = prompt("请设定主管理员密码：");
-        if (!p) return;
-        const passHash = await hashPassword(p);
-        adminAccount = { username: u.trim(), passHash: passHash };
-        await setD1Data(KEY_ADMIN_INFO, adminAccount);
-        currentUser = { username: u.trim(), role: 'admin', allowedSites: ['*'] };
-        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
-        updateMainRoleButton();
-        showGestureTip("✓ 主管理员设置成功");
-      } else if (!currentUser || currentUser.role !== 'admin') {
-        const pass = prompt("该面板包含核心设置，请输入主管理员密码进行解锁：");
-        if (!pass) return;
-        const passHash = await hashPassword(pass);
-        if (passHash !== adminAccount.passHash) {
-          alert("密码错误，无法打开设置面板！");
-          return;
-        }
-        currentUser = { username: adminAccount.username, role: 'admin', allowedSites: ['*'] };
-        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify(currentUser));
-        updateMainRoleButton();
+      if (!currentUser || currentUser.role !== 'admin') {
+        document.getElementById('auth-gate-screen').style.display = 'flex';
+        return;
       }
 
       document.getElementById('settings-username-label').textContent = currentUser.username;
@@ -4668,8 +4636,71 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
+    // V4: 被动线路健康统计。仅用于记录，不改变选线、重试、UI 或 D1 行为。
+    const V4_HEALTH_KEY = 'mytv_v4_line_health';
+    function recordV4LineHealth(url, success, elapsedMs) {
+      try {
+        if (!url || typeof localStorage === 'undefined') return;
+        // 不存储完整播放地址（可能包含私有令牌），仅保存不可逆的短哈希。
+        let hash = 2166136261;
+        for (let i = 0; i < url.length; i++) {
+          hash ^= url.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        const key = (hash >>> 0).toString(16);
+        const old = JSON.parse(localStorage.getItem(V4_HEALTH_KEY) || '{}');
+        const data = old && typeof old === 'object' && !Array.isArray(old) ? old : {};
+        const item = data[key] || { ok: 0, fail: 0, avgMs: 0, updated: 0 };
+        if (success) {
+          item.ok = Math.min(100000, (item.ok || 0) + 1);
+          if (Number.isFinite(elapsedMs) && elapsedMs >= 0) {
+            item.avgMs = item.avgMs ? Math.round(item.avgMs * 0.75 + elapsedMs * 0.25) : Math.round(elapsedMs);
+          }
+        } else {
+          item.fail = Math.min(100000, (item.fail || 0) + 1);
+        }
+        item.updated = Date.now();
+        data[key] = item;
+        const entries = Object.entries(data);
+        if (entries.length > 80) {
+          entries.sort((a, b) => (b[1]?.updated || 0) - (a[1]?.updated || 0));
+          for (const [staleKey] of entries.slice(80)) delete data[staleKey];
+        }
+        localStorage.setItem(V4_HEALTH_KEY, JSON.stringify(data));
+      } catch (_) { /* 存储被禁用、空间不足等情况不能影响播放 */ }
+    }
+
+    // V4.2: 只读线路健康推荐数据。不自动选线、不修改 UI 或播放规则。
+    // 在浏览器控制台执行 mytvLineHealthReport() 可查看匿名线路评分。
+    function getV42LineHealthReport() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(V4_HEALTH_KEY) || '{}');
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+        const now = Date.now();
+        return Object.entries(parsed).filter(([key, item]) =>
+          /^[0-9a-f]{1,8}$/.test(key) && item && typeof item === 'object'
+        ).map(([key, item]) => {
+          const ok = Math.max(0, Number(item.ok) || 0);
+          const fail = Math.max(0, Number(item.fail) || 0);
+          const samples = ok + fail;
+          const avgMs = Math.max(0, Number(item.avgMs) || 0);
+          const ageDays = Math.max(0, (now - (Number(item.updated) || 0)) / 86400000);
+          // 少量样本使用平滑成功率；旧记录降低可信度，不改变播放顺序。
+          const successRate = (ok + 1) / (samples + 2);
+          const confidence = Math.min(1, samples / 8) * Math.exp(-ageDays / 30);
+          const speedFactor = avgMs > 0 ? 1 / (1 + avgMs / 10000) : 0.5;
+          const score = Math.round(100 * confidence * (successRate * 0.8 + speedFactor * 0.2));
+          return { lineId: key, successes: ok, failures: fail, avgLoadMs: avgMs,
+            samples, score, lastSeen: Number(item.updated) || 0 };
+        }).sort((a, b) => b.score - a.score || b.lastSeen - a.lastSeen);
+      } catch (_) { return []; }
+    }
+    // 只读诊断入口：不暴露播放 URL，不写数据库或本地存储。
+    window.mytvLineHealthReport = getV42LineHealthReport;
+
     function showFailTip(msg) {
       clearPlayWatchdog();
+      playbackGeneration++; // 使旧线路的异步回调失效
       destroyHlsInstance();
       updatePlayBtn(false);
       try { video.pause(); } catch(_) {}
@@ -4720,14 +4751,27 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       url = playUrl;
 
+      const generation = ++playbackGeneration;
+      const v4StartedAt = Date.now();
+      let v4OutcomeRecorded = false;
+      const recordV4Outcome = (success) => {
+        if (v4OutcomeRecorded || generation !== playbackGeneration) return;
+        v4OutcomeRecorded = true;
+        recordV4LineHealth(url, success, Date.now() - v4StartedAt);
+      };
+      const v4FailTip = (message) => {
+        recordV4Outcome(false);
+        showFailTip(message);
+      };
       clearPlayWatchdog();
       exitPictureInPictureMode();
       destroyHlsInstance();
+      try { video.pause(); video.removeAttribute("src"); video.load(); } catch (_) {}
       setStatus(isLiveMode ? "正在通过 VPS 解码直播流，请稍候..." : "正在建立连接，请稍候...");
 
       let hasStarted = false;
       const markPlaySuccess = () => {
-        if (hasStarted) return;
+        if (hasStarted || generation !== playbackGeneration) return;
         hasStarted = true;
         clearPlayWatchdog();
         setStatus("", false);
@@ -4738,17 +4782,20 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       // 给 VPS 首次跨国拉流预留 20 秒缓冲时间
       playWatchdogTimer = setTimeout(() => {
-        if (!hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
-          showFailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
+        if (generation === playbackGeneration && !hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
+          v4FailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
         }
       }, 20000);
 
-      video.onplaying = markPlaySuccess;
-      video.onloadeddata = markPlaySuccess;
+      // V4.1: 仅在真正进入播放或获得媒体数据时记录线路成功；
+      // 元数据/可播放事件仍沿用原有 UI 和看门狗行为，避免改变播放逻辑。
+      video.onplaying = () => { recordV4Outcome(true); markPlaySuccess(); };
+      video.onloadeddata = () => { recordV4Outcome(true); markPlaySuccess(); };
       video.onloadedmetadata = markPlaySuccess;
       video.oncanplay = markPlaySuccess;
       video.onerror = () => {
-        showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+        if (generation !== playbackGeneration) return;
+        v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
       };
 
       const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
@@ -4758,19 +4805,21 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(err => {
+            if (generation !== playbackGeneration) return;
             if (err && err.name === 'NotAllowedError') {
               video.muted = true;
               video.play().then(markPlaySuccess).catch(() => {});
             } else if (err && err.name === 'NotSupportedError') {
-              showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+              v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
             }
           });
         }
         return;
       }
 
-      if (Hls.isSupported()) {
-        hls = new Hls({
+      if (typeof Hls !== "undefined" && Hls.isSupported()) {
+        let mediaRecoveryAttempts = 0;
+        const player = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 60,
@@ -4781,24 +4830,31 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           fragLoadingMaxRetry: 3,
           xhrSetup: (xhr) => { xhr.withCredentials = false; }
         });
-        hls.loadSource(url);
-        hls.attachMedia(video);
+        hls = player;
+        player.loadSource(url);
+        player.attachMedia(video);
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        player.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (generation !== playbackGeneration) return;
           video.play().catch(() => {});
         });
 
-        hls.on(Hls.Events.ERROR, (_, data) => {
+        player.on(Hls.Events.ERROR, (_, data) => {
+          if (generation !== playbackGeneration || player !== hls) return;
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                showFailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
+                v4FailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
+                if (mediaRecoveryAttempts++ < 2) {
+                  player.recoverMediaError();
+                } else {
+                  v4FailTip("当前线路受限 (媒体解码连续失败)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源</span>");
+                }
                 break;
               default:
-                showFailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+                v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
                 break;
             }
           }
@@ -4807,6 +4863,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         video.src = url;
         video.load();
         video.play().catch(() => {});
+      } else {
+        v4FailTip("当前浏览器不支持此视频格式，请尝试外部播放器");
       }
     }
 
@@ -4848,6 +4906,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       totalChannelsCount = 0;
       totalStreamsCount = 0;
       const lines = content.split('\n');
+      // 临时集合加速线路去重，保持原有输出顺序。
+      const seenUrls = Object.create(null);
       let temp = null;
       for (let line of lines) {
         line = line.trim();
@@ -4871,7 +4931,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               groups[temp.group][temp.name] = [];
               totalChannelsCount++;
             }
-            if (!groups[temp.group][temp.name].includes(line)) {
+            if (!seenUrls[temp.group]) seenUrls[temp.group] = Object.create(null);
+            if (!seenUrls[temp.group][temp.name]) seenUrls[temp.group][temp.name] = new Set();
+            if (!seenUrls[temp.group][temp.name].has(line)) {
+              seenUrls[temp.group][temp.name].add(line);
               groups[temp.group][temp.name].push(line);
               totalStreamsCount++;
             }
@@ -5039,8 +5102,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return pa - pb;
       });
 
+      // 仅当测速结果改变了顺序时才移动节点，避免重复触发布局更新。
+      // 保留原有测速、自动起播、标签与排序规则。
+      const currentItems = Array.from(panelEl.querySelectorAll('.source-item'));
+      const orderChanged = sortedItems.some((el, index) => el !== currentItems[index]);
+      if (orderChanged) {
+        const sortedFragment = document.createDocumentFragment();
+        sortedItems.forEach(el => sortedFragment.appendChild(el));
+        panelEl.appendChild(sortedFragment);
+      }
       sortedItems.forEach((el, index) => {
-        panelEl.appendChild(el);
         const nameWrap = el.querySelector('.source-name-wrap');
         if (nameWrap && index === 0 && parseInt(el.getAttribute('data-ping') || '9999', 10) < 9999 && sortedItems.length > 1) {
           const fastTag = document.createElement('span');
@@ -5059,6 +5130,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     function renderList(targetGroups, isSearchMode = false) {
       const container = document.getElementById('channel-list');
       container.innerHTML = '';
+      // 离屏构建直播频道列表，最后统一挂载。
+      const listFragment = document.createDocumentFragment();
       for (let groupName in targetGroups) {
         const channels = targetGroups[groupName];
         if (Object.keys(channels).length === 0) continue;
@@ -5200,9 +5273,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           rowEl.appendChild(panelEl);
           subList.appendChild(rowEl);
         }
-        container.appendChild(groupEl);
-        container.appendChild(subList);
+        listFragment.appendChild(groupEl);
+        listFragment.appendChild(subList);
       }
+      container.appendChild(listFragment);
     }
 
     function handleSearchTv() {
@@ -5276,8 +5350,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       try {
         const localAuth = localStorage.getItem(KEY_AUTH_CONFIG);
         if (localAuth) authConfig = JSON.parse(localAuth);
-        localStorage.removeItem(KEY_ADMIN_INFO);
-        localStorage.removeItem(KEY_USERS_LIST);
+        const localAdmin = localStorage.getItem(KEY_ADMIN_INFO);
+        if (localAdmin) adminAccount = JSON.parse(localAdmin);
         const localUsers = localStorage.getItem(KEY_USERS_LIST);
         if (localUsers) userList = JSON.parse(localUsers);
         const localGroups = localStorage.getItem(KEY_SOURCE_GROUPS);
@@ -5314,26 +5388,26 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         sourceGroups = [{ id: 'def', name: '默认分组', sites: ['*'], isDefault: true }];
       }
 
-      // 服务端会话是唯一登录依据，禁止使用 localStorage 冒充管理员。
-      try {
-        const sessionResp = await fetch('/api/auth', {cache:'no-store'});
-        if (sessionResp.ok) {
-          const session = await sessionResp.json();
-          currentUser = session.user || null;
-        }
-      } catch (_) { currentUser = null; }
+      // 服务端是唯一可信的登录状态来源，忽略旧版本保存在本地的角色和密码摘要。
       localStorage.removeItem(KEY_SAVED_CREDS);
       localStorage.removeItem(KEY_CURRENT_USER);
-
+      localStorage.removeItem(KEY_ADMIN_INFO);
+      localStorage.removeItem(KEY_USERS_LIST);
+      let serverAuth = null;
+      try {
+        const res = await fetch('/api/auth', {cache:'no-store'});
+        if (res.ok) serverAuth = await res.json();
+      } catch (_) {}
+      if (serverAuth && serverAuth.user) currentUser = serverAuth.user;
+      if (serverAuth && serverAuth.adminExists === false) {
+        gateAuthMode = 'init_admin';
+        const subTip = document.getElementById('gate-sub-tip');
+        if (subTip) { subTip.textContent = '首次使用，请创建管理员账号'; subTip.style.display = 'block'; }
+        document.getElementById('gate-submit-btn').textContent = '初始化管理员';
+        document.getElementById('gate-switch-link').style.display = 'none';
+      }
       updateMainRoleButton();
 
-      // 无管理员的全新数据库才允许初始化；已有管理员必须服务端登录。
-      let serverInitialized = true;
-      try {
-        const state = await fetch('/api/auth?state=1',{cache:'no-store'}).then(r=>r.json());
-        serverInitialized = !!state.initialized;
-        if (!serverInitialized) gateAuthMode = 'init_admin';
-      } catch (_) {}
       const gateScreen = document.getElementById('auth-gate-screen');
       if (!currentUser) {
         gateScreen.style.display = 'flex';
@@ -5370,7 +5444,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (results[4].status === 'fulfilled' && results[4].value) {
           try {
             authConfig = JSON.parse(results[4].value);
-            if (authConfig.requireLogin && !currentUser) {
+            if (!currentUser) {
               gateScreen.style.display = 'flex';
             } else {
               gateScreen.style.display = 'none';
@@ -5381,7 +5455,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           try { adminAccount = JSON.parse(results[5].value); } catch (_) {}
         }
         // 若数据库中尚无主管理员记录，自动激活门禁的初始化通道
-        if (!serverInitialized) {
+        if (serverAuth && serverAuth.adminExists === false) {
           gateAuthMode = 'init_admin';
           const subTip = document.getElementById('gate-sub-tip');
           if (subTip) {

@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"check":"node --check functions/api/_security.js && node --check functions/api/auth.js && node --check functions/api/data.js && node tests/smoke.mjs"}}
