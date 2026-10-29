@@ -1921,7 +1921,7 @@
       .aurora-hero-meta span { font-size:10px !important; padding:4px 7px !important; }
       .aurora-hero-controls > #aurora-slide-prev,
       .aurora-hero-controls > #aurora-slide-next { width:35px !important; height:35px !important;
-        min-width:35px !important; font-size:24px !important; top:24% !important; }
+        min-width:35px !important; font-size:24px !important; top:50% !important; }
       #aurora-hero-dots.aurora-hero-dots { bottom:13px !important; padding:5px 8px !important; gap:4px !important; max-width:48% !important; }
       .aurora-play-glass.aurora-hero-play-float { left:auto !important; right:12px !important;
         bottom:10px !important; top:auto !important; transform:none !important;
@@ -1954,6 +1954,288 @@
       .aurora-hero-copy { padding:12px 13px 59px !important; }
       .aurora-hero-controls > #aurora-slide-prev { left:7px !important; }
       .aurora-hero-controls > #aurora-slide-next { right:7px !important; }
+    }
+
+  
+
+    /* AURORA 3.9 — responsive media, centered carousel arrows,
+       scale-safe player toolbar and two-column desktop VOD results.
+       Applied after all legacy overrides to retain existing behavior. */
+
+    /* Arrow centers coincide with the geometric center of the hero at every breakpoint. */
+    #aurora-home #aurora-hero .aurora-hero-controls > #aurora-slide-prev,
+    #aurora-home #aurora-hero .aurora-hero-controls > #aurora-slide-next {
+      top:50% !important;
+      bottom:auto !important;
+      margin-top:0 !important;
+      transform:translateY(-50%) !important;
+      -webkit-transform:translateY(-50%) !important;
+      display:grid !important;
+      place-items:center !important;
+    }
+    /* Keep the overlay transparent; only the glass buttons catch pointer events. */
+    #aurora-home #aurora-hero .aurora-hero-controls { pointer-events:none !important; }
+    #aurora-home #aurora-hero .aurora-hero-controls > button,
+    #aurora-home #aurora-hero #aurora-hero-dots { pointer-events:auto !important; }
+
+    /* The picture fills the ENTIRE poster frame; no letterboxing or distorted faces. */
+    #aurora-recommendations .aurora-poster-art {
+      position:relative !important;
+      display:block !important;
+      width:100% !important;
+      aspect-ratio:2 / 3 !important;
+      overflow:hidden !important;
+      isolation:isolate;
+    }
+    #aurora-recommendations .aurora-poster-art > img {
+      position:absolute !important;
+      display:block !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      min-width:100% !important;
+      min-height:100% !important;
+      object-fit:cover !important;
+      object-position:center 25% !important;
+    }
+    #aurora-recommendations .aurora-poster-art > .aurora-poster-placeholder {
+      position:absolute !important; inset:0 !important;
+      width:100% !important; height:100% !important;
+      min-height:0 !important; box-sizing:border-box !important;
+    }
+    #aurora-recommendations .aurora-poster-tag { z-index:2; }
+    #channel-list .group-poster {
+      display:block !important;
+      object-fit:cover !important;
+      object-position:center center !important;
+      overflow:hidden !important;
+      flex-shrink:0 !important;
+    }
+
+    /* Desktop and tablet VOD search results: exactly TWO columns.
+       Expanded cards span both columns so episode selections remain readable. */
+    @media (min-width:601px) {
+      body:not(.aurora-home-view) #channel-list.sg-results-grid {
+        display:grid !important;
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-auto-flow:row !important;
+        grid-auto-rows:max-content !important;
+        align-items:start !important;
+        align-content:start !important;
+        gap:10px !important;
+        padding:10px !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .top-unified-bar,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .group-header,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > #infinite-scroll-loader,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .scroll-loading-indicator {
+        grid-column:1 / -1 !important;
+        width:100% !important;
+        margin:0 !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box {
+        grid-column:span 1 !important;
+        display:flex !important;
+        flex-direction:column !important;
+        align-self:start !important;
+        width:100% !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        margin:0 !important;
+        height:auto !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded {
+        grid-column:1 / -1 !important;
+        width:100% !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box .title-group-header {
+        min-width:0 !important;
+        padding:10px 11px !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box .group-main-title {
+        overflow:hidden !important;
+        white-space:nowrap !important;
+        text-overflow:ellipsis !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-body-panel {
+        width:100% !important;
+        min-width:0 !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > :not(.title-group-box):not(.top-unified-bar):not(.group-header) {
+        grid-column:1 / -1 !important;
+      }
+    }
+
+    /* One stable control bar: play/speed/ratio/volume/time on the LEFT,
+       external players/PiP/fullscreen anchored to the RIGHT. */
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      box-sizing:border-box !important;
+      width:100% !important;
+      min-width:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner {
+      display:grid !important;
+      grid-template-columns:minmax(0,1fr) auto !important;
+      grid-template-rows:minmax(32px,auto) !important;
+      align-items:center !important;
+      justify-content:stretch !important;
+      gap:6px !important;
+      width:100% !important;
+      height:auto !important;
+      min-height:38px !important;
+      padding:3px clamp(6px,.9vw,12px) !important;
+      box-sizing:border-box !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left,
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      display:flex !important;
+      flex-wrap:nowrap !important;
+      align-items:center !important;
+      gap:clamp(3px,.45vw,7px) !important;
+      width:auto !important;
+      min-width:0 !important;
+      height:auto !important;
+      min-height:30px !important;
+      max-width:100% !important;
+      margin:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+      grid-column:1 !important;
+      grid-row:1 !important;
+      justify-self:start !important;
+      justify-content:flex-start !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      grid-column:2 !important;
+      grid-row:1 !important;
+      justify-self:end !important;
+      justify-content:flex-end !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+      flex-shrink:0 !important;
+      min-width:26px !important;
+      min-height:26px !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      padding:2px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+      width:auto !important;
+      min-width:36px !important;
+      padding:3px 5px !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .volume-box {
+      display:flex !important;
+      align-items:center !important;
+      flex-shrink:0 !important;
+      gap:2px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .volume-slider {
+      width:clamp(24px,3vw,56px) !important;
+      min-width:0 !important;
+      flex:0 1 auto !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .ctrl-time {
+      flex:0 0 auto !important;
+      font-size:clamp(9px,.75vw,11px) !important;
+      white-space:nowrap !important;
+      font-variant-numeric:tabular-nums !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .external-group {
+      display:flex !important;
+      flex:0 1 auto !important;
+      width:max-content !important;
+      max-width:min(238px,22vw) !important;
+      min-width:0 !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right > .ctrl-btn {
+      flex-shrink:0 !important;
+    }
+
+    /* Smaller tablet player widths need two lines instead of overlaps. */
+    @media (min-width:761px) and (max-width:1130px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner {
+        grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:30px 30px !important;
+        gap:2px !important;
+        min-height:64px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+        grid-column:1 !important; grid-row:1 !important;
+        justify-self:stretch !important; justify-content:flex-start !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        grid-column:1 !important; grid-row:2 !important;
+        justify-self:stretch !important; justify-content:flex-end !important;
+        width:100% !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .external-group {
+        max-width:calc(100% - 75px) !important;
+      }
+    }
+    @media (max-width:760px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner {
+        display:grid !important;
+        grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:28px 28px !important;
+        gap:2px !important;
+        height:60px !important;
+        min-height:60px !important;
+        padding:1px 4px 2px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+        grid-column:1 !important; grid-row:1 !important;
+        width:100% !important;
+        max-width:100% !important;
+        justify-self:stretch !important;
+        justify-content:space-between !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        grid-column:1 !important; grid-row:2 !important;
+        width:100% !important;
+        max-width:100% !important;
+        justify-self:stretch !important;
+        justify-content:flex-end !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .volume-slider { display:none !important; }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+        width:26px !important; height:26px !important;
+        min-width:26px !important; min-height:26px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+        width:auto !important; min-width:34px !important; font-size:10px !important;
+        padding:2px 5px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .ctrl-time {
+        font-size:10px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .external-group {
+        width:max-content !important;
+        max-width:calc(100vw - 98px) !important;
+        min-width:0 !important;
+        gap:4px !important;
+        padding:2px 4px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap #custom-controls {
+        height:78px !important;
+        padding:1px 4px 3px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap #progress-container {
+        height:13px !important; padding:0 5px !important; margin:0 !important;
+      }
+      body:not(.aurora-home-view) #player-wrap > video {
+        height:calc(100% - 78px) !important;
+      }
+      body:not(.aurora-home-view) #player-wrap > .aurora-player-empty {
+        bottom:78px !important;
+      }
     }
 
   </style>
