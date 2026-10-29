@@ -3027,6 +3027,67 @@
     @media (hover:hover) and (pointer:fine) {
       body:not(.aurora-home-view) #player-wrap.controls-hidden #player-gesture-surface { cursor:none; }
     }
+
+    /* AURORA 3.20: search submit is integrated into the input outline. */
+    #aurora-nav-search {
+      position:relative !important;
+      display:flex !important;
+      align-items:center !important;
+      min-width:0 !important;
+      gap:0 !important;
+    }
+    #aurora-nav-search #aurora-nav-search-input {
+      flex:1 1 auto !important;
+      width:100% !important;
+      min-width:0 !important;
+      padding-right:46px !important;
+    }
+    #aurora-nav-search > button[type="submit"] {
+      position:absolute !important;
+      top:50% !important;
+      right:4px !important;
+      transform:translateY(-50%) !important;
+      display:grid !important;
+      place-items:center !important;
+      flex:none !important;
+      width:32px !important;
+      min-width:32px !important;
+      height:calc(100% - 8px) !important;
+      min-height:27px !important;
+      max-height:35px !important;
+      margin:0 !important;
+      padding:0 !important;
+      border:0 !important;
+      border-radius:9px !important;
+      background:transparent !important;
+      color:var(--accent) !important;
+      box-shadow:none !important;
+      cursor:pointer !important;
+      z-index:1 !important;
+    }
+    #aurora-nav-search > button[type="submit"]:focus-visible {
+      outline:2px solid var(--accent) !important;
+      outline-offset:1px;
+    }
+    #aurora-nav-search > button[type="submit"] span {display:none !important;}
+    #aurora-nav-search input[type="search"]::-webkit-search-cancel-button {
+      margin-right:28px;
+    }
+    /* Always preserve the navigation at the top while scrolling either the
+       home discovery list or the independently scrolling TV/VOD results. */
+    #aurora-topnav {
+      position:sticky !important;
+      top:0 !important;
+      z-index:6000 !important;
+      flex-shrink:0 !important;
+      align-self:start !important;
+      background:var(--bg-sidebar) !important;
+      -webkit-backdrop-filter:blur(20px);
+      backdrop-filter:blur(20px);
+    }
+    @media (max-width:899px) {
+      #aurora-topnav { top:0 !important; }
+    }
   </style>
 </head>
 <body class="aurora-home-view shiguang-booting">
@@ -3074,7 +3135,7 @@
     </button>
     <form class="aurora-nav-search" id="aurora-nav-search" role="search" onsubmit="submitAuroraTopSearch(event)">
       <input id="aurora-nav-search-input" type="search" placeholder="搜索电影、电视剧、片名或频道…" aria-label="搜索影视" autocomplete="off">
-      <button type="submit" aria-label="搜索">⌕ <span>搜索</span></button>
+      <button type="submit" aria-label="搜索" title="搜索"><svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 5 5"/></svg></button>
     </form>
     <nav class="aurora-nav-links" aria-label="主导航">
       <button type="button" class="aurora-nav-link" title="电影" aria-label="电影" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span>▣</span> 电影</button>
@@ -4133,7 +4194,7 @@
     }
 
     function switchSidebarView(view) {
-      if (view !== 'normal') stopLivePlaybackOnSiteNavigation();
+      if (view !== currentView || view !== 'normal') stopSitePlaybackOnNavigation();
       openAuroraWorkspace();
       currentView = view;
       document.getElementById('btn-show-fav').classList.toggle('active', view === 'fav');
@@ -4934,7 +4995,7 @@
     }
 
     function handleMainSettingsButtonClick() {
-      stopLivePlaybackOnSiteNavigation();
+      stopSitePlaybackOnNavigation();
       if (currentUser && currentUser.role === 'user') {
         openUserAccountModal();
       } else {
@@ -5927,8 +5988,44 @@
       updatePlayBtn(false);
       updateFavIconState();
     }
+    /* AURORA 3.20: navigating away from a playing VOD is a true media stop,
+       not just hiding the player. Existing live-TV stop is retained. */
+    function stopSitePlaybackOnNavigation() {
+      if (isLiveMode) {
+        stopLivePlaybackOnSiteNavigation();
+        return;
+      }
+      // No active VOD: leave search result state and selected episode untouched.
+      if (!currentStreamUrl && !video.getAttribute('src') && !hls) return;
+      ++playbackGeneration;                // Cancel late async HLS callbacks.
+      clearPlayWatchdog();
+      destroyHlsInstance();               // Abort HLS playlist/segment requests.
+      try {
+        video.pause();
+        video.removeAttribute('src');      // Required to release native Safari HLS.
+        video.load();
+      } catch (_) {}
+      video.onplaying = null;
+      video.onloadeddata = null;
+      video.onloadedmetadata = null;
+      video.oncanplay = null;
+      video.onerror = null;
+      currentStreamUrl = '';
+      window.currentRawStreamUrl = '';
+      currentVodUniqueKey = '';
+      currentPlayingMeta = null;
+      currentTitle.textContent = '';
+      routeBadge.style.display = 'none';
+      routeBadge.textContent = '';
+      wrap.classList.remove('has-active-video', 'controls-hidden');
+      setStatus('', false);
+      updatePlayBtn(false);
+      updateFavIconState();
+      streamTimeEl.textContent = '00:00 / 00:00';
+      progressBar.style.width = '0%';
+    }
     function showAuroraHome() {
-      stopLivePlaybackOnSiteNavigation();
+      stopSitePlaybackOnNavigation();
       auroraActiveCategory = '';
       auroraHeroIndex = 0;
       document.body.classList.add('aurora-home-view');
@@ -5945,7 +6042,7 @@
       if (!sgUiRestoring) window.scrollTo({top:0,behavior:'smooth'});
     }
     function openAuroraCategory(category) {
-      stopLivePlaybackOnSiteNavigation();
+      stopSitePlaybackOnNavigation();
       // 不调用 showAuroraHome()：它会清空分类，导致所有分类都回到默认推荐。
       auroraActiveCategory = category || '';
       auroraHeroIndex = 0;
@@ -5966,6 +6063,7 @@
       if (section && !sgUiRestoring) section.scrollIntoView({behavior:'smooth',block:'start'});
     }
     function openAuroraSearch(keyword) {
+      stopSitePlaybackOnNavigation();
       const term = String(keyword || '').trim();
       openAuroraWorkspace();
       switchMode('vod');
@@ -6220,7 +6318,7 @@
 
     /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
     function switchMode(mode) {
-      if (mode !== 'tv') stopLivePlaybackOnSiteNavigation();
+      if (mode !== currentMode || (mode !== 'tv' && isLiveMode)) stopSitePlaybackOnNavigation();
       openAuroraWorkspace();
       currentMode = mode;
       currentView = 'normal';
@@ -7606,8 +7704,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     } catch (_) {}
 
     currentTitle.textContent = `${item.vod.vod_name} - 该线路暂未更新`;
-    routeBadge.style.display = 'inline-block';
-    routeBadge.textContent = `${item.siteName} · 未更新`;
+    routeBadge.style.display = 'none';
+    routeBadge.textContent = '';
 
     setStatus(`⚠️ 该线路暂未更新【${escapeHtml(missingEpText)}】<br><span style="color:var(--text-sub);font-size:12px;">该源共 ${getDisplayEpisodesCount(episodes)} 集，请选择其他源播放</span>`, true);
     return;
@@ -7622,8 +7720,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
   currentVodUniqueKey = `${item.vod.vod_name}_${targetEp.name}`;
   currentTitle.textContent = `${item.vod.vod_name} - ${targetEp.name}`;
-  routeBadge.style.display = 'inline-block';
-  routeBadge.textContent = item.siteName;
+  routeBadge.style.display = 'none';
+  routeBadge.textContent = '';
   currentStreamUrl = rawUrl;
 
   const isSpecial = isNSFWSource(item.siteName) || isGroupNSFW({ items: [item], type: item.vod?.type_name, title: item.vod?.vod_name });
