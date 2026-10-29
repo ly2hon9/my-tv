@@ -3000,7 +3000,7 @@
       <button type="button" class="aurora-nav-link" title="直播" aria-label="直播" data-aurora-nav="live" onclick="switchMode('tv')"><span>▤</span> 直播</button>
       <button type="button" class="aurora-nav-link" title="收藏" aria-label="收藏" data-aurora-nav="favorites" onclick="openAuroraWorkspace();switchSidebarView('fav')"><span>☆</span> 收藏</button>
       <button type="button" class="aurora-nav-link" title="历史" aria-label="历史" data-aurora-nav="history" onclick="openAuroraWorkspace();switchSidebarView('history')"><span>◷</span> 历史</button>
-      <button type="button" class="aurora-nav-link aurora-nav-settings" title="设置" aria-label="设置" onclick="openAuroraWorkspace();handleMainSettingsButtonClick()"><span>⚙</span> 设置</button>
+      <button type="button" class="aurora-nav-link aurora-nav-settings" title="设置" aria-label="设置" onclick="handleMainSettingsButtonClick()"><span>⚙</span> 设置</button>
     </nav>
   </header>
 
@@ -5922,6 +5922,7 @@
       updateAuroraYearFilter();
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
+        host._sgPosterRenderKey = null;
         host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '热门榜暂时没有' + escapeHtml(auroraActiveCategory) + '数据' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '正在补充该分类的热门数据；请确认已把新版 my-yuan/_worker.js 与 my-tv 推荐接口上传，随后重新打开分类。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
         if (heroTitle) { heroTitle.textContent = '你的私人影院'; heroTitle.dataset.title = ''; }
         if (heroDesc) heroDesc.textContent = '连接你自己的影视源后，这里会显示真实影片与海报。';
@@ -5934,12 +5935,19 @@
       renderAuroraHero(first);
       startAuroraHeroRotation();
       if (count) count.textContent = String(visibleItems.length);
-      host.innerHTML = visibleItems.map((item, index) => {
-        const art = item.poster && isSafeUrl(item.poster) ? `<img loading="lazy" src="${escapeHtml(item.poster)}" alt="${escapeHtml(item.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
-        return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
-      }).join('');
-      host.querySelectorAll('[data-aurora-title]').forEach(card => card.addEventListener('click', () => openAuroraSearch(card.getAttribute('data-aurora-title') || '')));
-      sgBalancePosterRows();
+      // AURORA 3.18: Preserve existing poster DOM when content is unchanged.
+      // This avoids re-decoding/reloading many images after opening settings or returning home.
+      const posterRenderKey = JSON.stringify(visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source]));
+      if (host._sgPosterRenderKey !== posterRenderKey ||
+          host.querySelectorAll(':scope > .aurora-poster-card').length !== visibleItems.length) {
+        host.innerHTML = visibleItems.map((item, index) => {
+          const art = item.poster && isSafeUrl(item.poster) ? `<img loading="lazy" src="${escapeHtml(item.poster)}" alt="${escapeHtml(item.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
+          return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
+        }).join('');
+        host.querySelectorAll('[data-aurora-title]').forEach(card => card.addEventListener('click', () => openAuroraSearch(card.getAttribute('data-aurora-title') || '')));
+        host._sgPosterRenderKey = posterRenderKey;
+        sgBalancePosterRows();
+      }
     }
     const AURORA_TREND_CACHE_KEY = 'aurora_trending_cache_v1';
     const AURORA_SHORT_DRAMA_RE = /短剧|微短剧|竖屏剧|爽剧|付费短剧|小程序剧|mini\s*drama|vertical\s*drama/i;
@@ -8526,9 +8534,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (currentUser) refreshAuroraRecommendations();
       });
 
-      // 初始化 TV
-      initTv();
-
+      // AURORA 3.18: Delay remote M3U loading until the user visits Live.
+      // switchMode('tv') already calls initTv(true) when no channels are cached.
+      // No stream or subscription should be fetched simply to draw the home page.
       const uiRestore = currentUser ? sgLoadPageState() : null;
       const hasRestored = currentUser ? restoreVodSessionState() : false;
       if (hasRestored) {
@@ -8537,7 +8545,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         document.getElementById('tab-tv').className = 'mode-tab';
         document.getElementById('tab-vod').className = 'mode-tab active';
         document.getElementById('filter').placeholder = "搜索片名、视频、电视频道...";
-        renderGroupedVodSources();
+        // Do not build a hidden large search list when restoring the HOME page.
+        // The list stays in memory and is rendered on first workspace visit.
+        if (uiRestore?.page !== 'home') renderGroupedVodSources();
       }
       // An authenticated refresh restores the SAME page without autoplay.
       // First visits and expired saved views still start from the real homepage.
