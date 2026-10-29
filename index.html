@@ -3089,101 +3089,48 @@
       #aurora-topnav { top:0 !important; }
     }
 
-    /* AURORA 3.21: three horizontal LIVE categories; navigation does not restart media. */
-    #channel-list .sg-tv-tabs {
-      position:sticky; top:0; z-index:35; display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:5px; padding:8px; margin:0 0 8px;
-      border:1px solid var(--border-color); border-radius:13px;
-      background:var(--bg-sidebar); box-sizing:border-box;
+    /* AURORA 3.20-L1: compact horizontal live channel tabs, TV view only. */
+    #channel-list > .sg-live-tabs {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(4px, 1.2vw, 10px);
+      width: 100% !important;
+      margin: 0 0 10px !important;
+      padding: 8px clamp(5px, 1.5vw, 12px) !important;
+      box-sizing: border-box;
+      border: 1px solid var(--border-color);
+      background: var(--bg-search-box);
+      border-radius: 14px;
     }
-    #channel-list .sg-tv-tab {
-      appearance:none; border:1px solid var(--border-light); background:var(--bg-card);
-      color:var(--text-sub); font-size:clamp(12px,3.2vw,14px); font-weight:700;
-      padding:10px 5px; min-width:0; min-height:39px; border-radius:10px;
-      display:flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap;
-      cursor:pointer; transition:background .14s,border-color .14s;
+    #channel-list > .sg-live-tabs > .sg-live-tab {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+      padding: 7px 3px;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      color: var(--text-sub);
+      font-weight: 700;
+      font-size: clamp(11px, 2.8vw, 13px);
+      line-height: 1.25;
+      white-space: nowrap;
+      text-align: center;
+      cursor: pointer;
     }
-    #channel-list .sg-tv-tab[aria-selected="true"] {
-      color:var(--accent); border-color:var(--accent); background:var(--accent-soft);
+    #channel-list > .sg-live-tabs > .sg-live-tab.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
     }
-    #channel-list .sg-tv-tab-count {font:600 10px/1 ui-monospace,monospace; opacity:.75;}
-    #channel-list .sg-tv-tab-panel[hidden] {display:none !important;}
-    #channel-list .sg-tv-tab-panel {display:block;min-width:0;}
-    #channel-list .sg-tv-tab-panel .channel-row {border-radius:10px;overflow:hidden;margin-bottom:5px;border:1px solid var(--border-color);}
-    #channel-list .sg-tv-tab-empty {padding:28px 12px;text-align:center;color:var(--text-sub);font-size:12px;}
-    #channel-list .sg-tv-search-heading {padding:11px 12px 9px;font-size:12px;color:var(--text-sub);}
-    @media(max-width:390px) {
-      #channel-list .sg-tv-tabs {gap:4px;padding:6px;}
-      #channel-list .sg-tv-tab {padding:9px 2px; gap:2px; font-size:12px;}
-      #channel-list .sg-tv-tab-count {font-size:9px;}
-    }
-
-    /* AURORA 3.22: cross-catalog search. The underlying native VOD/TV lists,
-       player, controls, sorting, permissions and episode buttons stay unchanged. */
-    #sidebar:not(.sg-global-search) #sg-global-results {display:none !important;}
-    #sidebar.sg-global-search #channel-list {display:none !important;}
-    #sidebar.sg-global-search #sg-global-results {
-      flex:1 1 auto !important; min-height:0 !important; min-width:0 !important;
-      display:block !important; overflow-y:auto !important; overflow-x:hidden !important;
-      overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
-      padding:clamp(10px,2vw,20px) !important; background:var(--bg-sidebar);
-      scrollbar-width:thin;
-    }
-    .sg-search-result-top {display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:13px;}
-    .sg-search-result-heading {font-size:clamp(15px,2.9vw,20px);font-weight:800;line-height:1.4;min-width:0;overflow-wrap:anywhere;}
-    .sg-search-result-caption {font-size:11px;color:var(--text-sub);margin:4px 0 0;line-height:1.5;}
-    .sg-search-result-tabs {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;position:sticky;top:0;z-index:5;padding:5px;background:var(--bg-sidebar);border-radius:13px;border:1px solid var(--border-color);margin-bottom:14px;}
-    .sg-search-result-tabs button {min-width:0;white-space:nowrap;cursor:pointer;padding:10px 4px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--text-sub);font-family:inherit;font-size:clamp(10px,2.2vw,13px);font-weight:700;line-height:1.3;}
-    .sg-search-result-tabs button[aria-selected="true"] {color:var(--accent);background:var(--accent-soft);border-color:var(--accent);}
-    .sg-search-result-section {padding:10px 0 18px;min-width:0;}
-    .sg-search-result-section h3 {font-size:14px;font-weight:800;margin:0 0 8px;color:var(--text-main);}
-    .sg-search-result-status {border:1px dashed var(--border-color);border-radius:13px;background:var(--bg-card);color:var(--text-sub);padding:17px 12px;font-size:12px;line-height:1.6;}
-    .sg-search-result-items {display:grid;gap:8px;}
-    .sg-search-result-row {min-width:0;width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border-color);border-radius:13px;background:var(--bg-card);color:var(--text-main);cursor:pointer;}
-    .sg-search-result-row:hover, .sg-search-result-row:focus-visible {border-color:var(--accent);background:var(--accent-soft);}
-    .sg-search-result-row .sg-search-icon {display:flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:42px;border-radius:9px;background:var(--accent-soft);color:var(--accent);font-size:20px;}
-    .sg-search-result-row img {flex:0 0 42px;width:42px;height:56px;object-fit:cover;border-radius:7px;background:var(--bg-tag);}
-    .sg-search-result-row .sg-search-item-copy {flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px;}
-    .sg-search-result-row .sg-search-item-copy strong {font-size:13px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;}
-    .sg-search-result-row .sg-search-item-copy small {font-size:11px;color:var(--text-sub);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-    .sg-search-result-row .sg-search-arrow {flex:0 0 auto;font-size:15px;color:var(--text-sub);}
-    .sg-search-result-all {display:block;width:100%;margin-top:10px;border-radius:11px;border:1px solid var(--border-light);background:var(--bg-card);padding:11px;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;}
-    .sg-search-result-status a {color:var(--accent);}
-    @media(max-width:540px) {
-      #sidebar.sg-global-search #sg-global-results {padding:8px !important;}
-      .sg-search-result-tabs {gap:3px;padding:4px;}
-      .sg-search-result-tabs button {padding:10px 2px;font-size:11px;}
-      .sg-search-result-row {gap:8px;padding:9px;}
-      .sg-search-result-row .sg-search-icon {flex-basis:30px;width:30px;}
-    }
-
-    /* AURORA 3.23: two quick search destinations, native lists remain visible.
-       No search-preview thumbnails or intermediary confirmation screens. */
-    #sidebar.sg-global-search #channel-list {
-      display:block !important; flex:1 1 auto !important; min-height:0 !important;
-      overflow-y:auto !important; overflow-x:hidden !important;
-      -webkit-overflow-scrolling:touch;
-    }
-    #sidebar.sg-global-search #sg-global-results {
-      display:block !important; flex:0 0 auto !important; min-height:0 !important;
-      overflow:visible !important; padding:7px 10px 5px !important;
-      border-bottom:1px solid var(--border-color);
-      background:var(--bg-sidebar);
-    }
-    #sidebar.sg-global-search #sg-global-results[hidden] {display:none !important;}
-    #sidebar.sg-global-search .sg-search-result-tabs {
-      display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important;
-      position:static !important; margin:0 !important;
-      width:100%; gap:7px; padding:5px;
-    }
-    #sidebar.sg-global-search .sg-search-result-tabs button {
-      min-width:0; padding:11px 5px !important; min-height:39px;
-      font-size:clamp(11px,2.75vw,13px) !important;
-    }
-    @media(max-width:390px) {
-      #sidebar.sg-global-search #sg-global-results {padding:5px 7px !important;}
-      #sidebar.sg-global-search .sg-search-result-tabs {gap:4px;padding:3px;}
+    #channel-list > .sg-live-channel-panel { display:block; min-width:0; }
+    #channel-list > .sg-live-channel-panel > .channel-row { min-width:0; }
+    #channel-list .sg-live-empty {
+      text-align:center; padding:26px 12px; font-size:13px; color:var(--text-sub);
     }
   </style>
 </head>
@@ -3391,7 +3338,6 @@
         <button type="button" class="mode-tab active" id="tab-vod" onclick="switchMode('vod')">🎬 影视剧场</button>
       </div>
     </div>
-    <div id="sg-global-results" aria-label="全站综合搜索结果" aria-live="polite" hidden></div>
     <div id="channel-list">
       <div style="padding: 24px; color: var(--text-sub); text-align: center;">在上方输入关键词搜索 🔍</div>
     </div>
@@ -3821,6 +3767,7 @@
 
     // 电视直播数据
     let groups = {};
+    let sgLiveSelectedTab = '央视'; // User's current live-TV tab, never affects VOD.
     let totalChannelsCount = 0;
     let totalStreamsCount = 0;
 
@@ -4292,7 +4239,6 @@
     }
 
     function switchSidebarView(view) {
-      sgCloseGlobalSearch();
       if (view !== currentView || view !== 'normal') stopSitePlaybackOnNavigation();
       openAuroraWorkspace();
       currentView = view;
@@ -5958,176 +5904,23 @@
     let auroraActiveCategory = '';
     let auroraHeroIndex = 0;
     let auroraHeroTimer = null;
-    // AURORA 3.23: two direct native search destinations. A recognizable TV
-    // keyword opens live first; the user can switch to full VOD results any time.
-    // No background requests for an unselected search destination.
-    let sgTvSearchSequence = 0;
-    let sgGlobalSearchState = null;
-    function sgIsExplicitTvKeyword(query) {
-      return /(?:其他频道|卫视|电视台|电视频道|中央电视|央视频道|央视|CCTV[\s\-]*\d*|CGTN|凤凰卫视|凤凰中文|本港台|翡翠台|明珠台|湖南台|安徽台)/i.test(query);
-    }
-    function sgNormalizeGlobalQuery(query) {
-      return String(query || '').trim().slice(0,120);
-    }
-    function sgGlobalSearchRoot() { return document.getElementById('sg-global-results'); }
-    function sgCloseGlobalSearch() {
-      const root = sgGlobalSearchRoot();
-      if (root) { root.replaceChildren(); root.hidden = true; }
-      document.getElementById('sidebar')?.classList.remove('sg-global-search');
-      if (sgGlobalSearchState) {
-        sgTvSearchSequence++;
-        if (isSearchingActive && currentSearchAbortController) currentSearchAbortController.abort();
-      }
-      sgGlobalSearchState = null;
-    }
-    function sgGlobalTvItems(query) {
-      const filtered = sgLiveSearchResults(query);
-      const list = [];
-      const compact = q => String(q).toLowerCase().replace(/[\s\-_]/g,'');
-      const normalized = compact(query);
-      for (const [group,channels] of Object.entries(filtered)) {
-        for (const [name,urls] of Object.entries(channels)) {
-          list.push({group,name,lines:Array.isArray(urls)?urls.length:0,rank:compact(name)===normalized?0:compact(name).startsWith(normalized)?1:2});
+    function submitAuroraTopSearch(event) {
+      if (event) event.preventDefault();
+      const input = document.getElementById('aurora-nav-search-input');
+      const keyword = input ? input.value.trim() : '';
+      // AURORA 3.20 L1: The existing top search is context-sensitive ONLY
+      // inside the actual live-TV page. Other tabs retain original VOD search.
+      if (currentMode === 'tv' && currentView === 'normal' &&
+          !document.body.classList.contains('aurora-home-view')) {
+        const liveInput = document.getElementById('filter');
+        if (liveInput) {
+          liveInput.value = keyword;
+          toggleClearBtn(keyword);
         }
-      }
-      list.sort((a,b)=>a.rank-b.rank || a.name.localeCompare(b.name,'zh-CN'));
-      return list;
-    }
-    // AURORA 3.23: Show TWO buttons only. Each button directly displays the
-    // original full VOD results or the original M3U channel/line source list.
-    function sgDrawGlobalSearch() {
-      const state = sgGlobalSearchState, root = sgGlobalSearchRoot();
-      if (!state || !root || root.hidden) return;
-      root.innerHTML = `<div class="sg-search-result-tabs" role="tablist" aria-label="搜索范围">` +
-        [['vod','🎬 影视资源'],['tv','📺 电视直播']].map(([id,title]) =>
-          `<button type="button" data-sg-global-tab="${id}" role="tab" aria-selected="${state.tab===id}" tabindex="${state.tab===id?'0':'-1'}">${title}</button>`
-        ).join('') + `</div>`;
-    }
-    function sgShowSearchTvSources() {
-      const state=sgGlobalSearchState;
-      if(!state || state.tab!=='tv')return;
-      const filter=document.getElementById('filter');
-      if(filter){filter.value=state.query;toggleClearBtn(state.query);}
-      handleSearchTv();  // native rows, source URLs, EPG, and per-line actions
-      // Present the actual line chooser immediately without starting a stream.
-      const rows=[...document.querySelectorAll('#channel-list .channel-row')];
-      const exact=rows.find(row=>String(row.dataset.sgChannelName||'').replace(/[\s\-_]/g,'').toLowerCase()===state.query.replace(/[\s\-_]/g,'').toLowerCase());
-      const first=exact||rows[0];
-      if(first) {
-        first.classList.add('expanded'); // NOT .click(): original click auto-plays fastest
-        const epg=first.querySelector('.tv-epg-box');
-        const tag=first.querySelector('.tv-epg-inline-tag');
-        if(epg) loadTvChannelEpg(first.dataset.sgChannelName,epg,tag,false);
-        const panel=first.querySelector('.sources-panel');
-        // Avoid sending identical ping requests every time the user swaps tabs.
-        if(panel && !state.tvAutoTested) {
-          state.tvAutoTested=true;
-          testAndSortTvSources(first.dataset.sgChannelName,panel,first,false);
-        }
-      }
-    }
-    function sgShowNativeVodResults(state) {
-      if (!state || state.tab !== 'vod') return;
-      if (groupedVodList.length) { renderGroupedVodSources(); return; }
-      const list=document.getElementById('channel-list');
-      if(list && !isSearchingActive)
-        list.innerHTML=`<div class="sg-search-result-status">影视源未检索到与「${escapeHtml(state.query)}」相关的资源。可切换“电视直播”查看频道。</div>`;
-    }
-    function sgSwitchSearchTab(tab) {
-      const state=sgGlobalSearchState;
-      if(!state || !['tv','vod'].includes(tab))return;
-      if(state.tab!==tab) {
-        stopSitePlaybackOnNavigation();
-        if(tab==='tv' && state.vodPending) {
-          currentSearchAbortController?.abort();
-          isSearchingActive=false;
-          state.vodPending=false;
-          state.vodReady=false;
-          state.vodRequestId=(state.vodRequestId||0)+1;
-        }
-      }
-      state.tab=tab;
-      currentMode=tab;
-      currentView='normal';
-      const input=document.getElementById('filter');
-      if(input) {
-        input.value=state.query;
-        input.placeholder=tab==='tv'?'搜索电视频道...':'搜索片名、视频、电视频道...';
-        toggleClearBtn(state.query);
-      }
-      document.getElementById('btn-show-fav')?.classList.remove('active');
-      document.getElementById('btn-show-history')?.classList.remove('active');
-      document.getElementById('tab-tv')?.classList.toggle('active',tab==='tv');
-      document.getElementById('tab-vod')?.classList.toggle('active',tab==='vod');
-      const list=document.getElementById('channel-list');
-      if(list) list.scrollTop=0;
-      sgDrawGlobalSearch();
-      if(tab==='vod') {
-        if(state.vodReady) {sgShowNativeVodResults(state);return;}
-        if(state.vodPending) return;
-        state.vodPending=true;
-        const requestId=state.vodRequestId=(state.vodRequestId||0)+1;
-        fastStreamSearchVod(state.query).then(()=>{
-          if(sgGlobalSearchState!==state || requestId!==state.vodRequestId)return;
-          state.vodReady=true;
-          state.vodPending=false;
-          // The source parser already rendered the original native results.
-          if(state.tab==='vod') sgShowNativeVodResults(state);
-        }).catch(()=>{
-          if(sgGlobalSearchState!==state || requestId!==state.vodRequestId)return;
-          state.vodPending=false;
-          const el=document.getElementById('channel-list');
-          if(state.tab==='vod' && el)el.innerHTML='<div class="sg-search-result-status">影视检索暂时失败，请重新搜索。</div>';
-        });
+        handleSearchTv();
         return;
       }
-      // Live: use cached M3U directory if available; fetch only when needed.
-      if(Object.keys(groups||{}).length) {sgShowSearchTvSources();return;}
-      if(list) list.innerHTML='<div class="sg-tv-tab-empty">正在读取已配置的直播频道目录…</div>';
-      if(state.tvPending)return;
-      state.tvPending=true;
-      Promise.resolve().then(()=>initTv(true)).catch(()=>{}).finally(()=>{
-        if(sgGlobalSearchState!==state)return;
-        state.tvPending=false;
-        if(state.tab==='tv')sgShowSearchTvSources();
-      });
-    }
-    function sgBindGlobalSearchControls() {
-      const root=sgGlobalSearchRoot();
-      if (!root || root.dataset.sgBound) return;
-      root.dataset.sgBound='1';
-      root.addEventListener('click',event=>{
-        const btn=event.target.closest('button[data-sg-global-tab]');
-        if(!btn||!root.contains(btn)||!sgGlobalSearchState)return;
-        sgSwitchSearchTab(btn.dataset.sgGlobalTab);
-      });
-      root.addEventListener('keydown',event=>{
-        if(!['ArrowLeft','ArrowRight'].includes(event.key) || !sgGlobalSearchState)return;
-        event.preventDefault();
-        const next=sgGlobalSearchState.tab==='vod'?'tv':'vod';
-        sgSwitchSearchTab(next);
-        root.querySelector(`[data-sg-global-tab="${next}"]`)?.focus();
-      });
-    }
-    async function submitAuroraTopSearch(event) {
-      if(event)event.preventDefault();
-      const input=document.getElementById('aurora-nav-search-input');
-      const query=sgNormalizeGlobalQuery(input?.value);
-      if(!query){input?.focus();return;}
-      sgCloseGlobalSearch();
-      const token=++sgTvSearchSequence;
-      stopSitePlaybackOnNavigation();
-      openAuroraWorkspace();
-      const preferTv=sgIsExplicitTvKeyword(query);
-      sgGlobalSearchState={token,query,tab:preferTv?'tv':'vod',preferTv,
-        vodPending:false,vodReady:false,tvPending:false};
-      const root=sgGlobalSearchRoot();
-      if(!root)return;
-      root.hidden=false;
-      document.getElementById('sidebar')?.classList.add('sg-global-search');
-      document.querySelectorAll('[data-aurora-nav]').forEach(el=>el.classList.remove('active'));
-      sgBindGlobalSearchControls();
-      sgSwitchSearchTab(sgGlobalSearchState.tab);
+      openAuroraSearch(keyword);
     }
     function auroraCurrentVisibleItems() {
       const visible = auroraActiveCategory
@@ -6290,7 +6083,6 @@
       progressBar.style.width = '0%';
     }
     function showAuroraHome() {
-      sgCloseGlobalSearch();
       stopSitePlaybackOnNavigation();
       auroraActiveCategory = '';
       auroraHeroIndex = 0;
@@ -6308,7 +6100,6 @@
       if (!sgUiRestoring) window.scrollTo({top:0,behavior:'smooth'});
     }
     function openAuroraCategory(category) {
-      sgCloseGlobalSearch();
       stopSitePlaybackOnNavigation();
       // 不调用 showAuroraHome()：它会清空分类，导致所有分类都回到默认推荐。
       auroraActiveCategory = category || '';
@@ -6330,7 +6121,6 @@
       if (section && !sgUiRestoring) section.scrollIntoView({behavior:'smooth',block:'start'});
     }
     function openAuroraSearch(keyword) {
-      sgCloseGlobalSearch();
       stopSitePlaybackOnNavigation();
       const term = String(keyword || '').trim();
       openAuroraWorkspace();
@@ -6586,7 +6376,6 @@
 
     /* 模式切换：彻底解决按钮失效，切换时清空上方输入框文字 */
     function switchMode(mode) {
-      sgCloseGlobalSearch();
       if (mode !== currentMode || (mode !== 'tv' && isLiveMode)) stopSitePlaybackOnNavigation();
       openAuroraWorkspace();
       currentMode = mode;
@@ -6622,11 +6411,10 @@
         } else {
           container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
           initTv(true).then(() => {
-            if (currentMode !== 'tv' || currentView !== 'normal') return;
-            if (filterInput?.value.trim()) { handleSearchTv(); return; }
-            if (Object.keys(groups).length > 0) {
-              renderList(groups, false);
-            } else {
+            // initTv itself renders loaded channels. Do not override a live
+            // search that the user typed while the M3U request was in flight.
+            if (currentMode === 'tv' && currentView === 'normal' &&
+                !Object.keys(groups).length) {
               container.innerHTML = `<div style="padding: 30px 16px; color: var(--text-sub); text-align: center; font-size: 13px;">暂无电视直播数据，请在设置中配置直播源（M3U）地址 📺</div>`;
             }
           });
@@ -7078,7 +6866,7 @@
         return;
       }
 
-      if (currentMode === 'vod') container.innerHTML = '<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《' + escapeHtml(keyword) + '》中，请稍候...</div>';
+      container.innerHTML = '<div style="padding: 28px 16px; color: var(--accent); text-align: center; font-size: 13px;">⚡ 正在智能检索《' + escapeHtml(keyword) + '》中，请稍候...</div>';
       
       groupedVodList = [];
       domNodeCache.clear();
@@ -7207,7 +6995,7 @@
       consolidateVodGroups();
 
       if (groupedVodList.length === 0 && currentView === 'normal') {
-        if (currentMode === 'vod') container.innerHTML = '<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《' + escapeHtml(keyword) + '》相关的影视作品</div>';
+        container.innerHTML = '<div style="padding: 30px; color: var(--text-sub); text-align: center; font-size: 13px;">未检索到与《' + escapeHtml(keyword) + '》相关的影视作品</div>';
         return;
       }
 
@@ -7724,8 +7512,6 @@ function buildGroupBodyPanel(group) {
     }
 
     function renderGroupedVodSources() {
-      // A late VOD response cannot replace a live-channel list.
-      if (sgGlobalSearchState?.tab === 'tv' && currentMode === 'tv') return;
       const container = document.getElementById('channel-list');
       container.classList.toggle('sg-results-grid', !!groupedVodList?.length);
 
@@ -8333,7 +8119,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     async function initTv(force = false) {
       if (!force && Object.keys(groups).length > 0) {
-        if (currentMode === 'tv' && currentView === 'normal') { if (sgGlobalSearchState?.tab === 'tv') handleSearchTv(); else renderList(groups, false); }
+        if (currentMode === 'tv' && currentView === 'normal') renderList(groups, false);
         return;
       }
       const targetUrl = await getD1Data(KEY_M3U, '');
@@ -8342,7 +8128,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         const text = await fetchTvM3uContent(targetUrl);
         if (text && text.includes('#EXTINF')) {
           parseM3U(text, true);
-          if (currentMode === 'tv' && currentView === 'normal') { if (sgGlobalSearchState?.tab === 'tv') handleSearchTv(); else renderList(groups, false); }
+          if (currentMode === 'tv' && currentView === 'normal') {
+            const kw = document.getElementById('filter')?.value.trim() || '';
+            if (kw) handleSearchTv();
+            else renderList(groups, false);
+          }
         }
       } catch (_) {}
     }
@@ -8573,105 +8363,62 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
-    // Buckets are inferred from channel names first, then their M3U group title.
-    // Never discard unmatched custom groups: every channel belongs to one of the 3 tabs.
-    let sgTvSelectedTab = 'cctv';
-    function sgTvCategory(channel, group) {
-      const title = String(channel || '');
-      const groupTitle = String(group || '');
-      if (/\bCCTV[\s\-]*[\d一二三四五六七八九十]+\b|央视|中央电视|CGTN/i.test(title)) return 'cctv';
-      if (/卫视|湖南台|安徽台/i.test(title)) return 'satellite';
-      if (/^(?:央视|央视频道|中央频道)/i.test(groupTitle)) return 'cctv';
-      if (/卫视|省级卫星/i.test(groupTitle)) return 'satellite';
-      return 'other';
-    }
-    function sgTvSwitchTab(tab) {
-      if (!['cctv','satellite','other'].includes(tab)) return;
-      sgTvSelectedTab = tab;
-      const container = document.getElementById('channel-list');
-      container.querySelectorAll('.sg-tv-tab').forEach(btn => {
-        const selected = btn.dataset.sgTvTab === tab;
-        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
-        btn.tabIndex = selected ? 0 : -1;
-      });
-      container.querySelectorAll('.sg-tv-tab-panel').forEach(panel => {
-        panel.hidden = panel.dataset.sgTvPanel !== tab;
-      });
-    }
-    function sgLiveSearchResults(keyword) {
-      const term = String(keyword || '').trim().toLowerCase().replace(/[\s\-_]/g,'');
-      const out = {};
-      const categoryTerm = ['央视','中央电视','央视频道','cctv'].includes(term) ? 'cctv'
-        : ['卫视','卫视频道'].includes(term) ? 'satellite'
-        : ['其他','其他频道'].includes(term) ? 'other' : '';
-      for (const [group, channels] of Object.entries(groups || {})) {
-        for (const [name, urls] of Object.entries(channels || {})) {
-          const byName = name.toLowerCase().replace(/[\s\-_]/g,'').includes(term);
-          if (!byName && !(categoryTerm && sgTvCategory(name, group) === categoryTerm)) continue;
-          (out[group] ||= {})[name] = urls;
-        }
-      }
-      return out;
-    }
-    function renderList(targetGroups, isSearchMode = false) {
+    function renderList(targetGroups, isSearchMode = false, autoSelectMatchingTab = true) {
       const container = document.getElementById('channel-list');
       container.classList.remove('sg-results-grid');
       container.innerHTML = '';
-      // Build each channel only once; the three tabs merely toggle visibility.
-      // Searching a channel displays only matching rows and never scans VOD sources.
-      const listFragment = document.createDocumentFragment();
-      const tvPanels = {};
-      const tvCounts = {cctv:0, satellite:0, other:0};
-      if (!isSearchMode) {
-        const tabs = document.createElement('div');
-        tabs.className = 'sg-tv-tabs';
-        tabs.setAttribute('role','tablist');
-        tabs.setAttribute('aria-label','直播频道分类');
-        for (const [id, title] of [['cctv','央视'],['satellite','卫视'],['other','其他']]) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'sg-tv-tab';
-          button.dataset.sgTvTab = id;
-          button.setAttribute('role','tab');
-          button.innerHTML = `${title}<span class="sg-tv-tab-count" data-sg-tv-count="${id}"></span>`;
-          button.addEventListener('click', () => sgTvSwitchTab(id));
-          tabs.appendChild(button);
-          const panel = document.createElement('div');
-          panel.className = 'sg-tv-tab-panel';
-          panel.dataset.sgTvPanel = id;
-          panel.setAttribute('role','tabpanel');
-          panel.hidden = true;
-          tvPanels[id] = panel;
+      // Three horizontal live-TV tabs. Do not modify M3U groups or line URLs.
+      // Unfamiliar channel groups still remain available in the '其他' tab.
+      const liveBuckets = { '央视': [], '卫视': [], '其他': [] };
+      for (const [groupName, channels] of Object.entries(targetGroups || {})) {
+        for (const [chName, urls] of Object.entries(channels || {})) {
+          const channel = String(chName || '');
+          const group = String(groupName || '');
+          let bucket;
+          if (/^(?:CCTV[\s-]*\d|CGTN\b|央视|中央电视台|中央\d)/i.test(channel)) bucket = '央视';
+          else if (/卫视/.test(channel)) bucket = '卫视';
+          else if (/央视|中央|CCTV|CGTN/i.test(group)) bucket = '央视';
+          else if (/卫视/.test(group)) bucket = '卫视';
+          else bucket = '其他';
+          liveBuckets[bucket].push({ chName, urls });
         }
-        listFragment.appendChild(tabs);
-      } else {
-        const count = Object.values(targetGroups).reduce((n,channels)=>n+Object.keys(channels).length,0);
-        const heading = document.createElement('div');
-        heading.className = 'sg-tv-search-heading';
-        heading.textContent = `📺 找到 ${count} 个直播频道`;
-        listFragment.appendChild(heading);
       }
-      for (let groupName in targetGroups) {
-        const channels = targetGroups[groupName];
-        if (Object.keys(channels).length === 0) continue;
-        const groupEl = document.createElement('div');
-        groupEl.className = 'group-header';
-        groupEl.innerHTML = `<span>${escapeHtml(groupName)}</span><span>▼</span>`;
-        const subList = document.createElement('div');
-        subList.className = 'group-channels';
-        if (isSearchMode) subList.style.display = 'block';
-
-        groupEl.onclick = () => {
-          const isHide = subList.style.display === 'none';
-          subList.style.display = isHide ? 'block' : 'none';
-          groupEl.querySelector('span:last-child').textContent = isHide ? '▼' : '▶';
+      const tabNames = ['央视', '卫视', '其他'];
+      if ((!isSearchMode || autoSelectMatchingTab) && !liveBuckets[sgLiveSelectedTab]?.length) {
+        // On first entry prefer a populated section; for a new search, prefer
+        // the section actually containing the matching channel.
+        sgLiveSelectedTab = tabNames.find(tab => liveBuckets[tab].length) || sgLiveSelectedTab;
+      }
+      if (!tabNames.includes(sgLiveSelectedTab)) sgLiveSelectedTab = '央视';
+      const tabsEl = document.createElement('div');
+      tabsEl.className = 'sg-live-tabs';
+      tabsEl.setAttribute('role', 'tablist');
+      tabsEl.setAttribute('aria-label', '直播频道分类');
+      for (const name of tabNames) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sg-live-tab' + (name === sgLiveSelectedTab ? ' active' : '');
+        btn.textContent = name === '央视' ? '央视频道' : name === '卫视' ? '卫视频道' : '其他频道';
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', String(name === sgLiveSelectedTab));
+        btn.setAttribute('aria-controls', 'sg-live-channel-panel');
+        btn.onclick = () => {
+          if (sgLiveSelectedTab === name) return;
+          sgLiveSelectedTab = name;
+          renderList(targetGroups, isSearchMode, false); // User chose this tab: keep it selected even if the filtered result is empty.
         };
-
-        for (let chName in channels) {
-          const urls = channels[chName];
+        tabsEl.appendChild(btn);
+      }
+      container.appendChild(tabsEl);
+      const subList = document.createElement('div');
+      subList.id = 'sg-live-channel-panel';
+      subList.className = 'group-channels sg-live-channel-panel';
+      subList.setAttribute('role', 'tabpanel');
+      subList.style.display = 'block';
+      const searchWord = isSearchMode ? String(document.getElementById('filter')?.value || '').trim().toLowerCase() : '';
+      for (const { chName, urls } of liveBuckets[sgLiveSelectedTab]) {
           const rowEl = document.createElement('div');
           rowEl.className = 'channel-row';
-          rowEl.dataset.sgChannelName = chName;
           const panelEl = document.createElement('div');
           panelEl.className = 'sources-panel';
 
@@ -8791,50 +8538,37 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
           rowEl.appendChild(mainEl);
           rowEl.appendChild(panelEl);
+          if (isLiveMode && currentStreamUrl && urls.includes(currentStreamUrl)) {
+            rowEl.classList.add('playing');
+          }
+          // An exact top-search hit opens its lines immediately without autoplay
+          // or automatically starting a latency test.
+          if (searchWord && String(chName).trim().toLowerCase() === searchWord) {
+            rowEl.classList.add('expanded');
+            loadTvChannelEpg(chName, epgBox, inlineTagEl, false);
+          }
           subList.appendChild(rowEl);
-        }
-        if (isSearchMode) {
-          listFragment.appendChild(groupEl);
-          listFragment.appendChild(subList);
-        } else {
-          const rows = Array.from(subList.children);
-          for (const row of rows) {
-            const channel = row.dataset.sgChannelName || '';
-            const tab = sgTvCategory(channel, groupName);
-            tvPanels[tab].appendChild(row);
-            tvCounts[tab]++;
-          }
-        }
       }
-      if (!isSearchMode) {
-        const tabs = listFragment.querySelector('.sg-tv-tabs');
-        for (const [id,panel] of Object.entries(tvPanels)) {
-          tabs.querySelector(`[data-sg-tv-count="${id}"]`).textContent = `(${tvCounts[id]})`;
-          if (!tvCounts[id]) {
-            const empty = document.createElement('div');
-            empty.className = 'sg-tv-tab-empty';
-            empty.textContent = '当前分类暂无直播频道';
-            panel.appendChild(empty);
-          }
-          listFragment.appendChild(panel);
-        }
+      if (!subList.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'sg-live-empty';
+        empty.textContent = isSearchMode ? '该分类没有匹配的直播频道，请切换分类或清除搜索词。' : '此分类暂无直播频道。';
+        subList.appendChild(empty);
       }
-      container.appendChild(listFragment);
-      if (!isSearchMode) {
-        if (!tvCounts[sgTvSelectedTab]) sgTvSelectedTab = ['cctv','satellite','other'].find(id => tvCounts[id]) || 'cctv';
-        sgTvSwitchTab(sgTvSelectedTab);
-      }
+      container.appendChild(subList);
     }
 
     function handleSearchTv() {
       const kw = document.getElementById('filter').value.trim().toLowerCase();
       if (!kw) { renderList(groups, false); return; }
-      const filtered = sgLiveSearchResults(kw);
-      if (!Object.keys(filtered).length) {
-        const container = document.getElementById('channel-list');
-        container.classList.remove('sg-results-grid');
-        container.innerHTML = `<div class="sg-tv-tab-empty" role="status"><strong>没有找到「${escapeHtml(kw)}」直播频道</strong><p>请检查设置中的直播 M3U 是否包含该频道；影视聚合源和直播源是两套不同目录。</p></div>`;
-        return;
+      const filtered = {};
+      for (let g in groups) {
+        for (let ch in groups[g]) {
+          if (ch.toLowerCase().includes(kw) || g.toLowerCase().includes(kw)) {
+            if (!filtered[g]) filtered[g] = {};
+            filtered[g][ch] = groups[g][ch];
+          }
+        }
       }
       renderList(filtered, true);
     }
@@ -9098,7 +8832,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
                 tvEpgSourceUrl = parsedTv.tvEpgSourceUrl;
                 localStorage.setItem(KEY_TV_EPG_URL, tvEpgSourceUrl);
               }
-              if (currentMode === 'tv' && currentView === 'normal') { if (sgGlobalSearchState?.tab === 'tv') handleSearchTv(); else renderList(groups, false); }
+              if (currentMode === 'tv' && currentView === 'normal') {
+            const kw = document.getElementById('filter')?.value.trim() || '';
+            if (kw) handleSearchTv();
+            else renderList(groups, false);
+          }
             }
           } catch (_) {}
         }
