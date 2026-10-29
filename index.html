@@ -1338,6 +1338,110 @@
       .aurora-play-glass-label { font-size:11px; }
     }
 
+
+    /* AURORA 3.3 responsive refinements: fixed player, compact navigation, real filters */
+    #aurora-topnav { gap: 8px !important; padding: 10px clamp(10px,1.8vw,22px) !important; align-items:center !important; }
+    .aurora-nav-search { flex: 0 1 245px !important; max-width: 270px !important; min-width: 135px !important; gap: 5px !important; }
+    .aurora-nav-search input { height: 38px !important; padding: 0 10px !important; font-size: 12px !important; }
+    .aurora-nav-search button { height: 38px !important; padding: 0 10px !important; }
+    .aurora-nav-links { flex: 1 1 440px !important; min-width: 0 !important; display:flex !important; align-items:center !important; justify-content:flex-end !important; gap:2px !important; }
+    .aurora-nav-link { padding: 0 9px !important; min-height:36px !important; white-space:nowrap !important; font-size:12px !important; }
+    .aurora-nav-link[data-aurora-nav="home"], .aurora-nav-home, #btn-home, .home-nav-button { display:none !important; }
+    body.aurora-home-view .aurora-theme-action,
+    #auth-gate-screen .gate-theme-btn,
+    #auth-gate-screen .gate-top-bar { display:none !important; }
+
+    .aurora-section-head { align-items:flex-start !important; flex-wrap:wrap !important; gap:14px !important; }
+    .aurora-section-title { flex:1 1 260px; min-width:0; }
+    .aurora-filter-controls { display:flex; align-items:flex-end; justify-content:flex-end; flex:0 1 auto; flex-wrap:wrap; gap:8px; max-width:100%; }
+    .aurora-filter-controls label { display:flex; flex-direction:column; gap:5px; color:var(--text-sub); font-size:10px; font-weight:700; }
+    .aurora-filter-controls select { min-width:100px; max-width:140px; height:36px; border:1px solid var(--border-light); border-radius:10px; padding:0 26px 0 10px; background:var(--bg-input); color:var(--text-main); outline:none; font-size:12px; }
+    .aurora-filter-controls select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .aurora-section-head h2 { margin-top:5px !important; }
+    .aurora-section-head p { max-width:720px; }
+    .aurora-home-section { scroll-margin-top:12px; }
+
+    /* The hero play action is a single glass icon centered just above the carousel controls. */
+    .aurora-hero { position:relative !important; }
+    .aurora-hero-actions { position:absolute !important; left:50% !important; bottom:62px !important; transform:translateX(-50%) !important; z-index:4 !important; margin:0 !important; }
+    .aurora-play-glass { width:48px !important; height:48px !important; min-width:48px !important; min-height:48px !important; padding:0 !important; border-radius:50% !important; display:flex !important; align-items:center !important; justify-content:center !important; }
+    .aurora-play-glass svg { width:48px !important; height:48px !important; flex:0 0 48px !important; padding:15px !important; background:transparent !important; }
+    .aurora-play-glass-label { display:none !important; }
+    .aurora-hero-controls { left:50% !important; right:auto !important; bottom:12px !important; transform:translateX(-50%) !important; z-index:3 !important; }
+    .aurora-hero-copy { padding-bottom:92px !important; }
+    .aurora-hero-count { display:none !important; }
+
+    /* Workspace uses a fixed player pane and an independently scrolling source/list pane. */
+    @media (min-width:900px) {
+      html, body { width:100% !important; height:100% !important; min-height:0 !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) {
+        display:grid !important;
+        grid-template-columns:minmax(0,1.55fr) minmax(320px,.95fr) !important;
+        grid-template-rows:58px minmax(0,1fr) !important;
+        grid-template-areas:"header header" "player sidebar" !important;
+        height:100dvh !important; min-height:0 !important; overflow:hidden !important;
+        padding:0 !important; gap:10px !important; align-items:stretch !important;
+      }
+      body:not(.aurora-home-view) #aurora-topnav { grid-area:header !important; min-height:0 !important; border-radius:0 0 14px 14px !important; }
+      body:not(.aurora-home-view) #player-wrap { grid-area:player !important; position:relative !important; top:auto !important; width:auto !important; height:auto !important; min-height:0 !important; max-height:none !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) #sidebar { grid-area:sidebar !important; display:flex !important; flex-direction:column !important; width:auto !important; max-width:none !important; height:auto !important; min-height:0 !important; max-height:none !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) #search-box { flex:0 0 auto !important; padding:10px !important; grid-template-columns:minmax(0,1fr) auto !important; gap:8px !important; }
+      body:not(.aurora-home-view) #channel-list { flex:1 1 0 !important; min-height:0 !important; max-height:none !important; overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior:contain !important; scrollbar-gutter:stable; }
+    }
+    @media (min-width:601px) and (max-width:899px) and (orientation:landscape) {
+      html, body { height:100% !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) {
+        display:grid !important; grid-template-columns:minmax(0,1.12fr) minmax(290px,.9fr) !important;
+        grid-template-rows:58px minmax(0,1fr) !important; grid-template-areas:"header header" "player sidebar" !important;
+        height:100dvh !important; min-height:0 !important; overflow:hidden !important; padding:0 !important; gap:8px !important;
+      }
+      body:not(.aurora-home-view) #aurora-topnav { grid-area:header !important; min-height:0 !important; padding:6px 10px !important; gap:6px !important; flex-wrap:nowrap !important; }
+      body:not(.aurora-home-view) .aurora-brand { min-width:unset !important; }
+      body:not(.aurora-home-view) .aurora-brand-copy small { display:none !important; }
+      body:not(.aurora-home-view) .aurora-nav-search { flex:0 1 190px !important; min-width:110px !important; }
+      body:not(.aurora-home-view) .aurora-nav-links { flex:1 1 auto !important; overflow-x:auto !important; justify-content:flex-start !important; }
+      body:not(.aurora-home-view) .aurora-nav-link { padding:0 6px !important; font-size:10px !important; }
+      body:not(.aurora-home-view) #player-wrap { grid-area:player !important; width:auto !important; height:auto !important; min-height:0 !important; max-height:none !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) #sidebar { grid-area:sidebar !important; width:auto !important; height:auto !important; min-height:0 !important; overflow:hidden !important; display:flex !important; flex-direction:column !important; }
+      body:not(.aurora-home-view) #channel-list { flex:1 1 0 !important; min-height:0 !important; max-height:none !important; overflow-y:auto !important; }
+    }
+    @media (max-width:899px) and (orientation:portrait) {
+      html, body { width:100% !important; height:100% !important; min-height:0 !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) {
+        display:grid !important; grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:auto minmax(170px,29dvh) minmax(0,1fr) !important;
+        grid-template-areas:"header" "player" "sidebar" !important;
+        height:100dvh !important; min-height:0 !important; overflow:hidden !important; padding:0 !important; gap:0 !important;
+      }
+      body:not(.aurora-home-view) #aurora-topnav { grid-area:header !important; display:grid !important; grid-template-columns:auto minmax(0,1fr) !important; grid-template-areas:"brand search" "nav nav" !important; gap:6px 9px !important; padding:7px 10px !important; border-radius:0 !important; min-width:0 !important; }
+      body:not(.aurora-home-view) .aurora-brand { grid-area:brand !important; min-width:0 !important; }
+      body:not(.aurora-home-view) .aurora-brand-copy small { display:none !important; }
+      body:not(.aurora-home-view) .aurora-nav-search { grid-area:search !important; width:100% !important; min-width:0 !important; max-width:none !important; flex:none !important; }
+      body:not(.aurora-home-view) .aurora-nav-search button span { display:none !important; }
+      body:not(.aurora-home-view) .aurora-nav-search button { width:38px !important; padding:0 !important; }
+      body:not(.aurora-home-view) .aurora-nav-links { grid-area:nav !important; width:100% !important; min-width:0 !important; flex:none !important; justify-content:flex-start !important; overflow-x:auto !important; overflow-y:hidden !important; flex-wrap:nowrap !important; scrollbar-width:none !important; }
+      body:not(.aurora-home-view) .aurora-nav-links::-webkit-scrollbar { display:none !important; }
+      body:not(.aurora-home-view) .aurora-nav-link { flex:0 0 auto !important; padding:0 9px !important; font-size:11px !important; }
+      body:not(.aurora-home-view) .aurora-theme-action { display:none !important; }
+      body:not(.aurora-home-view) #player-wrap { grid-area:player !important; position:relative !important; width:100% !important; height:100% !important; min-height:0 !important; max-height:none !important; flex:none !important; order:initial !important; border-radius:0 !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) #sidebar { grid-area:sidebar !important; display:flex !important; flex-direction:column !important; width:100% !important; max-width:none !important; height:100% !important; min-height:0 !important; max-height:none !important; overflow:hidden !important; border-radius:0 !important; }
+      body:not(.aurora-home-view) #search-box { flex:0 0 auto !important; padding:8px 10px !important; grid-template-columns:minmax(0,1fr) auto !important; gap:6px !important; }
+      body:not(.aurora-home-view) #search-box input { min-height:38px !important; height:38px !important; }
+      body:not(.aurora-home-view) .search-row-secondary { gap:5px !important; flex-wrap:nowrap !important; overflow-x:auto !important; }
+      body:not(.aurora-home-view) #channel-list { flex:1 1 0 !important; width:100% !important; min-height:0 !important; max-height:none !important; overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior:contain !important; -webkit-overflow-scrolling:touch !important; }
+    }
+    @media (max-width:600px) {
+      .aurora-section-head { align-items:stretch !important; }
+      .aurora-filter-controls { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)) !important; width:100% !important; gap:6px !important; }
+      .aurora-filter-controls label { min-width:0 !important; }
+      .aurora-filter-controls select { width:100% !important; min-width:0 !important; max-width:none !important; padding:0 4px !important; font-size:11px !important; }
+      .aurora-hero-actions { bottom:58px !important; }
+      .aurora-play-glass, .aurora-play-glass svg { width:42px !important; height:42px !important; min-width:42px !important; min-height:42px !important; flex-basis:42px !important; }
+      .aurora-play-glass svg { padding:13px !important; }
+      .aurora-hero-controls { bottom:8px !important; gap:7px !important; }
+      .aurora-hero-copy { padding-bottom:88px !important; }
+    }
+
 </style>
 </head>
 <body>
@@ -1413,7 +1517,7 @@
         <div class="aurora-hero-actions">
           <button class="aurora-play-glass" id="aurora-hero-play" onclick="openAuroraSearch(document.getElementById('aurora-hero-title').dataset.title || '')" aria-label="查找可播放片源" title="查找可播放片源">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8c0-.78.85-1.25 1.5-.83l9.2 5.7a1.55 1.55 0 0 1 0 2.66l-9.2 5.7A.98.98 0 0 1 8 18.2V5.8Z" fill="currentColor"/></svg>
-            <span class="aurora-play-glass-label">立即播放</span>
+            
           </button>
         </div>
       </div>
@@ -1425,7 +1529,7 @@
     </section>
 
     <section class="aurora-home-section">
-      <div class="aurora-section-head"><div><span class="aurora-section-overline">TRENDING · DAILY</span><h2>实时热门电影与剧集</h2><p>热门榜每日同步到 D1；海报来自真实影视元数据，点击后会检索你配置的可播放片源。</p></div><button class="aurora-text-action" id="aurora-refresh-recommendations" onclick="refreshAuroraRecommendations(true)">↻ 刷新推荐</button></div>
+      <div class="aurora-section-head"><div class="aurora-section-title"><span class="aurora-section-overline">TRENDING · DAILY</span><h2>实时热门电影与剧集</h2><p>热门榜每日同步到 D1；海报来自真实影视元数据，点击后会检索你配置的可播放片源。</p></div><div class="aurora-filter-controls" id="aurora-filter-controls" aria-label="按条件筛选影视"><label><span>年份</span><select id="aurora-filter-year" aria-label="按年份筛选" onchange="renderAuroraRecommendations()"><option value="all">全部年份</option></select></label><label><span>评分</span><select id="aurora-filter-rating" aria-label="最低评分" onchange="renderAuroraRecommendations()"><option value="0">不限评分</option><option value="6">6 分以上</option><option value="7">7 分以上</option><option value="8">8 分以上</option></select></label><label><span>排序</span><select id="aurora-filter-sort" aria-label="排序方式" onchange="renderAuroraRecommendations()"><option value="recommended">推荐排序</option><option value="newest">最新上线</option><option value="rating">评分最高</option><option value="popular">热度最高</option></select></label></div></div>
       <div id="aurora-recommendations" class="aurora-poster-grid"><div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取 D1 热门榜</strong><small>电影与电视剧每日更新，不使用个人收藏或观看历史</small></div></div>
     </section>
     <footer class="aurora-home-footer">拾光影视 · 热门榜来自 TMDB 每日趋势 · 海报仅作发现用途，播放由个人影视源提供</footer>
@@ -3978,9 +4082,46 @@
       openAuroraSearch(input ? input.value : '');
     }
     function auroraCurrentVisibleItems() {
-      return auroraActiveCategory
+      let items = auroraActiveCategory
         ? auroraRecommendationItems.filter(auroraCategoryPredicate)
         : auroraRecommendationItems.filter(item => item.type === '电影' || item.type === '电视剧');
+
+      const year = document.getElementById('aurora-filter-year')?.value || 'all';
+      const rating = Number(document.getElementById('aurora-filter-rating')?.value || 0);
+      const sort = document.getElementById('aurora-filter-sort')?.value || 'recommended';
+      if (year !== 'all') items = items.filter(item => String(item.year || '') === year);
+      if (rating > 0) items = items.filter(item => Number(item.voteAverage || 0) >= rating);
+
+      const popularity = (item) => Number(item.popularity || 0);
+      const score = (item) => Number(item.voteAverage || 0);
+      const releaseYear = (item) => Number(String(item.year || '').slice(0,4)) || 0;
+      if (sort === 'newest') {
+        items.sort((a,b) => releaseYear(b) - releaseYear(a) || popularity(b) - popularity(a));
+      } else if (sort === 'rating') {
+        items.sort((a,b) => score(b) - score(a) || popularity(b) - popularity(a));
+      } else if (sort === 'popular') {
+        items.sort((a,b) => popularity(b) - popularity(a));
+      } else if (auroraActiveCategory === '电视剧') {
+        // 推荐排序下优先国产剧，其次按热度；没有地区元数据时仍按热度正常展示。
+        const isChinese = item => item.originalLanguage === 'zh' || item.originCountry?.includes('CN');
+        items.sort((a,b) => Number(isChinese(b)) - Number(isChinese(a)) || popularity(b) - popularity(a));
+      } else {
+        items.sort((a,b) => popularity(b) - popularity(a));
+      }
+      return items;
+    }
+
+    function updateAuroraFilterOptions() {
+      const select = document.getElementById('aurora-filter-year');
+      if (!select) return;
+      const previous = select.value || 'all';
+      const base = auroraActiveCategory
+        ? auroraRecommendationItems.filter(auroraCategoryPredicate)
+        : auroraRecommendationItems.filter(item => item.type === '电影' || item.type === '电视剧');
+      const years = [...new Set(base.map(item => String(item.year || '').slice(0,4)).filter(y => /^\d{4}$/.test(y)))].sort((a,b) => Number(b)-Number(a));
+      const validPrevious = previous === 'all' || years.includes(previous);
+      select.innerHTML = '<option value="all">全部年份</option>' + years.map(year => `<option value="${year}">${year} 年</option>`).join('');
+      select.value = validPrevious ? previous : 'all';
     }
     function stepAuroraHero(delta) {
       const visible = auroraCurrentVisibleItems();
@@ -4055,6 +4196,8 @@
       // 不调用 showAuroraHome()：它会清空分类，导致所有分类都回到默认推荐。
       auroraActiveCategory = category || '';
       auroraHeroIndex = 0;
+      const yearFilter = document.getElementById('aurora-filter-year');
+      if (yearFilter) yearFilter.value = 'all';
       document.body.classList.add('aurora-home-view');
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'false');
@@ -4097,9 +4240,10 @@
       const heroBackdrop = document.getElementById('aurora-hero-backdrop');
       const count = document.getElementById('aurora-resource-count');
       if (!host) return;
+      updateAuroraFilterOptions();
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
-        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '热门榜暂时没有' + escapeHtml(auroraActiveCategory) + '数据' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '请先确认每日同步 Worker 已包含该分类；也可点击刷新重试。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
+        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '热门榜暂时没有' + escapeHtml(auroraActiveCategory) + '数据' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '请确认每日同步数据已包含该分类。' : '请确认每日同步 Worker、TMDB_API_KEY 与 D1 绑定已配置。'}</small></div>`;
         if (heroTitle) { heroTitle.textContent = '你的私人影院'; heroTitle.dataset.title = ''; }
         if (heroDesc) heroDesc.textContent = '连接你自己的影视源后，这里会显示真实影片与海报。';
         if (heroMeta) heroMeta.innerHTML = '<span>个人影视源</span><span>不展示收藏和历史</span>';
@@ -4137,7 +4281,10 @@
         remarks: overview || (item?.vote_average ? `热度评分 ${Number(item.vote_average).toFixed(1)}` : '实时热门'),
         source: String(item?.source || '实时热门榜'),
         popularity: Number(item?.popularity || 0),
-        voteAverage: Number(item?.vote_average ?? item?.voteAverage ?? 0)
+        voteAverage: Number(item?.vote_average ?? item?.voteAverage ?? 0),
+        voteCount: Number(item?.vote_count ?? item?.voteCount ?? 0),
+        originalLanguage: String(item?.originalLanguage || item?.original_language || ''),
+        originCountry: Array.isArray(item?.originCountry) ? item.originCountry : (Array.isArray(item?.origin_country) ? item.origin_country : [])
       };
     }
     const AURORA_RECOMMENDATIONS_LOCAL_KEY = 'shiguang_aurora_recommendations_v1';
@@ -4165,9 +4312,6 @@
       if (auroraRecommendationLoading) return;
       auroraRecommendationLoading = true;
       const host = document.getElementById('aurora-recommendations');
-      const refreshButton = document.getElementById('aurora-refresh-recommendations');
-      if (refreshButton) { refreshButton.disabled = true; refreshButton.textContent = force ? '↻ 正在更新…' : '↻ 正在读取…'; }
-
       // 先用本地缓存立即渲染，避免每次重新打开首页都等待网络和海报请求。
       if (!auroraRecommendationItems.length) loadAuroraRecommendationLocalCache();
       if (auroraRecommendationItems.length) renderAuroraRecommendations();
@@ -4247,7 +4391,6 @@
         renderAuroraRecommendations();
       } finally {
         auroraRecommendationLoading = false;
-        if (refreshButton) { refreshButton.disabled = false; refreshButton.textContent = '↻ 刷新推荐'; }
       }
     }
 
