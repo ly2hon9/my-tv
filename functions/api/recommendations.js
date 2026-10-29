@@ -27,7 +27,11 @@ function normalizeItem(item, fallbackType) {
     overview: overview.slice(0, 600), poster, backdrop,
     voteAverage: Number(item?.voteAverage ?? item?.vote_average ?? 0),
     voteCount: Number(item?.voteCount ?? item?.vote_count ?? 0),
-    popularity: Number(item?.popularity || 0), source: item?.source || 'TMDB 热门'
+    popularity: Number(item?.popularity || 0),
+    voteCount: Number(item?.voteCount ?? item?.vote_count ?? 0),
+    originalLanguage: String(item?.originalLanguage || item?.original_language || ''),
+    originCountry: Array.isArray(item?.originCountry) ? item.originCountry : (Array.isArray(item?.origin_country) ? item.origin_country : []),
+    source: item?.source || 'TMDB 热门'
   };
 }
 
@@ -121,7 +125,10 @@ export async function onRequest({ request, env }) {
     if (env.DB) {
       row = await env.DB.prepare('SELECT value, updated_at FROM user_data WHERE key = ?').bind(CACHE_KEY).first();
       cached = unpackRow(row);
-      if (cached && isFresh(cached, row) && !forceRefresh) {
+      const hasCategoryMetadata = cached?.items?.some(item =>
+        item.type === '电视剧' && (item.originalLanguage || (Array.isArray(item.originCountry) && item.originCountry.length))
+      );
+      if (cached && isFresh(cached, row) && !forceRefresh && hasCategoryMetadata) {
         return json(cached, 200, { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' });
       }
     }
