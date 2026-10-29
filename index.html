@@ -3088,6 +3088,36 @@
     @media (max-width:899px) {
       #aurora-topnav { top:0 !important; }
     }
+
+    /* AURORA 3.21: three horizontal LIVE categories; navigation does not restart media. */
+    #channel-list .sg-tv-tabs {
+      position:sticky; top:0; z-index:35; display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:5px; padding:8px; margin:0 0 8px;
+      border:1px solid var(--border-color); border-radius:13px;
+      background:var(--bg-sidebar); box-sizing:border-box;
+    }
+    #channel-list .sg-tv-tab {
+      appearance:none; border:1px solid var(--border-light); background:var(--bg-card);
+      color:var(--text-sub); font-size:clamp(12px,3.2vw,14px); font-weight:700;
+      padding:10px 5px; min-width:0; min-height:39px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap;
+      cursor:pointer; transition:background .14s,border-color .14s;
+    }
+    #channel-list .sg-tv-tab[aria-selected="true"] {
+      color:var(--accent); border-color:var(--accent); background:var(--accent-soft);
+    }
+    #channel-list .sg-tv-tab-count {font:600 10px/1 ui-monospace,monospace; opacity:.75;}
+    #channel-list .sg-tv-tab-panel[hidden] {display:none !important;}
+    #channel-list .sg-tv-tab-panel {display:block;min-width:0;}
+    #channel-list .sg-tv-tab-panel .channel-row {border-radius:10px;overflow:hidden;margin-bottom:5px;border:1px solid var(--border-color);}
+    #channel-list .sg-tv-tab-empty {padding:28px 12px;text-align:center;color:var(--text-sub);font-size:12px;}
+    #channel-list .sg-tv-search-heading {padding:11px 12px 9px;font-size:12px;color:var(--text-sub);}
+    @media(max-width:390px) {
+      #channel-list .sg-tv-tabs {gap:4px;padding:6px;}
+      #channel-list .sg-tv-tab {padding:9px 2px; gap:2px; font-size:12px;}
+      #channel-list .sg-tv-tab-count {font-size:9px;}
+    }
   </style>
 </head>
 <body class="aurora-home-view shiguang-booting">
@@ -5859,10 +5889,43 @@
     let auroraActiveCategory = '';
     let auroraHeroIndex = 0;
     let auroraHeroTimer = null;
-    function submitAuroraTopSearch(event) {
+    // Search user's configured LIVE channels first; movie titles still use VOD APIs.
+    let sgTvSearchSequence = 0;
+    function sgIsExplicitTvKeyword(query) {
+      return /(?:其他频道|卫视|电视台|电视频道|中央电视|央视频道|央视|CCTV[\s\-]*\d*|CGTN|凤凰卫视|凤凰中文|本港台|翡翠台|明珠台|湖南台|安徽台)/i.test(query);
+    }
+    function sgTvChannelMatch(query) {
+      const term = String(query || '').trim().toLowerCase().replace(/[\s\-_]/g, '');
+      if (!term) return false;
+      return Object.keys(groups || {}).some(g => Object.keys(groups[g] || {}).some(name =>
+        name.toLowerCase().replace(/[\s\-_]/g, '').includes(term)));
+    }
+    async function submitAuroraTopSearch(event) {
       if (event) event.preventDefault();
       const input = document.getElementById('aurora-nav-search-input');
-      openAuroraSearch(input ? input.value : '');
+      const query = String(input?.value || '').trim();
+      if (!query) { input?.focus(); return; }
+      const mySequence = ++sgTvSearchSequence;
+      const explicitLive = sgIsExplicitTvKeyword(query);
+      const cachedLiveMatch = sgTvChannelMatch(query);
+      if (explicitLive && !Object.keys(groups || {}).length) {
+        // Live is lazy-loaded since 3.18; acquire the configured M3U once on demand.
+        // This happens before switchMode('tv') to avoid a second concurrent load.
+        try { await initTv(true); } catch (_) {}
+      }
+      if (mySequence !== sgTvSearchSequence) return; // stale async search
+      if (cachedLiveMatch || sgTvChannelMatch(query) || explicitLive) {
+        stopSitePlaybackOnNavigation();
+        openAuroraWorkspace();
+        switchMode('tv');
+        const filter = document.getElementById('filter');
+        if (filter) { filter.value = query; toggleClearBtn(query); }
+        handleSearchTv();
+        // Persist navigation selection, not video playback.
+        document.querySelectorAll('[data-aurora-nav]').forEach(el => el.classList.toggle('active', el.dataset.auroraNav === 'live'));
+        return;
+      }
+      openAuroraSearch(query);
     }
     function auroraCurrentVisibleItems() {
       const visible = auroraActiveCategory
@@ -6353,6 +6416,8 @@
         } else {
           container.innerHTML = `<div style="padding: 30px 16px; color: var(--accent); text-align: center; font-size: 13px;">正在加载电视频道... 📺</div>`;
           initTv(true).then(() => {
+            if (currentMode !== 'tv' || currentView !== 'normal') return;
+            if (filterInput?.value.trim()) { handleSearchTv(); return; }
             if (Object.keys(groups).length > 0) {
               renderList(groups, false);
             } else {
@@ -8300,12 +8365,84 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
     }
 
+    // Buckets are inferred from channel names first, then their M3U group title.
+    // Never discard unmatched custom groups: every channel belongs to one of the 3 tabs.
+    let sgTvSelectedTab = 'cctv';
+    function sgTvCategory(channel, group) {
+      const title = String(channel || '');
+      const groupTitle = String(group || '');
+      if (/\bCCTV[\s\-]*[\d一二三四五六七八九十]+\b|央视|中央电视|CGTN/i.test(title)) return 'cctv';
+      if (/卫视|湖南台|安徽台/i.test(title)) return 'satellite';
+      if (/^(?:央视|央视频道|中央频道)/i.test(groupTitle)) return 'cctv';
+      if (/卫视|省级卫星/i.test(groupTitle)) return 'satellite';
+      return 'other';
+    }
+    function sgTvSwitchTab(tab) {
+      if (!['cctv','satellite','other'].includes(tab)) return;
+      sgTvSelectedTab = tab;
+      const container = document.getElementById('channel-list');
+      container.querySelectorAll('.sg-tv-tab').forEach(btn => {
+        const selected = btn.dataset.sgTvTab === tab;
+        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        btn.tabIndex = selected ? 0 : -1;
+      });
+      container.querySelectorAll('.sg-tv-tab-panel').forEach(panel => {
+        panel.hidden = panel.dataset.sgTvPanel !== tab;
+      });
+    }
+    function sgLiveSearchResults(keyword) {
+      const term = String(keyword || '').trim().toLowerCase().replace(/[\s\-_]/g,'');
+      const out = {};
+      const categoryTerm = ['央视','中央电视','央视频道','cctv'].includes(term) ? 'cctv'
+        : ['卫视','卫视频道'].includes(term) ? 'satellite'
+        : ['其他','其他频道'].includes(term) ? 'other' : '';
+      for (const [group, channels] of Object.entries(groups || {})) {
+        for (const [name, urls] of Object.entries(channels || {})) {
+          const byName = name.toLowerCase().replace(/[\s\-_]/g,'').includes(term);
+          if (!byName && !(categoryTerm && sgTvCategory(name, group) === categoryTerm)) continue;
+          (out[group] ||= {})[name] = urls;
+        }
+      }
+      return out;
+    }
     function renderList(targetGroups, isSearchMode = false) {
       const container = document.getElementById('channel-list');
       container.classList.remove('sg-results-grid');
       container.innerHTML = '';
-      // 离屏构建直播频道列表，最后统一挂载。
+      // Build each channel only once; the three tabs merely toggle visibility.
+      // Searching a channel displays only matching rows and never scans VOD sources.
       const listFragment = document.createDocumentFragment();
+      const tvPanels = {};
+      const tvCounts = {cctv:0, satellite:0, other:0};
+      if (!isSearchMode) {
+        const tabs = document.createElement('div');
+        tabs.className = 'sg-tv-tabs';
+        tabs.setAttribute('role','tablist');
+        tabs.setAttribute('aria-label','直播频道分类');
+        for (const [id, title] of [['cctv','央视'],['satellite','卫视'],['other','其他']]) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'sg-tv-tab';
+          button.dataset.sgTvTab = id;
+          button.setAttribute('role','tab');
+          button.innerHTML = `${title}<span class="sg-tv-tab-count" data-sg-tv-count="${id}"></span>`;
+          button.addEventListener('click', () => sgTvSwitchTab(id));
+          tabs.appendChild(button);
+          const panel = document.createElement('div');
+          panel.className = 'sg-tv-tab-panel';
+          panel.dataset.sgTvPanel = id;
+          panel.setAttribute('role','tabpanel');
+          panel.hidden = true;
+          tvPanels[id] = panel;
+        }
+        listFragment.appendChild(tabs);
+      } else {
+        const count = Object.values(targetGroups).reduce((n,channels)=>n+Object.keys(channels).length,0);
+        const heading = document.createElement('div');
+        heading.className = 'sg-tv-search-heading';
+        heading.textContent = `📺 找到 ${count} 个直播频道`;
+        listFragment.appendChild(heading);
+      }
       for (let groupName in targetGroups) {
         const channels = targetGroups[groupName];
         if (Object.keys(channels).length === 0) continue;
@@ -8326,6 +8463,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           const urls = channels[chName];
           const rowEl = document.createElement('div');
           rowEl.className = 'channel-row';
+          rowEl.dataset.sgChannelName = chName;
           const panelEl = document.createElement('div');
           panelEl.className = 'sources-panel';
 
@@ -8447,23 +8585,48 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           rowEl.appendChild(panelEl);
           subList.appendChild(rowEl);
         }
-        listFragment.appendChild(groupEl);
-        listFragment.appendChild(subList);
+        if (isSearchMode) {
+          listFragment.appendChild(groupEl);
+          listFragment.appendChild(subList);
+        } else {
+          const rows = Array.from(subList.children);
+          for (const row of rows) {
+            const channel = row.dataset.sgChannelName || '';
+            const tab = sgTvCategory(channel, groupName);
+            tvPanels[tab].appendChild(row);
+            tvCounts[tab]++;
+          }
+        }
+      }
+      if (!isSearchMode) {
+        const tabs = listFragment.querySelector('.sg-tv-tabs');
+        for (const [id,panel] of Object.entries(tvPanels)) {
+          tabs.querySelector(`[data-sg-tv-count="${id}"]`).textContent = `(${tvCounts[id]})`;
+          if (!tvCounts[id]) {
+            const empty = document.createElement('div');
+            empty.className = 'sg-tv-tab-empty';
+            empty.textContent = '当前分类暂无直播频道';
+            panel.appendChild(empty);
+          }
+          listFragment.appendChild(panel);
+        }
       }
       container.appendChild(listFragment);
+      if (!isSearchMode) {
+        if (!tvCounts[sgTvSelectedTab]) sgTvSelectedTab = ['cctv','satellite','other'].find(id => tvCounts[id]) || 'cctv';
+        sgTvSwitchTab(sgTvSelectedTab);
+      }
     }
 
     function handleSearchTv() {
       const kw = document.getElementById('filter').value.trim().toLowerCase();
       if (!kw) { renderList(groups, false); return; }
-      const filtered = {};
-      for (let g in groups) {
-        for (let ch in groups[g]) {
-          if (ch.toLowerCase().includes(kw) || g.toLowerCase().includes(kw)) {
-            if (!filtered[g]) filtered[g] = {};
-            filtered[g][ch] = groups[g][ch];
-          }
-        }
+      const filtered = sgLiveSearchResults(kw);
+      if (!Object.keys(filtered).length) {
+        const container = document.getElementById('channel-list');
+        container.classList.remove('sg-results-grid');
+        container.innerHTML = `<div class="sg-tv-tab-empty" role="status"><strong>没有找到「${escapeHtml(kw)}」直播频道</strong><p>请检查设置中的直播 M3U 是否包含该频道；影视聚合源和直播源是两套不同目录。</p></div>`;
+        return;
       }
       renderList(filtered, true);
     }
