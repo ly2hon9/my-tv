@@ -1,67 +1,48 @@
-// functions/api/data.js
-export async function onRequest(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const action = url.searchParams.get("action");
-  const targetProxyUrl = url.searchParams.get("proxy_url");
-  const key = url.searchParams.get("key");
-
-  const headers = {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Cache-Control": "no-cache"
-  };
-
-  if (request.method === "OPTIONS") {
-    return new Response(null, { headers });
+import {ADMIN,USERS,json,read,write,getUser,canRead,canWrite,validKey,sameOrigin,secureSecret} from './_security.js';
+function allowedProxyUrl(raw) {
+ try {const u=new URL(raw);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)return false;
+ const h=u.hostname.toLowerCase().replace(/\.$/,'');
+ if(h==='localhost'||h.endsWith('.localhost')||h.endsWith('.local')||h.endsWith('.internal')||h.endsWith('.workers.dev')||h.endsWith('.pages.dev')||h.endsWith('.cloudflare.com')||h==='metadata.google.internal'||h==='169.254.169.254')return false;
+ if(/^\d+(\.\d+){3}$/.test(h)||h.includes(':')||/^0x|^0[0-9]/.test(h)||!h.includes('.'))return false;
+ if(u.port&&!['80','443'].includes(u.port))return false;return true;
+ }catch{return false;}
+}
+export async function onRequest({request,env}) {
+ try {
+  if(!env.DB)return json({error:'D1 数据库未绑定'},503);
+  secureSecret(env);
+  const user=await getUser(request,env);if(!user)return json({error:'请先登录'},401);
+  const url=new URL(request.url);const key=url.searchParams.get('key');const action=url.searchParams.get('action');
+  if(action==='proxy') {
+    if(request.method!=='GET')return json({error:'不支持的方法'},405);
+    const target=url.searchParams.get('proxy_url');if(!target||!allowedProxyUrl(target))return json({error:'代理地址不允许'},400);
+    const response=await fetch(target,{redirect:'manual',headers:{'Accept':'application/json, text/plain, */*','User-Agent':'Mozilla/5.0'}});
+    if(response.status>=300&&response.status<400)return json({error:'代理禁止重定向'},400);
+    const len=Number(response.headers.get('content-length')||0);if(len>3_000_000)return json({error:'响应过大'},413);
+    const body=await response.text();if(body.length>3_000_000)return json({error:'响应过大'},413);
+    return new Response(body,{status:response.status,headers:{'Content-Type':response.headers.get('content-type')||'text/plain; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
   }
-
-  // 自建极速代理服务：专门解决 360资源等接口被浏览器 CORS 拦截的问题
-  if (action === "proxy" && targetProxyUrl) {
-    try {
-      const resp = await fetch(targetProxyUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "application/json, text/plain, */*"
-        }
-      });
-      const text = await resp.text();
-      return new Response(text, { headers });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: "代理抓取失败: " + e.message }), { status: 500, headers });
+  if(request.method==='GET') {
+    if(key){if(!validKey(key))return json({error:'无效的键'},400);if(!canRead(key,user))return json({error:'无权读取'},403);return json({value:await read(env,key)});}
+    if(user.role!=='admin')return json({error:'仅管理员可读取全部配置'},403);
+    const {results}=await env.DB.prepare('SELECT key,value FROM user_data').all();return json(Object.fromEntries((results||[]).map(x=>[x.key,x.value])));
+  }
+  if(!sameOrigin(request))return json({error:'跨站请求已拒绝'},403);
+  if(request.method==='POST') {
+    const body=await request.json();const k=body.key;if(!validKey(k))return json({error:'无效的键'},400);
+    if(!canWrite(k,user))return json({error:'无权修改'},403);
+    let value=typeof body.value==='string'?body.value:JSON.stringify(body.value);
+    if(value.length>2_000_000)return json({error:'数据超过限制'},413);
+    if(k===ADMIN||k===USERS){let parsed;try{parsed=JSON.parse(value)}catch{return json({error:'账号数据格式错误'},400)};
+      if(k===ADMIN&&(!parsed?.username||!parsed?.passHash))return json({error:'管理员数据无效'},400);
+      if(k===USERS&&!Array.isArray(parsed))return json({error:'用户数据无效'},400);
     }
+    await write(env,k,value);return json({success:true});
   }
-
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: "D1 数据库未绑定" }), { status: 500, headers });
+  if(request.method==='DELETE') {
+    if(!validKey(key)||!canWrite(key,user))return json({error:'无权删除'},403);
+    await env.DB.prepare('DELETE FROM user_data WHERE key=?').bind(key).run();return json({success:true});
   }
-
-  try {
-    if (request.method === "GET") {
-      if (key) {
-        const row = await env.DB.prepare("SELECT value FROM user_data WHERE key = ?").bind(key).first();
-        return new Response(JSON.stringify({ value: row ? row.value : null }), { headers });
-      } else {
-        const { results } = await env.DB.prepare("SELECT key, value FROM user_data").all();
-        const data = {};
-        (results || []).forEach(r => { data[r.key] = r.value; });
-        return new Response(JSON.stringify(data), { headers });
-      }
-    } else if (request.method === "POST") {
-      const body = await request.json();
-      const { key: postKey, value } = body;
-      if (!postKey) return new Response(JSON.stringify({ error: "缺少 key" }), { status: 400, headers });
-
-      const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
-      await env.DB.prepare(
-        "INSERT INTO user_data (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP"
-      ).bind(postKey, valStr).run();
-
-      return new Response(JSON.stringify({ success: true }), { headers });
-    }
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
-  }
+  return json({error:'不支持的方法'},405);
+ }catch(e){return json({error:e.message||'服务器错误'},500);}
 }
