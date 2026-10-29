@@ -2899,6 +2899,50 @@
       }
     }
 
+
+    /* AURORA 3.16: expose MANUALLY measured ping on single-source cards.
+       Metadata chips used to hide or clip the trailing ping at normal Safari zoom.
+       Anchor the stored result independently; never trigger measurement here. */
+    #channel-list .title-group-box .title-group-header {
+      position: relative;
+    }
+    #channel-list .title-group-box.sg-has-manual-ping .title-group-header {
+      padding-bottom: 18px !important;
+    }
+    #channel-list .title-group-box .sg-single-ping.sg-card-ping-indicator {
+      position: absolute !important;
+      right: 7px !important;
+      bottom: 5px !important;
+      z-index: 3;
+      margin: 0 !important;
+      padding: 2px 5px !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 0 0 auto !important;
+      width: auto !important;
+      max-width: calc(100% - 14px) !important;
+      white-space: nowrap !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      font: 700 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace !important;
+      border-radius: 5px;
+      background: var(--bg-card);
+      box-shadow: 0 0 0 2px var(--bg-card);
+      pointer-events: none;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    #channel-list .title-group-box .sg-card-ping-indicator.metric-ping-ok { color: #4ade80 !important; }
+    #channel-list .title-group-box .sg-card-ping-indicator.metric-ping-warn { color: #facc15 !important; }
+    #channel-list .title-group-box .sg-card-ping-indicator.metric-ping-err { color: #f87171 !important; }
+    @media (max-width: 600px) {
+      #channel-list .title-group-box .sg-single-ping.sg-card-ping-indicator {
+        font-size: 10px !important;
+        right: 6px !important;
+        bottom: 5px !important;
+      }
+    }
   </style>
 </head>
 <body class="aurora-home-view shiguang-booting">
@@ -6313,7 +6357,7 @@
         const el = document.getElementById('ping-badge-' + item.id);
         if (el) {
           el.textContent = "测速中...";
-          el.className = "metric-ping-wait";
+          el.className = (el.classList.contains("sg-card-ping-indicator") ? "sg-single-ping sg-card-ping-indicator " : "") + "metric-ping-wait";
         }
       });
 
@@ -6326,7 +6370,7 @@
         if (el) {
           const isErr = item.ping >= 9999 || item.ping < 0;
           el.textContent = isErr ? "超时" : (item.ping + 'ms');
-          el.className = isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err");
+          el.className = (el.classList.contains("sg-card-ping-indicator") ? "sg-single-ping sg-card-ping-indicator " : "") + (isErr ? "metric-ping-err" : (item.ping < 500 ? "metric-ping-ok" : item.ping < 1200 ? "metric-ping-warn" : "metric-ping-err"));
         }
 
         finishedCount++;
@@ -6904,7 +6948,7 @@ function buildGroupBodyPanel(group) {
       if (isSingle && Number.isFinite(Number(firstItem.ping)) && Number(firstItem.ping) >= 0) {
         const isErr = Number(firstItem.ping) >= 9999;
         const pClass = isErr ? 'metric-ping-err' : Number(firstItem.ping) < 500 ? 'metric-ping-ok' : Number(firstItem.ping) < 1200 ? 'metric-ping-warn' : 'metric-ping-err';
-        singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
+        singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="sg-single-ping sg-card-ping-indicator ${pClass}" aria-label="手动测速结果" title="已测速：${isErr ? '超时' : firstItem.ping + 'ms'}">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
       const actorHtml = group.actor
@@ -6928,7 +6972,6 @@ function buildGroupBodyPanel(group) {
                   pubDateHtml +
                   actorHtml +
                   countBadgeHtml +
-                  singlePingHtml +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -6949,15 +6992,24 @@ function buildGroupBodyPanel(group) {
             sourceTagHtml +
             pubDateHtml +
             actorHtml +
-            countBadgeHtml +
-            singlePingHtml;
+            countBadgeHtml;
         }
       }
 
       const isCurrentActiveGroup = (groupUniqueKey === activeGroupTitle);
       groupCard.className = 'title-group-box' + (isCurrentActiveGroup ? ' active-group expanded' : '');
+      groupCard.classList.toggle('sg-has-manual-ping', !!singlePingHtml);
 
+      // Keep manual source ping permanently visible in the compact card's
+      // bottom-right corner. Do not run any new probe or change sort rules.
       const headerEl = groupCard.querySelector('.title-group-header');
+      const priorPingBadge = headerEl.querySelector('.sg-card-ping-indicator');
+      if (singlePingHtml) {
+        if (priorPingBadge) priorPingBadge.outerHTML = singlePingHtml;
+        else headerEl.insertAdjacentHTML('beforeend', singlePingHtml);
+      } else if (priorPingBadge) {
+        priorPingBadge.remove();
+      }
 
       headerEl.onclick = () => {
         if (isSingleSourceSingleEp) {
