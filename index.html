@@ -2559,6 +2559,222 @@
       #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-sub { font-size:11px !important; }
     }
 
+
+    /* ===== AURORA 3.11: stable SINGLE-ROW player toolbar =====
+       The progress bar is separate. All playback actions share ONE flex row;
+       external shortcuts reveal only 3 buttons at once, with native horizontal
+       scrolling on touch and pointer-drag/keyboard on desktop. ===== */
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      display:flex !important;
+      flex-flow:column nowrap !important;
+      justify-content:flex-end !important;
+      height:54px !important;
+      min-height:54px !important;
+      padding:1px clamp(3px,.65cqw,9px) 4px !important;
+      box-sizing:border-box !important;
+      overflow:visible !important;
+    }
+    body:not(.aurora-home-view) #player-wrap #progress-container {
+      display:flex !important;
+      width:100% !important;
+      height:12px !important;
+      flex:0 0 12px !important;
+      padding:0 3px !important;
+      margin:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner {
+      display:flex !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:space-between !important;
+      gap:clamp(2px,.6cqw,10px) !important;
+      width:100% !important;
+      min-width:0 !important;
+      height:36px !important;
+      min-height:36px !important;
+      max-height:36px !important;
+      padding:0 2px !important;
+      margin:0 !important;
+      overflow:hidden !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+      display:flex !important;
+      flex:1 1 auto !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:flex-start !important;
+      gap:clamp(2px,.45cqw,9px) !important;
+      grid-column:auto !important;
+      grid-row:auto !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:none !important;
+      height:32px !important;
+      min-height:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      scrollbar-width:none !important;
+      -webkit-overflow-scrolling:touch;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      display:flex !important;
+      flex:0 0 auto !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:flex-end !important;
+      gap:clamp(2px,.42cqw,8px) !important;
+      grid-column:auto !important;
+      grid-row:auto !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:none !important;
+      height:32px !important;
+      min-height:0 !important;
+      margin:0 0 0 auto !important;
+      padding:0 !important;
+      overflow:visible !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left::-webkit-scrollbar,
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group::-webkit-scrollbar { display:none !important; }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+      display:inline-flex !important;
+      flex:0 0 24px !important;
+      justify-content:center !important;
+      align-items:center !important;
+      width:24px !important;
+      min-width:24px !important;
+      height:27px !important;
+      min-height:0 !important;
+      padding:2px !important;
+      margin:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+      flex:0 0 auto !important;
+      width:auto !important;
+      min-width:28px !important;
+      max-width:none !important;
+      height:25px !important;
+      min-height:0 !important;
+      padding:2px 4px !important;
+      font-size:10px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .volume-box {
+      flex:0 0 auto !important;
+      display:flex !important;
+      align-items:center !important;
+      gap:2px !important;
+      min-width:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-time {
+      flex:0 0 auto !important;
+      display:block !important;
+      min-width:0 !important;
+      max-width:none !important;
+      white-space:nowrap !important;
+      overflow:visible !important;
+      font-size:clamp(9px,.78cqw,11px) !important;
+      line-height:1 !important;
+      letter-spacing:-.25px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group {
+      --sg-ext-btn:22px;
+      --sg-ext-gap:3px;
+      flex:0 0 auto !important;
+      display:flex !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:flex-start !important;
+      gap:var(--sg-ext-gap) !important;
+      box-sizing:border-box !important;
+      width:calc(3 * var(--sg-ext-btn) + 2 * var(--sg-ext-gap) + 8px) !important;
+      min-width:calc(3 * var(--sg-ext-btn) + 2 * var(--sg-ext-gap) + 8px) !important;
+      max-width:calc(3 * var(--sg-ext-btn) + 2 * var(--sg-ext-gap) + 8px) !important;
+      height:31px !important;
+      min-height:31px !important;
+      padding:3px 4px !important;
+      margin:0 !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      overscroll-behavior-x:contain;
+      touch-action:pan-x !important;
+      scroll-snap-type:x proximity;
+      scrollbar-width:none !important;
+      -webkit-overflow-scrolling:touch;
+      cursor:grab;
+      border-radius:999px !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group.sg-dragging { cursor:grabbing !important; scroll-snap-type:none !important; }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group .ext-btn {
+      display:inline-flex !important;
+      flex:0 0 var(--sg-ext-btn) !important;
+      width:var(--sg-ext-btn) !important;
+      min-width:var(--sg-ext-btn) !important;
+      height:var(--sg-ext-btn) !important;
+      min-height:var(--sg-ext-btn) !important;
+      padding:0 !important;
+      margin:0 !important;
+      scroll-snap-align:start;
+      cursor:pointer;
+    }
+    body:not(.aurora-home-view) #player-wrap > video { height:calc(100% - 54px) !important; }
+    body:not(.aurora-home-view) #player-wrap > .aurora-player-empty { bottom:54px !important; }
+    /* Compact player controls when container is narrow, irrespective of device or zoom. */
+    @container sg-player (max-width:570px) {
+      .controls-inner > .ctrl-left .volume-slider { display:none !important; }
+      .controls-inner .ctrl-left .pill-btn { font-size:9px !important; padding:1px 3px !important; min-width:26px !important; }
+      .controls-inner .ctrl-left .ctrl-time { font-size:9px !important; letter-spacing:-.5px !important; }
+    }
+    @container sg-player (max-width:390px) {
+      .controls-inner .ctrl-left .ctrl-btn,
+      .controls-inner .ctrl-right > .ctrl-btn { flex-basis:21px !important; width:21px !important; min-width:21px !important; height:24px !important; }
+      .controls-inner .external-group { --sg-ext-btn:21px; --sg-ext-gap:2px; }
+      .controls-inner .ctrl-left { gap:2px !important; }
+      .controls-inner .ctrl-right { gap:2px !important; }
+    }
+    /* Very narrow players (phone / extreme zoom): squeeze visible controls,
+       rather than letting the time text be clipped behind external actions. */
+    @media (max-width:360px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .ctrl-btn,
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-right > .ctrl-btn {
+        flex:0 0 20px !important; width:20px !important; min-width:20px !important;
+        height:24px !important; padding:1px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .pill-btn {
+        flex:0 0 auto !important; min-width:23px !important;
+        height:23px !important; font-size:8.5px !important;
+        padding:1px 2px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .volume-box {
+        gap:0 !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .ctrl-time {
+        font-size:8px !important; letter-spacing:-.65px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .external-group {
+        --sg-ext-btn:20px; --sg-ext-gap:2px;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        gap:2px !important;
+      }
+    }
+    /* Fixed column size for every poster: gaps at the end use invisible empty slots,
+       instead of stretching the last item or introducing fake clickable movies. */
+    #aurora-recommendations > .sg-poster-spacer {
+      display:block !important;
+      visibility:hidden !important;
+      pointer-events:none !important;
+      user-select:none !important;
+      height:0 !important;
+      min-width:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      border:0 !important;
+      box-shadow:none !important;
+      background:transparent !important;
+    }
   </style>
 </head>
 <body class="aurora-home-view shiguang-booting">
@@ -2705,7 +2921,7 @@
         </div>
 
         <div class="ctrl-right">
-          <div class="external-group" title="横向滑动选择播放器">
+          <div class="external-group" role="group" tabindex="0" aria-label="外部播放器快捷选项，初始显示前三个，左右滑动或用鼠标拖动查看更多" title="左右滑动、Shift+滚轮或鼠标拖动查看更多播放器">
             <button class="ext-btn" onclick="copyCurrentUrl()" title="复制直链">
               <svg viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
@@ -5345,29 +5561,35 @@
       }
       return sites;
     }
-    /* AURORA 3.10: keep the last visible recommendation row full at all widths.
-       The cards keep their existing events; only their parent wrapper changes. */
+    /* AURORA 3.11: preserve the actual grid columns and hide empty tail slots.
+       Do NOT stretch or wrap real posters: invisible spacers fill the missing
+       cells only, so poster aspect ratio and size stay identical on all devices. */
     let sgPosterRowResizeRaf = 0;
     function sgBalancePosterRows() {
       const host = document.getElementById('aurora-recommendations');
       if (!host) return;
-      const oldTail = host.querySelector(':scope > .sg-poster-tail');
-      if (oldTail) {
-        while (oldTail.firstChild) host.insertBefore(oldTail.firstChild, oldTail);
-        oldTail.remove();
-      }
+      host.querySelectorAll(':scope > .sg-poster-spacer').forEach(el => el.remove());
+      // Unwrap legacy 3.10 final-row wrappers if the DOM was updated in place.
+      host.querySelectorAll(':scope > .sg-poster-tail').forEach(tail => {
+        while (tail.firstChild) host.insertBefore(tail.firstChild, tail);
+        tail.remove();
+      });
       const cards = Array.from(host.children).filter(el => el.classList.contains('aurora-poster-card'));
       if (!cards.length) return;
-      // Match the existing native 3/4/6-column breakpoints. Browser zoom also updates innerWidth.
+      const tracks = getComputedStyle(host).gridTemplateColumns;
+      const actualColumns = tracks && !/repeat\(/i.test(tracks) ? tracks.trim().split(/\s+/).length : 0;
       const viewport = window.innerWidth || document.documentElement.clientWidth;
-      const cols = viewport <= 760 ? 3 : viewport <= 1100 ? 4 : 6;
-      const remainder = cards.length % cols;
-      if (!remainder) return;
-      const tail = document.createElement('div');
-      tail.className = 'sg-poster-tail' + (remainder === 1 ? ' sg-tail-single' : '');
-      tail.style.setProperty('--sg-tail-count', String(remainder));
-      cards.slice(-remainder).forEach(card => tail.appendChild(card));
-      host.appendChild(tail);
+      const fallbackColumns = viewport <= 760 ? 3 : viewport <= 1100 ? 4 : 6;
+      const columns = actualColumns >= 1 && actualColumns <= 12 ? actualColumns : fallbackColumns;
+      const missing = (columns - cards.length % columns) % columns;
+      const fragment = document.createDocumentFragment();
+      for (let i = 0; i < missing; i++) {
+        const spacer = document.createElement('span');
+        spacer.className = 'sg-poster-spacer';
+        spacer.setAttribute('aria-hidden', 'true');
+        fragment.appendChild(spacer);
+      }
+      host.appendChild(fragment);
     }
     window.addEventListener('resize', () => {
       if (sgPosterRowResizeRaf) cancelAnimationFrame(sgPosterRowResizeRaf);
@@ -7731,6 +7953,62 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         }
       }
     });
+
+
+    /* AURORA 3.11: accessible scroll strip for external players.
+       Keep the original six actions untouched. Drag on desktop, swipe on touch,
+       keyboard arrows when focused; clicks are suppressed only after dragging. */
+    function sgSetupExternalPlayerStrip() {
+      const strip = document.querySelector('#player-wrap .external-group');
+      if (!strip || strip.dataset.sgScrollerReady === '1') return;
+      strip.dataset.sgScrollerReady = '1';
+      let gesture = null;
+      let ignoreClickUntil = 0;
+      strip.addEventListener('pointerdown', event => {
+        if (event.pointerType !== 'mouse' || event.button !== 0) return;
+        gesture = { pointerId: event.pointerId, x: event.clientX, left: strip.scrollLeft, dragged: false };
+      });
+      strip.addEventListener('pointermove', event => {
+        if (!gesture || gesture.pointerId !== event.pointerId) return;
+        const delta = event.clientX - gesture.x;
+        if (!gesture.dragged && Math.abs(delta) < 4) return;
+        if (!gesture.dragged) {
+          gesture.dragged = true;
+          strip.classList.add('sg-dragging');
+          try { strip.setPointerCapture(event.pointerId); } catch (_) {}
+        }
+        strip.scrollLeft = gesture.left - delta;
+        event.preventDefault();
+      });
+      const end = () => {
+        if (gesture && gesture.dragged) ignoreClickUntil = performance.now() + 350;
+        gesture = null;
+        strip.classList.remove('sg-dragging');
+      };
+      strip.addEventListener('pointerup', end);
+      strip.addEventListener('pointercancel', end);
+      strip.addEventListener('lostpointercapture', end);
+      strip.addEventListener('click', event => {
+        if (performance.now() < ignoreClickUntil) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      }, true);
+      strip.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const amount = 25 * (event.key === 'ArrowRight' ? 1 : -1);
+        strip.scrollBy({ left: amount, behavior:'smooth' });
+      });
+      strip.addEventListener('wheel', event => {
+        if (strip.scrollWidth <= strip.clientWidth + 2) return;
+        if (event.shiftKey && Math.abs(event.deltaY) > 0) {
+          event.preventDefault();
+          strip.scrollLeft += event.deltaY;
+        }
+      }, { passive:false });
+    }
+    document.addEventListener('DOMContentLoaded', sgSetupExternalPlayerStrip, { once:true });
 
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('gate-username').addEventListener('input', checkGateInputsReady);
