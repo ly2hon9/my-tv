@@ -7,6 +7,24 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/';
 const SHORT_DRAMA = /短剧|微短剧|竖屏剧|爽剧|付费短剧|小程序剧|mini\s*drama|vertical\s*drama/i;
 
+const VARIETY_TITLE_RE = /(?:你好，?星期六|明星大侦探|大侦探(?:第|·|\d)|奔跑吧|乘风(?:20\d\d|破浪|第|\s)|披荆斩棘|极限挑战|向往的生活|现在就出发|哈哈哈哈哈|喜人奇妙夜|密室大逃脱|种地吧|声生不息|再见爱人|令人心动的offer|歌手20\d\d|脱口秀大会|无限超越班|花儿与少年|非诚勿扰|快乐大本营|王牌对王牌)/i;
+const ANIME_TITLE_RE = /(?:妖神记|仙逆|凡人修仙传|斗罗大陆|斗破苍穹|完美世界|吞噬星空|神印王座|猪猪侠|沧元图|灵笼|遮天(?:动画|年番)|一人之下|画江湖之不良人|狐妖小红娘|鬼灭之刃|海贼王|火影忍者|名侦探柯南|动漫|动画版|动画片)/i;
+function genreIds(item) {
+  return (Array.isArray(item?.genreIds) ? item.genreIds : Array.isArray(item?.genre_ids) ? item.genre_ids : Array.isArray(item?.genres) ? item.genres : [])
+    .map(x => Number(x && typeof x === 'object' ? x.id : x)).filter(Number.isFinite);
+}
+function strictType(item, fallbackType = '电影') {
+  const genres = genreIds(item);
+  const raw = String(item?.type || item?.media_type || fallbackType || '').trim();
+  const title = String(item?.title || item?.name || '');
+  const text = raw + ' ' + String(item?.type_name || item?.category || '');
+  if (genres.includes(16) || /动漫|动画|番剧|animation|anime/i.test(text) || ANIME_TITLE_RE.test(title)) return '动漫';
+  if (genres.includes(10764) || genres.includes(10767) || /综艺|真人秀|脱口秀|variety|reality|talk\s*show/i.test(text) || VARIETY_TITLE_RE.test(title)) return '综艺';
+  if (/电影|movie/i.test(raw)) return '电影';
+  if (/剧集|电视剧|连续剧|tv|series|国产剧|美剧|韩剧|日剧/i.test(raw)) return '电视剧';
+  return fallbackType === '电视剧' ? '电视剧' : '电影';
+}
+
 function normalizeItem(item, fallbackType) {
   const title = String(item?.title || item?.name || item?.original_title || item?.original_name || '').trim();
   const overview = String(item?.overview || item?.remarks || '').trim();
@@ -16,10 +34,7 @@ function normalizeItem(item, fallbackType) {
   const poster = posterRaw || (item?.poster_path ? `${TMDB_IMAGE}w500${item.poster_path}` : '');
   const backdrop = backdropRaw || (item?.backdrop_path ? `${TMDB_IMAGE}w1280${item.backdrop_path}` : '');
   if (!poster) return null;
-  const typeRaw = String(item?.type || item?.media_type || fallbackType || '电影');
-  const type = /综艺|真人秀|脱口秀|variety/i.test(typeRaw) ? '综艺'
-    : /动漫|动画|番剧|anime|animation/i.test(typeRaw) ? '动漫'
-    : /电视剧|连续剧|剧集|tv/i.test(typeRaw) ? '电视剧' : '电影';
+  const type = strictType(item, fallbackType);
   const date = String(item?.releaseDate || item?.release_date || item?.first_air_date || item?.year || '');
   return {
     id: Number(item?.id || 0), title, type,
@@ -27,7 +42,11 @@ function normalizeItem(item, fallbackType) {
     overview: overview.slice(0, 600), poster, backdrop,
     voteAverage: Number(item?.voteAverage ?? item?.vote_average ?? 0),
     voteCount: Number(item?.voteCount ?? item?.vote_count ?? 0),
-    popularity: Number(item?.popularity || 0), source: item?.source || 'TMDB 热门'
+    popularity: Number(item?.popularity || 0),
+    genreIds: genreIds(item),
+    originCountry: item?.originCountry || item?.origin_country || [],
+    originalLanguage: item?.originalLanguage || item?.original_language || '',
+    source: item?.source || 'TMDB 热门'
   };
 }
 
@@ -39,6 +58,7 @@ async function fetchPopularTVCategory(env, type, genres) {
   url.searchParams.set('sort_by', 'popularity.desc');
   url.searchParams.set('include_adult', 'false');
   url.searchParams.set('with_genres', genres);
+  url.searchParams.set('without_genres', type === '动漫' ? '10764|10767' : '16');
   url.searchParams.set('page', '1');
   const response = await fetch(url.toString(), { headers: { Accept: 'application/json' }, cf: { cacheTtl: 300 } });
   if (!response.ok) throw new Error(`TMDB ${type}分类请求失败：HTTP ${response.status}`);
@@ -57,6 +77,7 @@ async function fetchChinesePopularTV(env) {
   url.searchParams.set('include_adult', 'false');
   url.searchParams.set('with_origin_country', 'CN');
   url.searchParams.set('with_original_language', 'zh');
+  url.searchParams.set('without_genres', '16|10764|10767');
   url.searchParams.set('vote_count.gte', '10');
   url.searchParams.set('page', '1');
   const response = await fetch(url.toString(), {
@@ -86,7 +107,7 @@ async function refreshD1FromUpstream(env) {
   // 电影/国际剧集读取每日 KV；另取中国地区高热度电视剧，避免剧集页被国际趋势榜占满。
   if (env.TMDB_API_KEY) {
     const results = await Promise.allSettled([
-      fetchPopularTVCategory(env, '综艺', '10764,10767'),
+      fetchPopularTVCategory(env, '综艺', '10764|10767'),
       fetchPopularTVCategory(env, '动漫', '16'),
       fetchChinesePopularTV(env)
     ]);
@@ -97,7 +118,7 @@ async function refreshD1FromUpstream(env) {
   // 若上游全球趋势中已经包含同一部国产剧，以国产热门标记覆盖来源，便于分类页优先排序。
   const byKey = new Map();
   [...mainItems, ...variety, ...anime, ...chineseShows].forEach(item => {
-    const key = `${item.type}:${item.id || item.title.toLowerCase()}`;
+    const key = `${item.id || item.title.toLowerCase()}`;
     const previous = byKey.get(key);
     if (!previous || /国产热门电视剧/.test(String(item.source || ''))) byKey.set(key, item);
   });
@@ -129,7 +150,11 @@ function unpackRow(row) {
   try {
     const payload = JSON.parse(row.value);
     if (!Array.isArray(payload.items) || !payload.items.length) return null;
-    return { ...payload, updatedAt: payload.updatedAt || row.updated_at || null };
+    return {
+      ...payload,
+      items: payload.items.map(item => normalizeItem(item, item?.type)).filter(Boolean),
+      updatedAt: payload.updatedAt || row.updated_at || null
+    };
   } catch { return null; }
 }
 
