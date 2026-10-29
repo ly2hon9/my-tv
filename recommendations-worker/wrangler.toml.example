@@ -1,0 +1,12 @@
+name = "my-tv-recommendations-cron"
+main = "worker.js"
+compatibility_date = "2026-10-29"
+
+# 部署前在 Cloudflare D1 数据库详情中复制 Database ID，替换下面占位符。
+[[d1_databases]]
+binding = "DB"
+database_name = "mytv_db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[triggers]
+crons = ["0 3 * * *"]
