@@ -1015,6 +1015,79 @@
       .aurora-bottom-tile { padding:13px; }
     }
 
+
+
+    /* AURORA 2.3: balanced workspace, compact top actions, cached trending posters */
+    #aurora-topnav { grid-area: header; width:100%; min-width:0; position:sticky; top:0; z-index:50; }
+    #aurora-home { grid-area: home; width:100%; max-width:1600px; min-width:0; min-height:0; }
+    #player-wrap { grid-area: player; }
+    #sidebar { grid-area: sidebar; }
+    body {
+      display:grid !important;
+      grid-template-columns:minmax(0,1.62fr) minmax(350px,1fr);
+      grid-template-rows:auto minmax(0,1fr);
+      grid-template-areas:"header header" "player sidebar";
+      width:100%; height:100dvh; min-height:560px; overflow:hidden;
+      padding:12px !important; gap:12px !important; align-items:stretch !important;
+    }
+    #aurora-topnav { position:relative; border:1px solid var(--border-color); border-radius:18px; background:var(--bg-sidebar); box-shadow:var(--card-shadow); padding:10px 14px; }
+    .aurora-nav-links { flex-wrap:nowrap; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    .aurora-nav-links::-webkit-scrollbar { display:none; }
+    .aurora-nav-link { flex-shrink:0; white-space:nowrap; }
+    body:not(.aurora-home-view) #aurora-home { display:none !important; }
+    body.aurora-home-view {
+      grid-template-columns:minmax(0,1fr) !important;
+      grid-template-rows:auto minmax(0,1fr) !important;
+      grid-template-areas:"header" "home" !important;
+      overflow:hidden;
+    }
+    body.aurora-home-view #aurora-home { display:block !important; overflow:auto; }
+    body.aurora-home-view #player-wrap, body.aurora-home-view #sidebar { display:none !important; }
+    body:not(.aurora-home-view) #player-wrap {
+      width:auto !important; height:auto !important; min-width:0 !important; min-height:0 !important; max-height:none !important;
+      flex:none !important; border-radius:20px !important; border:1px solid var(--border-color) !important;
+      box-shadow:var(--card-shadow); align-self:stretch;
+    }
+    body:not(.aurora-home-view) #sidebar {
+      width:auto !important; max-width:none !important; height:auto !important; min-width:0 !important; min-height:0 !important;
+      flex:none !important; border:1px solid var(--border-color) !important; border-radius:20px !important;
+      overflow:hidden !important; align-self:stretch;
+    }
+    #channel-list { flex:1 1 auto !important; min-height:0 !important; overflow-y:auto !important; overscroll-behavior:contain; }
+    #search-box { padding:12px !important; }
+    .aurora-home-section { margin-top:28px; }
+    .aurora-poster-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:15px; }
+    .aurora-home-bottom { display:none !important; }
+    .aurora-player-empty { position:absolute; z-index:4; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; pointer-events:none; color:#dbe5ff; background:radial-gradient(ellipse at center,#18233a 0%,#080c15 68%); }
+    .aurora-player-empty-mark { display:grid; place-items:center; width:64px; height:64px; border-radius:22px; font-size:28px; color:white; background:linear-gradient(135deg,#8070ff,#3e9af8); box-shadow:0 14px 42px #6c68ff44; }
+    .aurora-player-empty strong { font-size:20px; letter-spacing:.02em; }
+    .aurora-player-empty span { font-size:12px; color:#8f9bb7; text-align:center; padding:0 16px; }
+    #player-wrap.has-active-video .aurora-player-empty { display:none; }
+    @media(max-width:1100px) {
+      body { grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr) !important; }
+      .aurora-poster-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+      .aurora-nav-link { padding:0 8px; font-size:11px; }
+    }
+    @media(max-width:760px) {
+      body { display:grid !important; grid-template-columns:minmax(0,1fr) !important; grid-template-rows:auto minmax(220px,36dvh) minmax(440px,1fr) !important; grid-template-areas:"header" "player" "sidebar" !important; height:auto !important; min-height:100dvh !important; overflow:visible !important; padding:8px !important; gap:9px !important; }
+      #aurora-topnav { border-radius:15px; padding:8px; gap:7px; flex-wrap:wrap; }
+      .aurora-brand { flex:0 0 auto; }
+      .aurora-nav-links { order:3; flex:1 1 100%; width:100%; padding-bottom:2px; }
+      .aurora-nav-link { min-height:34px; font-size:11px !important; padding:0 10px !important; }
+      .aurora-theme-action { margin-left:auto; }
+      body:not(.aurora-home-view) #player-wrap { grid-area:player; height:36dvh !important; min-height:220px !important; max-height:430px !important; border-radius:16px !important; }
+      body:not(.aurora-home-view) #sidebar { grid-area:sidebar; min-height:440px !important; height:auto !important; overflow:visible !important; border-radius:16px !important; }
+      #channel-list { overflow:visible !important; max-height:none !important; }
+      #aurora-home { padding:12px 8px 28px !important; }
+      .aurora-hero { min-height:320px; border-radius:20px; }
+      .aurora-hero-copy { width:100%; padding:22px; }
+      .aurora-hero-count { right:12px; bottom:12px; }
+      .aurora-poster-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+      .aurora-poster-art { border-radius:11px; }
+      .aurora-poster-title { font-size:12px; }
+    }
+    @media(max-width:420px) { .aurora-poster-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
 </style>
 </head>
 <body>
@@ -1067,6 +1140,8 @@
       <button type="button" class="aurora-nav-link" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span>✦</span> 综艺</button>
       <button type="button" class="aurora-nav-link" data-aurora-nav="anime" onclick="openAuroraCategory('动漫')"><span>◇</span> 动漫</button>
       <button type="button" class="aurora-nav-link" data-aurora-nav="live" onclick="switchMode('tv')"><span>▤</span> 直播</button>
+      <button type="button" class="aurora-nav-link" data-aurora-nav="favorites" onclick="openAuroraWorkspace();switchSidebarView('fav')"><span>☆</span> 收藏</button>
+      <button type="button" class="aurora-nav-link" data-aurora-nav="history" onclick="openAuroraWorkspace();switchSidebarView('history')"><span>◷</span> 历史</button>
       <button type="button" class="aurora-nav-link aurora-nav-settings" onclick="openAuroraWorkspace();handleMainSettingsButtonClick()"><span>⚙</span> 设置</button>
     </nav>
     <button type="button" class="aurora-theme-action" onclick="toggleGlobalThemeClick()" title="切换明暗主题" aria-label="切换明暗主题">☼</button>
@@ -1091,15 +1166,10 @@
     </section>
 
     <section class="aurora-home-section">
-      <div class="aurora-section-head"><div><span class="aurora-section-overline">DISCOVER</span><h2>为你精选</h2><p>从已配置的影视源读取最新影片，点击后查找实际片源。</p></div><button class="aurora-text-action" onclick="refreshAuroraRecommendations()">↻ 刷新推荐</button></div>
-      <div id="aurora-recommendations" class="aurora-poster-grid"><div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在从你的影视源读取影片</strong><small>不会展示你的收藏或观看历史</small></div></div>
+      <div class="aurora-section-head"><div><span class="aurora-section-overline">TRENDING · DAILY</span><h2>实时热门电影与剧集</h2><p>热门榜每日同步到 D1；海报来自真实影视元数据，点击后会检索你配置的可播放片源。</p></div><button class="aurora-text-action" onclick="refreshAuroraRecommendations()">↻ 刷新推荐</button></div>
+      <div id="aurora-recommendations" class="aurora-poster-grid"><div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取 D1 热门榜</strong><small>电影与电视剧每日更新，不使用个人收藏或观看历史</small></div></div>
     </section>
-    <section class="aurora-home-bottom">
-      <button class="aurora-bottom-tile" onclick="switchMode('tv')"><span class="aurora-tile-icon">▤</span><span><strong>电视直播</strong><small>进入频道与线路列表</small></span><b>→</b></button>
-      <button class="aurora-bottom-tile" onclick="openAuroraWorkspace();switchSidebarView('fav')"><span class="aurora-tile-icon">☆</span><span><strong>我的收藏</strong><small>单独查看个人收藏</small></span><b>→</b></button>
-      <button class="aurora-bottom-tile" onclick="openAuroraWorkspace();switchSidebarView('history')"><span class="aurora-tile-icon">◷</span><span><strong>播放历史</strong><small>继续之前看过的内容</small></span><b>→</b></button>
-    </section>
-    <footer class="aurora-home-footer">拾光影视 · 只展示当前影视源实际返回的内容</footer>
+    <footer class="aurora-home-footer">拾光影视 · 热门榜来自 TMDB 每日趋势 · 海报仅作发现用途，播放由个人影视源提供</footer>
   </main>
 
   <div id="player-wrap">
@@ -1119,6 +1189,11 @@
     <div id="gesture-tip"></div>
 
     <video id="video" playsinline webkit-playsinline></video>
+    <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true">
+      <div class="aurora-player-empty-mark">▶</div>
+      <strong>你的私人影院</strong>
+      <span>从右侧选择频道、影片或剧集开始播放</span>
+    </div>
 
     <div id="custom-controls">
       <div id="progress-container">
@@ -1588,6 +1663,8 @@
        =================================================================== */
     const wrap = document.getElementById('player-wrap');
     const video = document.getElementById('video');
+    video.addEventListener('playing', () => document.getElementById('player-wrap')?.classList.add('has-active-video'));
+    video.addEventListener('loadeddata', () => document.getElementById('player-wrap')?.classList.add('has-active-video'));
     const currentTitle = document.getElementById('current-title');
     const routeBadge = document.getElementById('current-route-badge');
     const favToggleBtn = document.getElementById('btn-fav-toggle');
@@ -3698,7 +3775,7 @@
         if (count) count.textContent = '0';
         return;
       }
-      const first = auroraRecommendationItems[0];
+      const first = visibleItems[0] || auroraRecommendationItems[0];
       if (heroTitle) { heroTitle.textContent = first.title; heroTitle.dataset.title = first.title; }
       if (heroDesc) heroDesc.textContent = first.remarks || first.type || '来自已配置影视源的真实影片。点击查看可用片源，再选择线路和剧集。';
       if (heroBackdrop) heroBackdrop.style.backgroundImage = first.poster ? `url("${first.poster.replace(/"/g,'%22')}")` : 'none';
@@ -3706,38 +3783,79 @@
       if (count) count.textContent = String(auroraRecommendationItems.length);
       host.innerHTML = visibleItems.map((item, index) => {
         const art = item.poster && isSafeUrl(item.poster) ? `<img loading="lazy" src="${escapeHtml(item.poster)}" alt="${escapeHtml(item.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
-        return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${index === 0 ? '精选' : '影视源'}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
+        return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
       }).join('');
       host.querySelectorAll('[data-aurora-title]').forEach(card => card.addEventListener('click', () => openAuroraSearch(card.getAttribute('data-aurora-title') || '')));
+    }
+    const AURORA_TREND_CACHE_KEY = 'aurora_trending_cache_v1';
+    const AURORA_SHORT_DRAMA_RE = /短剧|微短剧|竖屏剧|爽剧|付费短剧|小程序剧|mini\s*drama|vertical\s*drama/i;
+    function normalizeTrendingItem(item) {
+      const title = String(item?.title || item?.name || '').trim();
+      if (!title || AURORA_SHORT_DRAMA_RE.test(title)) return null;
+      const overview = String(item?.overview || item?.remarks || '').trim();
+      if (AURORA_SHORT_DRAMA_RE.test(overview)) return null;
+      const type = /电视剧|连续剧|剧集|tv/i.test(String(item?.type || item?.media_type || '')) ? '电视剧' : '电影';
+      const poster = String(item?.poster || item?.poster_url || item?.vod_pic || '');
+      return {
+        title,
+        poster: poster && isSafeUrl(poster) ? poster : '',
+        type,
+        year: String(item?.year || item?.release_date || item?.first_air_date || '').slice(0,4),
+        remarks: overview || (item?.vote_average ? `热度评分 ${Number(item.vote_average).toFixed(1)}` : '实时热门'),
+        source: String(item?.source || '实时热门榜'),
+        popularity: Number(item?.popularity || 0),
+        voteAverage: Number(item?.vote_average || 0)
+      };
     }
     async function refreshAuroraRecommendations() {
       if (auroraRecommendationLoading) return;
       auroraRecommendationLoading = true;
       const host = document.getElementById('aurora-recommendations');
-      if (host && !auroraRecommendationItems.length) host.innerHTML = '<div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取真实影视资源</strong><small>只读取已配置且当前账号有权访问的影视源</small></div>';
+      if (host && !auroraRecommendationItems.length) host.innerHTML = '<div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取每日热门榜</strong><small>优先读取 D1 缓存，避免每次打开首页重新加载海报</small></div>';
       try {
-        const sites = auroraAllowedSites().slice(0, 8);
-        const found = [];
-        const seen = new Set();
-        await asyncPool(5, sites, async site => {
-          const url = site.api + (site.api.includes('?') ? '&' : '?') + 'ac=videolist&pg=1&out=json';
-          try {
-            const raw = await fetchWithSmartProxy(url, 3500);
-            const data = JSON.parse(raw);
-            const list = Array.isArray(data.list) ? data.list : (Array.isArray(data.data) ? data.data : []);
-            list.forEach(v => {
-              const title = String(v.vod_name || v.title || '').trim();
-              if (!title) return;
-              const key = normalizeCleanKey(title);
-              if (!key || seen.has(key) || isNSFWSource(site.name)) return;
-              seen.add(key);
-              const posterRaw = v.vod_pic || v.pic || v.poster || '';
-              found.push({title, poster:isSafeUrl(posterRaw) ? posterRaw : '', type:String(v.type_name || v.type || '').trim(), year:String(v.vod_year || '').trim(), remarks:String(v.vod_remarks || v.vod_continu || '').trim(), source:String(site.name || '').trim(), stamp:String(v.vod_time || '')});
-            });
-          } catch (_) {}
-        });
-        found.sort((a,b) => (Date.parse(b.stamp) || 0) - (Date.parse(a.stamp) || 0));
-        auroraRecommendationItems = found.slice(0,18);
+        let cached = null;
+        try {
+          const response = await fetch('/api/recommendations?_t=' + Date.now(), {credentials:'same-origin', cache:'no-store'});
+          if (response.ok) {
+            const payload = await response.json();
+            if (Array.isArray(payload.items) && payload.items.length) cached = payload;
+          }
+        } catch (_) {}
+        if (cached) {
+          auroraRecommendationItems = cached.items.map(normalizeTrendingItem).filter(Boolean);
+          const stamp = cached.updatedAt ? new Date(cached.updatedAt) : null;
+          const stampText = stamp && !Number.isNaN(stamp.getTime()) ? ` · 更新于 ${stamp.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}` : '';
+          const sectionCopy = document.querySelector('.aurora-home-section .aurora-section-head p');
+          if (sectionCopy) sectionCopy.textContent = `电影与电视剧热门榜已缓存到 D1，每日自动更新${stampText}；点击海报检索真实片源。`;
+        } else {
+          // 第一次部署/尚未配置定时同步时，退回用户自己的源目录；严格排除短剧，绝不拿收藏/历史填充首页。
+          const sites = auroraAllowedSites().slice(0, 8);
+          const found = [];
+          const seen = new Set();
+          await asyncPool(4, sites, async site => {
+            const url = site.api + (site.api.includes('?') ? '&' : '?') + 'ac=videolist&pg=1&out=json';
+            try {
+              const raw = await fetchWithSmartProxy(url, 3500);
+              const data = JSON.parse(raw);
+              const list = Array.isArray(data.list) ? data.list : (Array.isArray(data.data) ? data.data : []);
+              list.forEach(v => {
+                const title = String(v.vod_name || v.title || '').trim();
+                const type = String(v.type_name || v.type || '').trim();
+                const remarks = String(v.vod_remarks || v.vod_continu || '').trim();
+                if (!title || AURORA_SHORT_DRAMA_RE.test(title + ' ' + remarks) || isNSFWSource(site.name)) return;
+                const key = normalizeCleanKey(title);
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                const posterRaw = v.vod_pic || v.pic || v.poster || '';
+                found.push({title, poster:isSafeUrl(posterRaw) ? posterRaw : '', type:/电视剧|连续剧|剧集|国产剧|美剧|韩剧|日剧/i.test(type) ? '电视剧' : '电影', year:String(v.vod_year || '').trim(), remarks, source:String(site.name || '').trim(), stamp:String(v.vod_time || '')});
+              });
+            } catch (_) {}
+          });
+          found.sort((a,b) => (Date.parse(b.stamp) || 0) - (Date.parse(a.stamp) || 0));
+          auroraRecommendationItems = found.slice(0,24);
+          const sectionCopy = document.querySelector('.aurora-home-section .aurora-section-head p');
+          if (sectionCopy) sectionCopy.textContent = 'D1 热门榜尚未初始化，暂时显示影视源最新长片；配置每日同步后将显示实时热门电影与电视剧。';
+        }
         renderAuroraRecommendations();
       } finally { auroraRecommendationLoading = false; }
     }
@@ -6096,7 +6214,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       } else {
         switchMode('vod');
       }
-      // 默认进入独立首页；推荐会从 D1 加载完成后的实际影视源读取。
+      // 默认进入独立首页；热门榜优先读取 D1 的每日缓存，点击后再检索用户的真实影视源。
       if (currentUser) showAuroraHome();
       checkAutoSyncSchedule();
     });
