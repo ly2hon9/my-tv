@@ -1671,7 +1671,103 @@
       body.aurora-home-view #aurora-home { flex:1 1 auto !important; height:100% !important; min-height:0 !important; overflow-y:auto !important; }
     }
 
-  </style>
+  /* AURORA 3.7: compact two-column mobile VOD results; expanding one card takes full width.
+   Applies only to search results; favorites, history and live TV keep their own layouts. */
+@media (max-width: 600px) {
+  body:not(.aurora-home-view) #channel-list.sg-results-grid {
+    display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-auto-flow:row !important; grid-auto-rows:max-content !important; align-items:stretch !important; align-content:start !important;
+    gap:8px !important; padding:7px 8px 22px !important;
+    overflow-x:hidden !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch;
+    scroll-padding-top:60px;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .top-unified-bar {
+    grid-column:1/-1 !important; display:flex !important; flex-flow:row nowrap !important;
+    align-items:center !important; gap:4px !important; min-height:0 !important;
+    width:100% !important; min-width:0 !important; margin:0 0 2px !important;
+    padding:6px 5px !important; overflow:hidden !important; position:sticky !important;
+    top:0 !important; z-index:25 !important; border:1px solid var(--border-color);
+    border-radius:11px !important; background:var(--bg-sidebar) !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .bar-left-group {
+    display:flex !important; flex:1 1 auto !important; width:auto !important;
+    min-width:0 !important; gap:3px !important; flex-wrap:nowrap !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .bar-right-group {
+    display:flex !important; flex:0 1 auto !important; width:auto !important;
+    min-width:0 !important; gap:3px !important; flex-wrap:nowrap !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .filter-pill-btn,
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .btn-sort-action {
+    min-width:0 !important; flex:0 1 auto !important; width:auto !important;
+    height:34px !important; padding:4px 5px !important; font-size:clamp(9px,2.55vw,11px) !important;
+    line-height:1.1 !important; border-radius:9px !important; white-space:nowrap !important;
+    overflow:hidden !important; text-overflow:ellipsis;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box {
+    grid-column:span 1 !important; display:flex !important; flex-direction:column !important;
+    align-self:stretch !important; width:100% !important; min-width:0 !important;
+    max-width:none !important; height:auto !important; margin:0 !important;
+    padding:0 !important; border-radius:13px !important; overflow:hidden !important;
+    box-shadow:none !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded {
+    grid-column:1/-1 !important; width:100% !important;
+    border-color:var(--accent) !important; box-shadow:0 4px 18px #0003 !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .title-group-header {
+    min-height:90px !important; height:auto !important; padding:7px !important;
+    gap:4px !important; align-items:center !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-header-left {
+    min-width:0 !important; width:100% !important; gap:6px !important; align-items:center !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-poster {
+    flex:0 0 44px !important; width:44px !important; height:62px !important;
+    border-radius:8px !important; object-fit:cover !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-info-wrap {
+    min-width:0 !important; gap:4px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-main-title {
+    font-size:11px !important; line-height:1.35 !important; white-space:normal !important;
+    display:-webkit-box !important; -webkit-box-orient:vertical !important; -webkit-line-clamp:2;
+    overflow:hidden !important; overflow-wrap:anywhere; max-height:2.7em !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag {
+    gap:3px !important; font-size:10px !important; line-height:1.3 !important;
+    overflow:hidden !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box:not(.expanded)
+    .group-meta-tag > span:not(:first-child):not(.group-badge-count) { display:none !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-badge-count {
+    padding:2px 5px !important; margin:0 !important; font-size:9px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-arrow {
+    min-width:9px !important; font-size:10px !important; margin:0 !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-poster {
+    width:52px !important; height:72px !important; flex-basis:52px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-main-title { font-size:13px !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-body-panel {
+    width:100% !important; min-width:0 !important; padding:10px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .episodes-grid {
+    grid-template-columns:repeat(auto-fill,minmax(54px,1fr)) !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > :not(.title-group-box):not(.top-unified-bar) { grid-column:1/-1 !important; }
+}
+@media (max-width:350px) {
+  body:not(.aurora-home-view) #channel-list.sg-results-grid { gap:6px !important; padding-left:6px !important; padding-right:6px !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-poster {
+    flex-basis:38px !important; width:38px !important; height:55px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .title-group-header { padding:5px !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-main-title { font-size:10px !important; }
+}
+
+</style>
 </head>
 <body class="aurora-home-view shiguang-booting">
 
@@ -2795,6 +2891,7 @@
     /* === 我的收藏：同名聚合 + 调取完整选集网格 (图2形态) + 自动补齐剧集元数据 === */
     async function renderFavoritesView() {
     const container = document.getElementById('channel-list');
+    container.classList.remove('sg-results-grid');
     // 打开“我的收藏”界面时，强制从云端 D1 获取全网最新同步列表
     const favs = await getFavoritesList(true);
 
@@ -3153,6 +3250,7 @@
 
     async function renderHistoryView() {
       const container = document.getElementById('channel-list');
+      container.classList.remove('sg-results-grid');
       const history = await getHistoryList();
 
       if (history.length === 0) {
@@ -5737,6 +5835,7 @@ function buildGroupBodyPanel(group) {
 
     function renderGroupedVodSources() {
       const container = document.getElementById('channel-list');
+      container.classList.toggle('sg-results-grid', !!groupedVodList?.length);
 
       if (!groupedVodList?.length) {
         if (isSearchingActive) {
@@ -6584,6 +6683,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     function renderList(targetGroups, isSearchMode = false) {
       const container = document.getElementById('channel-list');
+      container.classList.remove('sg-results-grid');
       container.innerHTML = '';
       // 离屏构建直播频道列表，最后统一挂载。
       const listFragment = document.createDocumentFragment();
