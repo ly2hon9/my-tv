@@ -2891,7 +2891,7 @@
   <div id="player-wrap">
     <div id="top-bar">
       <div class="top-left-title">
-        <div id="current-title">请在下方选择视频起播</div>
+        <div id="current-title"></div>
         <button id="btn-fav-toggle" onclick="toggleCurrentFavorite()" title="收藏当前项目">★</button>
       </div>
       <div id="current-route-badge"></div>
@@ -2905,11 +2905,7 @@
     <div id="gesture-tip"></div>
 
     <video id="video" playsinline webkit-playsinline></video>
-    <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true">
-      <div class="aurora-player-empty-mark">▶</div>
-      <strong>你的私人影院</strong>
-      <span>从右侧选择频道、影片或剧集开始播放</span>
-    </div>
+    <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true"></div>
 
     <div id="custom-controls">
       <div id="progress-container">
@@ -5556,7 +5552,7 @@
       document.getElementById('player-wrap')?.classList.remove('has-active-video');
       routeBadge.style.display = 'none';
       routeBadge.textContent = '';
-      currentTitle.textContent = '请在下方选择视频起播';
+      currentTitle.textContent = '';
       setStatus('', false);
       updatePlayBtn(false);
       updateFavIconState();
@@ -6798,13 +6794,13 @@ function buildGroupBodyPanel(group) {
         ? `<div class="group-arrow" style="transform:none;color:var(--accent);">▶</div>`
         : `<div class="group-arrow">▼</div>`;
 
+      // Restore original behavior: no automatic probing of single-source cards.
+      // Show an existing result only after the user's normal/manual speed test.
       let singlePingHtml = '';
-      if (isSingle) {
-        const pingKnown = Number.isFinite(Number(firstItem.ping)) && Number(firstItem.ping) >= 0;
-        const isErr = pingKnown && Number(firstItem.ping) >= 9999;
-        const pClass = !pingKnown ? 'metric-ping-wait' : isErr ? 'metric-ping-err' : Number(firstItem.ping) < 500 ? 'metric-ping-ok' : Number(firstItem.ping) < 1200 ? 'metric-ping-warn' : 'metric-ping-err';
-        const pingText = !pingKnown ? '待测速' : isErr ? '超时' : Number(firstItem.ping) + 'ms';
-        singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="sg-single-ping ${pClass}" title="单源线路响应延迟（非实际下载带宽）">⚡ ${pingText}</span>`;
+      if (isSingle && Number.isFinite(Number(firstItem.ping)) && Number(firstItem.ping) >= 0) {
+        const isErr = Number(firstItem.ping) >= 9999;
+        const pClass = isErr ? 'metric-ping-err' : Number(firstItem.ping) < 500 ? 'metric-ping-ok' : Number(firstItem.ping) < 1200 ? 'metric-ping-warn' : 'metric-ping-err';
+        singlePingHtml = `<span id="ping-badge-${firstItem.id}" class="${pClass}" style="margin-left:auto;font-family:monospace;font-size:11px;">${isErr ? '超时' : firstItem.ping + 'ms'}</span>`;
       }
 
       const actorHtml = group.actor
@@ -6856,7 +6852,6 @@ function buildGroupBodyPanel(group) {
 
       const isCurrentActiveGroup = (groupUniqueKey === activeGroupTitle);
       groupCard.className = 'title-group-box' + (isCurrentActiveGroup ? ' active-group expanded' : '');
-      groupCard.__sgSingleItem = isSingle ? firstItem : null;
 
       const headerEl = groupCard.querySelector('.title-group-header');
 
@@ -6960,7 +6955,6 @@ function buildGroupBodyPanel(group) {
       } else {
         container.appendChild(frag);
       }
-      sgObserveVisibleSingleSourceCards();
     }
 
     function renderGroupedVodSources() {
@@ -7049,59 +7043,6 @@ function buildGroupBodyPanel(group) {
       frag.appendChild(loaderEl);
 
       container.replaceChildren(frag);
-      sgObserveVisibleSingleSourceCards();
-    }
-
-    // AURORA 3.13: Single-source cards display a real latency only after testing.
-    // Probe only cards entering the viewport, with a strict concurrency bound.
-    // Existing multi-source 'test after expand' policy remains intact.
-    let sgSingleProbeBusy = 0;
-    const sgSingleProbeQueue = [];
-    const sgSingleProbeQueued = new Set();
-    let sgSingleProbeObserver = null;
-    function sgUpdateSinglePingBadge(item) {
-      const badge = document.getElementById('ping-badge-' + item.id);
-      if (!badge || !badge.classList.contains('sg-single-ping')) return;
-      const measured = Number.isFinite(Number(item.ping)) && Number(item.ping) >= 0;
-      const error = measured && Number(item.ping) >= 9999;
-      badge.textContent = '⚡ ' + (!measured ? '待测速' : error ? '超时' : item.ping + 'ms');
-      badge.className = 'sg-single-ping ' + (!measured ? 'metric-ping-wait' : error ? 'metric-ping-err' : item.ping < 500 ? 'metric-ping-ok' : item.ping < 1200 ? 'metric-ping-warn' : 'metric-ping-err');
-    }
-    function sgDrainSingleProbes() {
-      while (sgSingleProbeBusy < 3 && sgSingleProbeQueue.length) {
-        const { item, searchKey } = sgSingleProbeQueue.shift();
-        sgSingleProbeQueued.delete(item);
-        if (currentMode !== 'vod' || currentView !== 'normal' || currentSearchingWord !== searchKey || document.body.classList.contains('aurora-home-view')) continue;
-        if (item.ping >= 0) { sgUpdateSinglePingBadge(item); continue; }
-        sgSingleProbeBusy++;
-        const badge = document.getElementById('ping-badge-' + item.id);
-        if (badge && badge.classList.contains('sg-single-ping')) badge.textContent = '⚡ 测速中';
-        Promise.resolve().then(() => probeStreamLatency(getItemTestUrl(item))).then(ping => {
-          item.ping = ping;
-          if (currentSearchingWord === searchKey) sgUpdateSinglePingBadge(item);
-        }).catch(() => { item.ping = 9999; if (currentSearchingWord === searchKey) sgUpdateSinglePingBadge(item); })
-          .finally(() => { sgSingleProbeBusy--; sgDrainSingleProbes(); });
-      }
-    }
-    function sgObserveVisibleSingleSourceCards() {
-      if (typeof IntersectionObserver === 'undefined') return;
-      if (!sgSingleProbeObserver) {
-        sgSingleProbeObserver = new IntersectionObserver(entries => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            sgSingleProbeObserver.unobserve(entry.target);
-            const item = entry.target.__sgSingleItem;
-            if (!item || item.ping >= 0 || sgSingleProbeQueued.has(item)) continue;
-            sgSingleProbeQueued.add(item);
-            sgSingleProbeQueue.push({ item, searchKey: currentSearchingWord });
-          }
-          sgDrainSingleProbes();
-        }, { threshold:0.01 });
-      }
-      document.querySelectorAll('#channel-list > .title-group-box').forEach(card => {
-        const item = card.__sgSingleItem;
-        if (item && item.ping < 0) sgSingleProbeObserver.observe(card);
-      });
     }
 
     const channelListEl = document.getElementById('channel-list');
