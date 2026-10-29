@@ -960,6 +960,7 @@
     .aurora-section-head p { font-size:12px; color:var(--text-sub); margin-top:7px; }
     .aurora-text-action { color:var(--text-sub); background:transparent; border:1px solid var(--border-color); border-radius:11px; padding:10px 13px; cursor:pointer; white-space:nowrap; }
     .aurora-text-action:hover { color:var(--accent); border-color:var(--accent); }
+    .aurora-text-action:disabled { opacity:.55; cursor:wait; }
     .aurora-poster-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:17px; }
     .aurora-poster-card { min-width:0; cursor:pointer; border:0; padding:0; background:transparent; text-align:left; color:var(--text-main); }
     .aurora-poster-art { position:relative; display:block; overflow:hidden; aspect-ratio:2/2.85; border-radius:16px; background:linear-gradient(145deg,var(--bg-card),var(--bg-sub-panel)); border:1px solid var(--border-color); box-shadow:0 9px 25px #0002; }
@@ -1387,7 +1388,6 @@
       <button type="submit" aria-label="搜索">⌕ <span>搜索</span></button>
     </form>
     <nav class="aurora-nav-links" aria-label="主导航">
-      <button type="button" class="aurora-nav-link active" data-aurora-nav="home" onclick="showAuroraHome()"><span>⌂</span> 首页</button>
       <button type="button" class="aurora-nav-link" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span>▣</span> 电影</button>
       <button type="button" class="aurora-nav-link" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span>▤</span> 剧集</button>
       <button type="button" class="aurora-nav-link" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span>✦</span> 综艺</button>
@@ -1425,7 +1425,7 @@
     </section>
 
     <section class="aurora-home-section">
-      <div class="aurora-section-head"><div><span class="aurora-section-overline">TRENDING · DAILY</span><h2>实时热门电影与剧集</h2><p>热门榜每日同步到 D1；海报来自真实影视元数据，点击后会检索你配置的可播放片源。</p></div><button class="aurora-text-action" onclick="refreshAuroraRecommendations()">↻ 刷新推荐</button></div>
+      <div class="aurora-section-head"><div><span class="aurora-section-overline">TRENDING · DAILY</span><h2>实时热门电影与剧集</h2><p>热门榜每日同步到 D1；海报来自真实影视元数据，点击后会检索你配置的可播放片源。</p></div><button class="aurora-text-action" id="aurora-refresh-recommendations" onclick="refreshAuroraRecommendations(true)">↻ 刷新推荐</button></div>
       <div id="aurora-recommendations" class="aurora-poster-grid"><div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取 D1 热门榜</strong><small>电影与电视剧每日更新，不使用个人收藏或观看历史</small></div></div>
     </section>
     <footer class="aurora-home-footer">拾光影视 · 热门榜来自 TMDB 每日趋势 · 海报仅作发现用途，播放由个人影视源提供</footer>
@@ -4041,15 +4041,33 @@
       document.body.classList.add('aurora-home-view');
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'false');
-      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', b.dataset.auroraNav === 'home'));
+      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.remove('active'));
+      const heading = document.querySelector('.aurora-home-section .aurora-section-head h2');
+      const overline = document.querySelector('.aurora-home-section .aurora-section-overline');
+      const copy = document.querySelector('.aurora-home-section .aurora-section-head p');
+      if (heading) heading.textContent = '实时热门电影与剧集';
+      if (overline) overline.textContent = 'TRENDING · DAILY';
+      if (copy) copy.textContent = '电影与电视剧每日同步，海报来自真实影视元数据；点击后检索你配置的可播放片源。';
       if (auroraRecommendationItems.length) renderAuroraRecommendations();
       window.scrollTo({top:0,behavior:'smooth'});
     }
     function openAuroraCategory(category) {
+      // 不调用 showAuroraHome()：它会清空分类，导致所有分类都回到默认推荐。
       auroraActiveCategory = category || '';
-      showAuroraHome();
-      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', b.dataset.auroraNav === ({'电影':'movie','电视剧':'series','综艺':'variety','动漫':'anime'}[category] || 'home')));
+      auroraHeroIndex = 0;
+      document.body.classList.add('aurora-home-view');
+      const home = document.getElementById('aurora-home');
+      if (home) home.setAttribute('aria-hidden', 'false');
+      const navKey = ({'电影':'movie','电视剧':'series','综艺':'variety','动漫':'anime'}[category] || '');
+      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', !!navKey && b.dataset.auroraNav === navKey));
+      const heading = document.querySelector('.aurora-home-section .aurora-section-head h2');
+      const overline = document.querySelector('.aurora-home-section .aurora-section-overline');
+      const copy = document.querySelector('.aurora-home-section .aurora-section-head p');
+      if (heading) heading.textContent = category ? `当下热门${category === '电视剧' ? '电视剧' : category}` : '实时热门电影与剧集';
+      if (overline) overline.textContent = category ? `TRENDING · ${category.toUpperCase()}` : 'TRENDING · DAILY';
+      if (copy) copy.textContent = category ? `${category}热门榜来自 TMDB 热门元数据，每日同步缓存；点击海报后检索你配置的真实片源。` : '电影与电视剧每日同步，海报来自真实影视元数据；点击后检索你配置的可播放片源。';
       renderAuroraRecommendations();
+      if (!auroraRecommendationItems.length || !auroraRecommendationItems.some(auroraCategoryPredicate)) refreshAuroraRecommendations();
       const section = document.querySelector('.aurora-home-section');
       if (section) section.scrollIntoView({behavior:'smooth',block:'start'});
     }
@@ -4143,10 +4161,12 @@
       }
     }
 
-    async function refreshAuroraRecommendations() {
+    async function refreshAuroraRecommendations(force = false) {
       if (auroraRecommendationLoading) return;
       auroraRecommendationLoading = true;
       const host = document.getElementById('aurora-recommendations');
+      const refreshButton = document.getElementById('aurora-refresh-recommendations');
+      if (refreshButton) { refreshButton.disabled = true; refreshButton.textContent = force ? '↻ 正在更新…' : '↻ 正在读取…'; }
 
       // 先用本地缓存立即渲染，避免每次重新打开首页都等待网络和海报请求。
       if (!auroraRecommendationItems.length) loadAuroraRecommendationLocalCache();
@@ -4156,10 +4176,11 @@
       try {
         let payloadFromD1 = null;
         try {
-          const response = await fetch('/api/recommendations', {
+          const endpoint = '/api/recommendations' + (force ? '?refresh=1&_t=' : '?_t=') + Date.now();
+          const response = await fetch(endpoint, {
             credentials: 'same-origin',
             cache: 'no-store',
-            headers: { Accept: 'application/json' }
+            headers: { Accept: 'application/json', ...(force ? {'X-Refresh-Recommendations':'1'} : {}) }
           });
           if (response.ok) {
             const payload = await response.json();
@@ -4226,6 +4247,7 @@
         renderAuroraRecommendations();
       } finally {
         auroraRecommendationLoading = false;
+        if (refreshButton) { refreshButton.disabled = false; refreshButton.textContent = '↻ 刷新推荐'; }
       }
     }
 
