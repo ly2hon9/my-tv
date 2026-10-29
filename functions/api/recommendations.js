@@ -112,7 +112,9 @@ async function refreshD1FromUpstream(env) {
       variety: items.filter(item => item.type === '综艺').length,
       anime: items.filter(item => item.type === '动漫').length,
       total: items.length
-    }, items
+    },
+    warning: !env.TMDB_API_KEY ? '请在 my-tv Cloudflare Pages 生产环境配置 TMDB_API_KEY (v3)，综艺/动漫和国产剧补充数据才会加载' : null,
+    items
   };
   if (env.DB) {
     await env.DB.prepare(
@@ -152,7 +154,7 @@ export async function onRequest({ request, env }) {
       const hasDomesticShows = Boolean(cached?.items?.some(item =>
         item?.type === '电视剧' && /国产热门电视剧|中国大陆热门|中国地区热门/.test(String(item?.source || ''))
       ));
-      if (cached && isFresh(cached, row) && hasDomesticShows && !forceRefresh) {
+      if (cached && isFresh(cached, row) && !forceRefresh) {
         return json(cached, 200, { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' });
       }
     }
