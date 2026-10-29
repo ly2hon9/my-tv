@@ -20,7 +20,7 @@ function normalizeItem(item, fallbackType) {
   const type = /综艺|真人秀|脱口秀|variety/i.test(typeRaw) ? '综艺'
     : /动漫|动画|番剧|anime|animation/i.test(typeRaw) ? '动漫'
     : /电视剧|连续剧|剧集|tv/i.test(typeRaw) ? '电视剧' : '电影';
-  const date = String(item?.release_date || item?.first_air_date || item?.year || '');
+  const date = String(item?.releaseDate || item?.release_date || item?.first_air_date || item?.year || '');
   return {
     id: Number(item?.id || 0), title, type,
     year: date.slice(0, 4), releaseDate: date,
@@ -154,7 +154,12 @@ export async function onRequest({ request, env }) {
       const hasDomesticShows = Boolean(cached?.items?.some(item =>
         item?.type === '电视剧' && /国产热门电视剧|中国大陆热门|中国地区热门/.test(String(item?.source || ''))
       ));
-      if (cached && isFresh(cached, row) && !forceRefresh) {
+      // A previous KV sync only contained films/series; do not keep serving an
+      // incomplete D1 snapshot for 23 hours after the updated sync adds variety/anime.
+      const categorySet = new Set(cached?.items?.map(item => item?.type));
+      const categoryComplete = categorySet.has('电影') && categorySet.has('电视剧') &&
+        categorySet.has('综艺') && categorySet.has('动漫');
+      if (cached && isFresh(cached, row) && !forceRefresh && categoryComplete) {
         return json(cached, 200, { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' });
       }
     }
