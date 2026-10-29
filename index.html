@@ -3518,6 +3518,10 @@
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
     const KEY_SESSION_VOD_STATE = "session_active_vod_state_v3";
+    const KEY_SESSION_PAGE_STATE = 'sg_page_restore_v1';
+    const SG_RESTORE_TTL_MS = 6 * 60 * 60 * 1000; // Same tab, six-hour expiry.
+    let sgUiRestoring = false;
+    let sgPendingHomeYear = null;
     /* ===================================================================
        核心 DOM 节点句柄与全局状态变量初始化（彻底消除 ReferenceError）
        =================================================================== */
@@ -4796,6 +4800,7 @@
       currentPlayingMeta = null;
 
       currentUser = null;
+      try { sessionStorage.removeItem(KEY_SESSION_PAGE_STATE); sessionStorage.removeItem(KEY_SESSION_VOD_STATE); } catch (_) {}
       localStorage.removeItem(KEY_CURRENT_USER);
       localStorage.removeItem(KEY_SAVED_CREDS);
       updateMainRoleButton();
@@ -5532,7 +5537,9 @@
           sortType: currentVodSortType,
           activeGroupTitle: activeGroupTitle,
           activeSubItemId: activeSubItemId,
-          currentActiveEp: currentActiveEp
+          currentActiveEp: currentActiveEp,
+          // Only replay a saved search for the account that created it.
+          account: String(currentUser?.username || '')
         };
         sessionStorage.setItem(KEY_SESSION_VOD_STATE, JSON.stringify(state));
       } catch (_) {}
@@ -5543,7 +5550,8 @@
         const raw = sessionStorage.getItem(KEY_SESSION_VOD_STATE);
         if (!raw) return false;
         const state = JSON.parse(raw);
-        if (state && Array.isArray(state.groupedVodList) && state.groupedVodList.length > 0) {
+        if (state && Array.isArray(state.groupedVodList) && state.groupedVodList.length > 0 &&
+            currentUser && state.account === String(currentUser.username || '')) {
           currentSearchingWord = state.keyword || '';
           const filterEl = document.getElementById('filter');
           if (filterEl) {
@@ -5562,13 +5570,124 @@
       return false;
     }
 
+    // AURORA 3.17: Restore the view after a genuine browser refresh, not playback.
+    // Do not persist credentials, stream URLs or media elements in this new state.
+    function sgSavePageState() {
+      if (!currentUser?.username) return;
+      try {
+        const home = document.body.classList.contains('aurora-home-view');
+        const page = home ? 'home' : 'workspace';
+        const state = {
+          version: 1, account: String(currentUser.username), savedAt: Date.now(),
+          page, category: home ? (auroraActiveCategory || '') : '',
+          mode: currentMode === 'tv' ? 'tv' : 'vod',
+          view: ['normal', 'fav', 'history'].includes(currentView) ? currentView : 'normal',
+          keyword: String(document.getElementById('filter')?.value || '').slice(0, 120),
+          topKeyword: String(document.getElementById('aurora-nav-search-input')?.value || '').slice(0, 120),
+          year: document.getElementById('aurora-filter-year')?.value || '',
+          rating: document.getElementById('aurora-filter-rating')?.value || '',
+          sort: document.getElementById('aurora-filter-sort')?.value || '',
+          homeScroll: Math.max(0, Math.round(document.getElementById('aurora-home')?.scrollTop || 0)),
+          listScroll: Math.max(0, Math.round(document.getElementById('channel-list')?.scrollTop || 0))
+        };
+        sessionStorage.setItem(KEY_SESSION_PAGE_STATE, JSON.stringify(state));
+      } catch (_) { /* Private browsing and storage quotas must never break playback. */ }
+    }
+
+    function sgLoadPageState() {
+      if (!currentUser?.username) return null;
+      try {
+        const raw = sessionStorage.getItem(KEY_SESSION_PAGE_STATE);
+        if (!raw) return null;
+        const state = JSON.parse(raw);
+        if (state?.version !== 1 || state.account !== String(currentUser.username)) return null;
+        if (!Number.isFinite(state.savedAt) || Date.now() - state.savedAt > SG_RESTORE_TTL_MS || state.savedAt > Date.now() + 60000) return null;
+        if (!['home','workspace'].includes(state.page)) return null;
+        return state;
+      } catch (_) { return null; }
+    }
+
+    function sgRestorePageScroll(state) {
+      const selector = state.page === 'home' ? '#aurora-home' : '#channel-list';
+      const desired = Math.max(0, Math.min(200000, Number(state.page === 'home' ? state.homeScroll : state.listScroll) || 0));
+      if (desired < 2) return;
+      const restore = () => {
+        if (document.body.classList.contains('aurora-home-view') !== (state.page === 'home')) return;
+        const el = document.querySelector(selector);
+        if (!el) return;
+        // Restore a deep search position even when the catalog initially renders in chunks.
+        if (state.page === 'workspace' && currentMode === 'vod' && currentView === 'normal') {
+          let safety = 0;
+          while (typeof appendVodCardsChunk === 'function' &&
+              currentlyRenderedCount < activeDisplayCardList.length &&
+              el.scrollHeight - el.clientHeight < desired && safety++ < 12) {
+            const before = currentlyRenderedCount;
+            appendVodCardsChunk(activeDisplayCardList, currentlyRenderedCount, CHUNK_PAGE_SIZE);
+            if (currentlyRenderedCount <= before) break;
+          }
+        }
+        el.scrollTop = Math.min(desired, Math.max(0, el.scrollHeight - el.clientHeight));
+      };
+      requestAnimationFrame(() => requestAnimationFrame(restore));
+      // Favorites/history and TMDB posters may arrive asynchronously; avoid
+      // overriding the user's own scrolling once they have interacted.
+      let interacted = false;
+      const mark = () => { interacted = true; };
+      window.addEventListener('wheel', mark, {once:true, passive:true});
+      window.addEventListener('touchstart', mark, {once:true, passive:true});
+      setTimeout(() => {
+        if (!interacted) restore();
+        window.removeEventListener('wheel', mark);
+        window.removeEventListener('touchstart', mark);
+      }, 450);
+    }
+
+    function sgRestorePageState(state, hasVodSearch) {
+      if (!state) return false;
+      sgUiRestoring = true;
+      try {
+        const navInput = document.getElementById('aurora-nav-search-input');
+        if (navInput) navInput.value = state.topKeyword || '';
+        if (state.page === 'home') {
+          if (!auroraRecommendationItems.length) loadAuroraRecommendationLocalCache();
+          const categories = ['电影','电视剧','综艺','动漫'];
+          if (categories.includes(state.category)) openAuroraCategory(state.category);
+          else showAuroraHome();
+          const rating = document.getElementById('aurora-filter-rating');
+          const sort = document.getElementById('aurora-filter-sort');
+          if (rating && [...rating.options].some(x => x.value === state.rating)) rating.value = state.rating;
+          if (sort && [...sort.options].some(x => x.value === state.sort)) sort.value = state.sort;
+          sgPendingHomeYear = state.year || null;
+          if (auroraRecommendationItems.length) renderAuroraRecommendations();
+        } else {
+          const mode = state.mode === 'tv' ? 'tv' : 'vod';
+          switchMode(mode);
+          const sidebarView = ['fav', 'history'].includes(state.view) ? state.view : 'normal';
+          if (sidebarView !== 'normal') switchSidebarView(sidebarView);
+          const keywordInput = document.getElementById('filter');
+          if (keywordInput) {
+            keywordInput.value = state.keyword || (mode === 'vod' && hasVodSearch ? currentSearchingWord : '');
+            toggleClearBtn(keywordInput.value);
+          }
+          // Do NOT fetch a stream or auto-start a TV channel after a reload.
+        }
+        sgRestorePageScroll(state);
+        return true;
+      } finally { sgUiRestoring = false; }
+    }
+
     window.addEventListener('beforeunload', () => {
+      sgSavePageState();
       saveVodSessionState();
       stopRemoteTvTranscode();
     });
     window.addEventListener('pagehide', () => {
+      sgSavePageState();
       saveVodSessionState();
       stopRemoteTvTranscode();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') sgSavePageState();
     });
 
     // AURORA 2.2 首页：推荐数据只来自当前账号有权限访问的真实影视源。
@@ -5611,10 +5730,11 @@
     function updateAuroraYearFilter() {
       const select = document.getElementById('aurora-filter-year');
       if (!select) return;
-      const existing = select.value;
+      const existing = sgPendingHomeYear || select.value;
       const years = [...new Set(auroraRecommendationItems.map(item => String(item.year || '')).filter(v => /^\d{4}$/.test(v)))].sort((a,b) => Number(b)-Number(a));
       select.replaceChildren(new Option('全部年份',''), ...years.map(year => new Option(year, year)));
       select.value = years.includes(existing) ? existing : '';
+      if (years.length) sgPendingHomeYear = null;
     }
     function stepAuroraHero(delta) {
       const visible = auroraCurrentVisibleItems();
@@ -5671,7 +5791,7 @@
       document.body.classList.remove('aurora-home-view');
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'true');
-      window.scrollTo({top:0,behavior:'smooth'});
+      if (!sgUiRestoring) window.scrollTo({top:0,behavior:'smooth'});
     }
     // AURORA 3.13: Leaving the LIVE section must release the actual media request.
     // A remote /stop message alone does not cancel native HLS or hls.js downloads.
@@ -5720,7 +5840,7 @@
       if (overline) overline.textContent = 'TRENDING · DAILY';
       if (copy) copy.textContent = '电影与电视剧每日同步，海报来自真实影视元数据；点击后检索你配置的可播放片源。';
       if (auroraRecommendationItems.length) renderAuroraRecommendations();
-      window.scrollTo({top:0,behavior:'smooth'});
+      if (!sgUiRestoring) window.scrollTo({top:0,behavior:'smooth'});
     }
     function openAuroraCategory(category) {
       stopLivePlaybackOnSiteNavigation();
@@ -5741,7 +5861,7 @@
       renderAuroraRecommendations();
       if (!auroraRecommendationItems.length || !auroraRecommendationItems.some(auroraCategoryPredicate)) refreshAuroraRecommendations();
       const section = document.querySelector('.aurora-home-section');
-      if (section) section.scrollIntoView({behavior:'smooth',block:'start'});
+      if (section && !sgUiRestoring) section.scrollIntoView({behavior:'smooth',block:'start'});
     }
     function openAuroraSearch(keyword) {
       const term = String(keyword || '').trim();
@@ -5867,6 +5987,7 @@
       };
     }
     const AURORA_RECOMMENDATIONS_LOCAL_KEY = 'shiguang_aurora_recommendations_v1';
+    const AURORA_LAST_CHECK_KEY = 'sg_recommendations_checked_at_v1';
 
     function loadAuroraRecommendationLocalCache() {
       try {
@@ -5900,6 +6021,15 @@
       else if (host) host.innerHTML = '<div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取每日热门榜</strong><small>优先读取 D1 缓存，首次读取后会保存本机快照</small></div>';
 
       try {
+        // A fresh in-tab/local snapshot is enough for a quick reload. Keep the
+        // regular D1 poll for later visits without delaying first paint.
+        let recentlyChecked = false;
+        try {
+          const checked = Number(localStorage.getItem(AURORA_LAST_CHECK_KEY) || 0);
+          recentlyChecked = !!auroraRecommendationItems.length && !force &&
+            checked > 0 && Date.now() - checked >= 0 && Date.now() - checked < 120000;
+        } catch (_) {}
+        if (recentlyChecked) return;
         let payloadFromD1 = null;
         try {
           const endpoint = '/api/recommendations' + (force ? '?refresh=1&_t=' : '?_t=') + Date.now();
@@ -5919,6 +6049,7 @@
           if (normalized.length) {
             auroraRecommendationItems = normalized;
             try {
+              localStorage.setItem(AURORA_LAST_CHECK_KEY, String(Date.now()));
               localStorage.setItem(AURORA_RECOMMENDATIONS_LOCAL_KEY, JSON.stringify({
                 source: payloadFromD1.source || 'TMDB',
                 updatedAt: payloadFromD1.updatedAt || new Date().toISOString(),
@@ -8398,7 +8529,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       // 初始化 TV
       initTv();
 
-      const hasRestored = restoreVodSessionState();
+      const uiRestore = currentUser ? sgLoadPageState() : null;
+      const hasRestored = currentUser ? restoreVodSessionState() : false;
       if (hasRestored) {
         currentMode = 'vod';
         currentView = 'normal';
@@ -8406,12 +8538,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         document.getElementById('tab-vod').className = 'mode-tab active';
         document.getElementById('filter').placeholder = "搜索片名、视频、电视频道...";
         renderGroupedVodSources();
-      } else {
-        switchMode('vod');
       }
-      // 默认进入独立首页；热门榜优先读取 D1 的每日缓存，点击后再检索用户的真实影视源。
-      if (currentUser) showAuroraHome();
-      else document.body.classList.add('aurora-home-view');
+      // An authenticated refresh restores the SAME page without autoplay.
+      // First visits and expired saved views still start from the real homepage.
+      if (currentUser) {
+        if (!sgRestorePageState(uiRestore, hasRestored)) {
+          showAuroraHome();
+        }
+      } else {
+        document.body.classList.add('aurora-home-view');
+      }
       document.body.classList.remove('shiguang-booting');
       checkAutoSyncSchedule();
     });
