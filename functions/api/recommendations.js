@@ -8,7 +8,7 @@ const TMDB_IMAGE = 'https://image.tmdb.org/t/p/';
 const SHORT_DRAMA = /短剧|微短剧|竖屏剧|爽剧|付费短剧|小程序剧|mini\s*drama|vertical\s*drama/i;
 
 const VARIETY_TITLE_RE = /(?:你好，?星期六|明星大侦探|大侦探(?:第|·|\d)|奔跑吧|乘风(?:20\d\d|破浪|第|\s)|披荆斩棘|极限挑战|向往的生活|现在就出发|哈哈哈哈哈|喜人奇妙夜|密室大逃脱|种地吧|声生不息|再见爱人|令人心动的offer|歌手20\d\d|脱口秀大会|无限超越班|花儿与少年|非诚勿扰|快乐大本营|王牌对王牌)/i;
-const ANIME_TITLE_RE = /(?:妖神记|仙逆|凡人修仙传|斗罗大陆|斗破苍穹|完美世界|吞噬星空|神印王座|猪猪侠|沧元图|灵笼|遮天(?:动画|年番)|一人之下|画江湖之不良人|狐妖小红娘|鬼灭之刃|海贼王|火影忍者|名侦探柯南|动漫|动画版|动画片)/i;
+const ANIME_TITLE_RE = /(?:妖神记|仙逆|凡人修仙传|斗罗大陆|斗破苍穹|完美世界|吞噬星空|神印王座|猪猪侠|沧元图|灵笼|遮天(?:动画|年番)|一人之下|画江湖之不良人|狐妖小红娘|鬼灭之刃|海贼王|航海王|ONE\s*PIECE|海绵宝宝|SpongeBob|火影忍者|名侦探柯南|动漫|动画版|动画片)/i;
 function genreIds(item) {
   return (Array.isArray(item?.genreIds) ? item.genreIds : Array.isArray(item?.genre_ids) ? item.genre_ids : Array.isArray(item?.genres) ? item.genres : [])
     .map(x => Number(x && typeof x === 'object' ? x.id : x)).filter(Number.isFinite);
@@ -93,6 +93,39 @@ async function fetchChinesePopularTV(env) {
     .slice(0, 30);
 }
 
+// Supplement each shelf with real TMDB items so 3/4/6-column layouts have complete rows.
+// A page is at most 20 items; query the next page only during the once-daily D1 refresh.
+const CATEGORY_TARGET = 24;
+async function discoverCategoryPage(env, type, page) {
+  if (!env.TMDB_API_KEY) return [];
+  const isMovie = type === '电影';
+  const url = new URL(`${TMDB_BASE}/discover/${isMovie ? 'movie' : 'tv'}`);
+  url.searchParams.set('api_key', env.TMDB_API_KEY);
+  url.searchParams.set('language', 'zh-CN');
+  url.searchParams.set('sort_by', 'popularity.desc');
+  url.searchParams.set('include_adult', 'false');
+  url.searchParams.set('page', String(page));
+  if (type === '电视剧') {
+    // Exclude animation, reality and talk shows from scripted drama shelves.
+    url.searchParams.set('without_genres', '16,10764,10767');
+  } else if (type === '综艺') {
+    // TMDB pipe = either Reality OR Talk. Comma here would exclude many shows.
+    url.searchParams.set('with_genres', '10764|10767');
+    url.searchParams.set('without_genres', '16');
+  } else if (type === '动漫') {
+    url.searchParams.set('with_genres', '16');
+    url.searchParams.set('without_genres', '10764,10767');
+  }
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' }, cf: { cacheTtl: 300 }
+  });
+  if (!response.ok) throw new Error(`TMDB ${type} 第${page}页获取失败：HTTP ${response.status}`);
+  const payload = await response.json();
+  return (Array.isArray(payload.results) ? payload.results : [])
+    .map(item => normalizeItem({ ...item, source: 'TMDB同类热门' }, type))
+    .filter(item => item && item.type === type && item.poster);
+}
+
 async function refreshD1FromUpstream(env) {
   const response = await fetch(UPSTREAM_URL, {
     headers: { Accept: 'application/json' },
@@ -104,37 +137,77 @@ async function refreshD1FromUpstream(env) {
 
   const mainItems = payload.items.map(item => normalizeItem(item)).filter(Boolean);
   let variety = [], anime = [], chineseShows = [];
-  // 电影/国际剧集读取每日 KV；另取中国地区高热度电视剧，避免剧集页被国际趋势榜占满。
+  const supplemental = { '电影':[], '电视剧':[], '综艺':[], '动漫':[] };
+  const warnings = [];
   if (env.TMDB_API_KEY) {
-    const results = await Promise.allSettled([
+    const requests = [
       fetchPopularTVCategory(env, '综艺', '10764|10767'),
       fetchPopularTVCategory(env, '动漫', '16'),
-      fetchChinesePopularTV(env)
-    ]);
+      fetchChinesePopularTV(env),
+      ...(['电影','电视剧','综艺','动漫'].flatMap(type => [
+        discoverCategoryPage(env, type, 1),
+        discoverCategoryPage(env, type, 2)
+      ]))
+    ];
+    const results = await Promise.allSettled(requests);
     if (results[0].status === 'fulfilled') variety = results[0].value;
     if (results[1].status === 'fulfilled') anime = results[1].value;
     if (results[2].status === 'fulfilled') chineseShows = results[2].value;
+    const types = ['电影','电视剧','综艺','动漫'];
+    types.forEach((type, i) => {
+      for (const index of [3+i*2, 4+i*2]) {
+        if (results[index].status === 'fulfilled') supplemental[type].push(...results[index].value);
+      }
+    });
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') warnings.push(`补充数据请求${index+1}失败：${result.reason?.message || '接口异常'}`);
+    });
   }
-  // 若上游全球趋势中已经包含同一部国产剧，以国产热门标记覆盖来源，便于分类页优先排序。
-  const byKey = new Map();
-  [...mainItems, ...variety, ...anime, ...chineseShows].forEach(item => {
-    const key = `${item.id || item.title.toLowerCase()}`;
-    const previous = byKey.get(key);
-    if (!previous || /国产热门电视剧/.test(String(item.source || ''))) byKey.set(key, item);
-  });
-  const items = [...byKey.values()];
+  // Legacy cron payloads often omit genreIds: do not trust generic TV labels when
+  // verified genre-aware discover results are available.
+  const baseItems = env.TMDB_API_KEY ? mainItems.filter(item =>
+    item.type !== '电视剧' || (item.genreIds?.length || 0) > 0
+  ) : mainItems;
+  const pools = [...baseItems, ...variety, ...anime, ...chineseShows,
+    ...supplemental['电影'], ...supplemental['电视剧'],
+    ...supplemental['综艺'], ...supplemental['动漫']];
+  const categories = ['电影','电视剧','综艺','动漫'];
+  const byCategory = Object.fromEntries(categories.map(type => [type, new Map()]));
+  for (const item of pools) {
+    if (!item || !byCategory[item.type]) continue;
+    const mediaKey = item.type === '电影' ? 'movie' : 'tv';
+    const key = `${mediaKey}:${item.id || item.title.toLowerCase()}`;
+    const map = byCategory[item.type];
+    const prev = map.get(key);
+    if (!prev || /国产热门电视剧/.test(String(item.source || ''))) map.set(key, item);
+  }
+  const items = [];
+  const counts = { movies:0, shows:0, variety:0, anime:0, total:0 };
+  const countName = { '电影':'movies','电视剧':'shows','综艺':'variety','动漫':'anime' };
+  for (const type of categories) {
+    const values = [...byCategory[type].values()];
+    values.sort((a,b) => {
+      if (type === '电视剧') {
+        const cnA = /国产热门电视剧/.test(a.source || '') ? 1 : 0;
+        const cnB = /国产热门电视剧/.test(b.source || '') ? 1 : 0;
+        if (cnA !== cnB) return cnB-cnA;
+      }
+      return (b.popularity || 0) - (a.popularity || 0);
+    });
+    const selected = values.slice(0, CATEGORY_TARGET);
+    counts[countName[type]] = selected.length;
+    items.push(...selected);
+  }
+  counts.total = items.length;
   const normalized = {
     source: payload.source || 'TMDB',
+    catalogVersion: 4,
     updatedAt: new Date().toISOString(),
     upstreamUpdatedAt: payload.updatedAt || null,
-    counts: {
-      movies: items.filter(item => item.type === '电影').length,
-      shows: items.filter(item => item.type === '电视剧').length,
-      variety: items.filter(item => item.type === '综艺').length,
-      anime: items.filter(item => item.type === '动漫').length,
-      total: items.length
-    },
-    warning: !env.TMDB_API_KEY ? '请在 my-tv Cloudflare Pages 生产环境配置 TMDB_API_KEY (v3)，综艺/动漫和国产剧补充数据才会加载' : null,
+    counts,
+    warning: !env.TMDB_API_KEY
+      ? 'my-tv Pages 尚未配置 TMDB_API_KEY，无法补足同类别真实海报'
+      : warnings.length ? warnings.join('；').slice(0,350) : null,
     items
   };
   if (env.DB) {
@@ -182,7 +255,7 @@ export async function onRequest({ request, env }) {
       // A previous KV sync only contained films/series; do not keep serving an
       // incomplete D1 snapshot for 23 hours after the updated sync adds variety/anime.
       const categorySet = new Set(cached?.items?.map(item => item?.type));
-      const categoryComplete = categorySet.has('电影') && categorySet.has('电视剧') &&
+      const categoryComplete = cached?.catalogVersion >= 4 && categorySet.has('电影') && categorySet.has('电视剧') &&
         categorySet.has('综艺') && categorySet.has('动漫');
       if (cached && isFresh(cached, row) && !forceRefresh && categoryComplete) {
         return json(cached, 200, { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' });
