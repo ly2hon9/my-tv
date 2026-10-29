@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#0f0f0f">
+  <meta name="theme-color" content="#080b14">
   <title>拾光影视</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
   <style>
@@ -600,6 +600,232 @@
         overflow: hidden;
       }
     }
+
+    /* ================================================================
+       拾光影视 · AURORA 全新主题层
+       只重绘视觉与响应式布局；保留原 DOM、事件、播放器及数据逻辑。
+       ================================================================ */
+    :root {
+      --bg-base: #080b14;
+      --bg-workspace: #070a12;
+      --bg-sidebar: #0e1321;
+      --bg-search-box: #11182a;
+      --bg-input: #0a1020;
+      --bg-card: #121b2d;
+      --bg-card-hover: #1a2740;
+      --bg-tag: #1b2940;
+      --bg-sub-panel: #0b1220;
+      --border-color: rgba(148, 163, 184, .16);
+      --border-light: rgba(148, 163, 184, .26);
+      --text-main: #f2f5ff;
+      --text-sub: #a0acc5;
+      --text-mute: #697791;
+      --accent: #8b7cff;
+      --accent-soft: rgba(139, 124, 255, .16);
+      --card-shadow: 0 14px 36px rgba(0,0,0,.26);
+      --glass-bg: rgba(15, 22, 38, .94);
+      --glass-border: rgba(169, 183, 220, .18);
+      --glass-shadow: 0 28px 90px rgba(0,0,0,.55);
+      --glass-mask: rgba(2, 5, 12, .78);
+      color-scheme: dark;
+    }
+    body.theme-light {
+      --bg-base: #f4f6fc;
+      --bg-workspace: #e9edf7;
+      --bg-sidebar: #ffffff;
+      --bg-search-box: #f8faff;
+      --bg-input: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f0f3ff;
+      --bg-tag: #edf0fa;
+      --bg-sub-panel: #f6f8fd;
+      --border-color: rgba(49, 64, 100, .12);
+      --border-light: rgba(49, 64, 100, .2);
+      --text-main: #17213b;
+      --text-sub: #66728d;
+      --text-mute: #8d98b0;
+      --accent: #6557e8;
+      --accent-soft: rgba(101, 87, 232, .1);
+      --card-shadow: 0 12px 30px rgba(36, 49, 91, .08);
+      --glass-bg: rgba(255,255,255,.96);
+      --glass-border: rgba(255,255,255,.8);
+      --glass-shadow: 0 24px 70px rgba(31,42,80,.2);
+      --glass-mask: rgba(16, 25, 48, .4);
+      color-scheme: light;
+    }
+    html, body { background: var(--bg-workspace); color: var(--text-main); }
+    body { gap: 0; }
+    button, input, select { font: inherit; }
+    button { transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* 登录 / 初始化：品牌化玻璃面板 */
+    #auth-gate-screen,
+    #auth-gate-screen.dark-theme {
+      background: radial-gradient(ellipse at 18% 12%, rgba(91, 79, 214, .32), transparent 42%),
+                  radial-gradient(ellipse at 85% 82%, rgba(34, 211, 238, .13), transparent 36%),
+                  #080b14;
+      color: #f2f5ff;
+    }
+    #auth-gate-screen::before { content: "SHIGUANG  /  CINEMA"; position: absolute; top: 30px; left: 34px; color: rgba(220,228,255,.55); font-size: 10px; letter-spacing: .28em; font-weight: 800; }
+    .gate-card {
+      width: min(420px, calc(100vw - 36px)); padding: 38px 34px 32px !important;
+      border-radius: 28px !important; border: 1px solid rgba(180,190,255,.2) !important;
+      background: linear-gradient(145deg, rgba(23,31,54,.94), rgba(12,17,31,.96)) !important;
+      box-shadow: 0 30px 100px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.07) !important;
+      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+    }
+    .gate-logo { color: #fff !important; font-size: 28px !important; letter-spacing: .12em !important; margin-bottom: 12px !important; }
+    .gate-logo::before { content: "✦"; display: block; color: #a99fff; font-size: 25px; margin-bottom: 14px; }
+    .gate-sub-tip { color: #a9b5d0 !important; margin-top: 0 !important; }
+    .gate-input-box, #auth-gate-screen.dark-theme .gate-input-box {
+      height: 50px; border-radius: 14px; background: rgba(5,10,22,.72); border: 1px solid rgba(154,169,211,.22);
+    }
+    .gate-input-box:focus-within, #auth-gate-screen.dark-theme .gate-input-box:focus-within { background: rgba(5,10,22,.95); border-color: #8b7cff; box-shadow: 0 0 0 4px rgba(139,124,255,.12); }
+    .gate-input-box input, #auth-gate-screen.dark-theme .gate-input-box input { color: #f2f5ff; }
+    .gate-remember-wrap, .gate-options-row { color: #9aa8c6; }
+    .gate-switch-link, .gate-remember-wrap input { color: #b1a8ff; accent-color: #8b7cff; }
+    .gate-submit-btn, .gate-submit-btn.btn-ready { height: 50px; border-radius: 14px; background: linear-gradient(100deg,#7b68f5,#4f9ef8) !important; box-shadow: 0 12px 28px rgba(93,104,243,.28) !important; color: white; }
+    .gate-submit-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    .gate-top-bar { top: 24px; right: 28px; }
+
+    /* 播放器：沉浸式影院窗口 */
+    #player-wrap {
+      background: #03050a; border: 1px solid rgba(170,180,230,.15); border-radius: 22px;
+      box-shadow: 0 24px 65px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.04);
+      isolation: isolate;
+    }
+    #player-wrap::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255,255,255,.035); }
+    #top-bar { padding: 18px 20px; background: linear-gradient(180deg,rgba(4,7,16,.9),rgba(4,7,16,.18),transparent); }
+    #current-title { font-size: 15px; letter-spacing: .01em; }
+    #btn-fav-toggle { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,.1); color: #d4dcf5; }
+    #btn-fav-toggle.active { background: rgba(255,198,89,.16); color: #ffc659; }
+    #current-route-badge { background: linear-gradient(100deg,#7868f2,#3b9bde); border-radius: 999px; padding: 5px 10px; font-weight: 700; }
+    #status-layer { border-radius: 18px; border-color: rgba(176,188,255,.2); background: rgba(10,15,29,.88); }
+    #custom-controls { padding: 0 10px 10px; background: linear-gradient(to top,rgba(3,6,14,.98),rgba(3,6,14,.55) 72%,transparent); }
+    #progress-container { height: 22px; }
+    #progress-track { height: 4px; background: rgba(255,255,255,.22); }
+    #progress-bar { background: linear-gradient(90deg,#8b7cff,#38c9ec); }
+    .controls-inner { min-height: 44px; }
+    .ctrl-btn { border-radius: 9px; }
+    .ctrl-btn:hover { background: rgba(255,255,255,.12); }
+    .pill-btn { border-radius: 999px; padding: 5px 9px; background: rgba(137,150,194,.17); border-color: rgba(200,210,255,.18); }
+    .external-group { border-radius: 999px; background: rgba(17,25,45,.78); border-color: rgba(190,202,255,.18); }
+
+    /* 工作区与导航 */
+    #sidebar { background: var(--bg-sidebar); border-color: var(--border-color); min-width: 0; }
+    #search-box { padding: 16px; gap: 12px; background: linear-gradient(180deg,var(--bg-search-box),var(--bg-sidebar)); border-bottom: 1px solid var(--border-color); }
+    .search-row-primary { gap: 9px; }
+    #search-box input { min-height: 43px; padding: 10px 38px 10px 15px; border-radius: 13px; border: 1px solid var(--border-light); background: var(--bg-input); font-size: 13px; }
+    #search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+    .btn-search { min-height: 43px; padding: 0 18px; border-radius: 13px; background: linear-gradient(110deg,#7b68f5,#4d9df6); box-shadow: 0 7px 18px rgba(92,105,242,.2); font-weight: 700; }
+    .btn-search:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    .btn-quick-theme { width: 43px; height: 43px; border-radius: 13px; border-color: var(--border-light); }
+    .search-row-secondary { gap: 8px; }
+    .btn-tool-mid { min-height: 39px; border-radius: 12px; border-color: var(--border-color); background: var(--bg-card); font-weight: 600; }
+    .btn-tool-mid:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .btn-tool-mid.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .mode-tab-group { gap: 8px; padding: 5px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 15px; }
+    .mode-tab { min-height: 42px; border: 0; border-radius: 11px; background: transparent; font-weight: 700; font-size: 13px; }
+    .mode-tab.active { background: linear-gradient(110deg,#7b68f5,#4d9df6) !important; box-shadow: 0 5px 14px rgba(92,105,242,.2); }
+    #channel-list { background: var(--bg-sidebar); scrollbar-color: var(--border-light) transparent; scrollbar-width: thin; }
+
+    /* 搜索筛选、分类、排序与列表卡片 */
+    .top-unified-bar { background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); padding: 10px 12px; gap: 6px; }
+    .filter-pill-btn, .btn-sort-action { border-radius: 999px; border-color: var(--border-light); background: var(--bg-card); padding: 6px 10px; font-size: 11px; }
+    .filter-pill-btn.active, .btn-sort-action.active-sort { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(139,124,255,.12); }
+    .title-group-box { margin: 8px 10px; border: 1px solid var(--border-color); border-radius: 16px; overflow: hidden; background: var(--bg-card); box-shadow: 0 5px 18px rgba(0,0,0,.08); }
+    .title-group-header { padding: 13px; gap: 12px; }
+    .title-group-header:hover { background: var(--bg-card-hover); }
+    .title-group-box.active-group .title-group-header { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+    .group-poster { width: 54px; height: 72px; border-radius: 9px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+    .group-main-title { font-size: 14px; letter-spacing: .01em; }
+    .group-badge-count { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 8px; }
+    .group-body-panel { padding: 12px; }
+    .episodes-collapse-box { border-radius: 14px; padding: 12px; }
+    .episodes-grid { grid-template-columns: repeat(auto-fill,minmax(58px,1fr)); gap: 7px; max-height: 220px; }
+    .ep-item { padding: 9px 4px; border-radius: 9px; background: var(--bg-input); }
+    .ep-item.active { background: linear-gradient(110deg,#7b68f5,#4d9df6); border-color: transparent; }
+    .source-sub-card, .source-item { border-radius: 12px; padding: 11px 13px; border-color: var(--border-color); }
+    .source-sub-card.active-sub, .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
+    .card-sitename-tag { border-radius: 999px; padding: 4px 9px; }
+    .history-card { margin: 6px 10px; border: 1px solid var(--border-color); border-radius: 13px; padding: 12px; }
+    .group-header { background: var(--bg-search-box); color: var(--text-sub); padding: 14px 16px; }
+    .channel-row { margin: 6px 10px; border: 1px solid var(--border-color); border-radius: 13px; overflow: hidden; }
+    .channel-main { padding: 13px 14px; }
+    .channel-row.playing .channel-title { color: var(--accent); }
+    .sources-panel { padding: 10px 12px 13px; }
+    .tv-epg-box { border-radius: 13px; padding: 12px; }
+    .tv-epg-badge.live { background: var(--accent-soft); color: var(--accent); border-color: var(--border-light); }
+    .scroll-loading-indicator { color: var(--text-sub); }
+
+    /* 设置、账号管理及其他弹窗统一换肤 */
+    .glass-modal-mask { background: var(--glass-mask); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 16px; }
+    .glass-modal-card { width: min(560px,100%); max-height: min(88dvh,900px); overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 24px; padding: 22px; background: var(--glass-bg); box-shadow: var(--glass-shadow); color: var(--text-main); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); }
+    .glass-modal-card h3 { font-size: 17px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); }
+    .settings-user-header-box, .glass-nav-card-btn, .group-card-item { border-radius: 13px; border-color: var(--border-color); background: var(--bg-card); }
+    .glass-nav-card-btn { padding: 13px 14px; margin-bottom: 8px; }
+    .glass-nav-card-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .glass-modal-card input, .glass-modal-card select { min-height: 40px; border-radius: 11px; border-color: var(--border-light); background: var(--bg-input); color: var(--text-main); }
+    .glass-modal-card input:focus, .glass-modal-card select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .btn-action { border-radius: 11px; padding: 10px 14px; font-weight: 700; }
+    .btn-save { background: linear-gradient(110deg,#7b68f5,#4d9df6); }
+    .btn-sync { background: linear-gradient(110deg,#0c9f9a,#24b88c); }
+    .btn-cancel { border: 1px solid var(--border-color); }
+    .perm-site-chip { border-radius: 10px; }
+    .btn-small-perm, .btn-small-del, .btn-danger-del, .btn-site-toggle { border-radius: 9px; }
+
+    /* 滚动条、微交互、可访问性 */
+    * { scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @media (hover:hover) {
+      .title-group-box, .channel-row, .history-card, .source-sub-card, .source-item { transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
+      .title-group-box:hover, .channel-row:hover, .history-card:hover { border-color: rgba(139,124,255,.42); box-shadow: 0 8px 24px rgba(0,0,0,.13); }
+    }
+    @media (min-width: 900px) {
+      body { flex-direction: row; padding: 18px; gap: 16px; align-items: stretch; background: radial-gradient(ellipse at 48% 0%,rgba(93,85,191,.11),transparent 46%),var(--bg-workspace); }
+      #player-wrap { flex: 1 1 58%; width: auto; height: 100%; min-width: 0; min-height: 0; border-radius: 24px; }
+      #sidebar { flex: 0 0 clamp(380px, 40%, 560px); width: auto; max-width: none; height: 100%; border: 1px solid var(--border-color); border-radius: 24px; box-shadow: var(--card-shadow); overflow: hidden; }
+      #search-box { padding: 18px; }
+    }
+    @media (min-width: 601px) and (max-width: 899px) {
+      body { background: var(--bg-workspace); }
+      #player-wrap { border-radius: 0 0 20px 20px; }
+      #sidebar { border-radius: 20px 20px 0 0; overflow: hidden; }
+    }
+    @media (max-width: 600px) {
+      html, body { height: 100%; min-height: 100%; }
+      #player-wrap { height: 34dvh; min-height: 190px; max-height: 44dvh; border-radius: 0 0 18px 18px; border-top: 0; }
+      #top-bar { padding: 12px 14px; }
+      #custom-controls { padding: 0 6px 7px; }
+      .controls-inner { gap: 4px; padding: 0 3px; }
+      .ctrl-left, .ctrl-right { gap: 4px; }
+      .ctrl-time { font-size: 10px; }
+      .external-group { max-width: 112px; }
+      .ext-btn { width: 20px; height: 20px; }
+      #sidebar { flex: 1 1 auto; min-height: 0; border-radius: 18px 18px 0 0; margin-top: 8px; overflow: hidden; }
+      #search-box { padding: 10px; gap: 9px; }
+      .search-row-primary { gap: 6px; }
+      #search-box input { min-height: 40px; padding-left: 12px; }
+      .btn-search { min-height: 40px; padding: 0 12px; }
+      .btn-quick-theme { width: 40px; height: 40px; }
+      .btn-tool-mid { min-height: 36px; font-size: 11px; padding: 6px 2px; }
+      .mode-tab { min-height: 38px; }
+      .top-unified-bar { padding: 8px; }
+      .title-group-box, .channel-row, .history-card { margin-left: 7px; margin-right: 7px; }
+      .glass-modal-mask { padding: 10px; align-items: flex-end; }
+      .glass-modal-card { max-height: 88dvh; border-radius: 22px 22px 14px 14px; padding: 18px; }
+      .modal-actions { flex-wrap: wrap; }
+      .modal-actions .btn-action { flex: 1 1 auto; }
+      #auth-gate-screen::before { top: 20px; left: 20px; font-size: 9px; }
+      .gate-card { padding: 30px 24px 26px !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+
   </style>
 </head>
 <body>
