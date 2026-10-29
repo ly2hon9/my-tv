@@ -27,11 +27,7 @@ function normalizeItem(item, fallbackType) {
     overview: overview.slice(0, 600), poster, backdrop,
     voteAverage: Number(item?.voteAverage ?? item?.vote_average ?? 0),
     voteCount: Number(item?.voteCount ?? item?.vote_count ?? 0),
-    popularity: Number(item?.popularity || 0),
-    voteCount: Number(item?.voteCount ?? item?.vote_count ?? 0),
-    originalLanguage: String(item?.originalLanguage || item?.original_language || ''),
-    originCountry: Array.isArray(item?.originCountry) ? item.originCountry : (Array.isArray(item?.origin_country) ? item.origin_country : []),
-    source: item?.source || 'TMDB 热门'
+    popularity: Number(item?.popularity || 0), source: item?.source || 'TMDB 热门'
   };
 }
 
@@ -52,6 +48,30 @@ async function fetchPopularTVCategory(env, type, genres) {
     .sort((a, b) => b.popularity - a.popularity).slice(0, 20);
 }
 
+async function fetchChinesePopularTV(env) {
+  if (!env.TMDB_API_KEY) return [];
+  const url = new URL(`${TMDB_BASE}/discover/tv`);
+  url.searchParams.set('api_key', env.TMDB_API_KEY);
+  url.searchParams.set('language', 'zh-CN');
+  url.searchParams.set('sort_by', 'popularity.desc');
+  url.searchParams.set('include_adult', 'false');
+  url.searchParams.set('with_origin_country', 'CN');
+  url.searchParams.set('with_original_language', 'zh');
+  url.searchParams.set('vote_count.gte', '10');
+  url.searchParams.set('page', '1');
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+    cf: { cacheTtl: 300 }
+  });
+  if (!response.ok) throw new Error(`国产热门电视剧请求失败：HTTP ${response.status}`);
+  const payload = await response.json();
+  return (Array.isArray(payload.results) ? payload.results : [])
+    .map(item => normalizeItem({ ...item, source: '国产热门电视剧' }, '电视剧'))
+    .filter(item => item && item.type === '电视剧')
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 30);
+}
+
 async function refreshD1FromUpstream(env) {
   const response = await fetch(UPSTREAM_URL, {
     headers: { Accept: 'application/json' },
@@ -62,22 +82,26 @@ async function refreshD1FromUpstream(env) {
   if (!Array.isArray(payload.items) || payload.items.length === 0) throw new Error('上游热门缓存暂时没有影视数据');
 
   const mainItems = payload.items.map(item => normalizeItem(item)).filter(Boolean);
-  let variety = [], anime = [];
-  // 电影/剧集取已同步 KV；综艺和动漫通过 TMDB 的对应电视类型补齐，并一起写入 D1。
+  let variety = [], anime = [], chineseShows = [];
+  // 电影/国际剧集读取每日 KV；另取中国地区高热度电视剧，避免剧集页被国际趋势榜占满。
   if (env.TMDB_API_KEY) {
     const results = await Promise.allSettled([
       fetchPopularTVCategory(env, '综艺', '10764,10767'),
-      fetchPopularTVCategory(env, '动漫', '16')
+      fetchPopularTVCategory(env, '动漫', '16'),
+      fetchChinesePopularTV(env)
     ]);
     if (results[0].status === 'fulfilled') variety = results[0].value;
     if (results[1].status === 'fulfilled') anime = results[1].value;
+    if (results[2].status === 'fulfilled') chineseShows = results[2].value;
   }
-  const seen = new Set();
-  const items = [...mainItems, ...variety, ...anime].filter(item => {
+  // 若上游全球趋势中已经包含同一部国产剧，以国产热门标记覆盖来源，便于分类页优先排序。
+  const byKey = new Map();
+  [...mainItems, ...variety, ...anime, ...chineseShows].forEach(item => {
     const key = `${item.type}:${item.id || item.title.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key); return true;
+    const previous = byKey.get(key);
+    if (!previous || /国产热门电视剧/.test(String(item.source || ''))) byKey.set(key, item);
   });
+  const items = [...byKey.values()];
   const normalized = {
     source: payload.source || 'TMDB',
     updatedAt: new Date().toISOString(),
@@ -125,10 +149,10 @@ export async function onRequest({ request, env }) {
     if (env.DB) {
       row = await env.DB.prepare('SELECT value, updated_at FROM user_data WHERE key = ?').bind(CACHE_KEY).first();
       cached = unpackRow(row);
-      const hasCategoryMetadata = cached?.items?.some(item =>
-        item.type === '电视剧' && (item.originalLanguage || (Array.isArray(item.originCountry) && item.originCountry.length))
-      );
-      if (cached && isFresh(cached, row) && !forceRefresh && hasCategoryMetadata) {
+      const hasDomesticShows = Boolean(cached?.items?.some(item =>
+        item?.type === '电视剧' && /国产热门电视剧|中国大陆热门|中国地区热门/.test(String(item?.source || ''))
+      ));
+      if (cached && isFresh(cached, row) && hasDomesticShows && !forceRefresh) {
         return json(cached, 200, { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' });
       }
     }
