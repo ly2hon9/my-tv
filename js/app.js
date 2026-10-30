@@ -2394,7 +2394,7 @@
     let auroraHeroTimer = null;
     // Category discovery uses the existing D1/cache list. Only capsule category/region
     // filters apply here; home-page year/rating/order selectors stay independent.
-    const sgCategoryFilters = { sub:'all', region:'all' };
+    const sgCategoryFilters = { sub:'all', region:'all', year:'' };
     const sgCategoryPillNames = {
       '电影':['全部','热门电影','最新电影','高分佳片','冷门佳片'],
       '电视剧':['全部','热播剧集','最新剧集','高分剧集','经典剧集'],
@@ -2418,6 +2418,28 @@
       };
       return codes.some(code => (sets[region] || []).includes(code));
     }
+    // Year options come exclusively from the cached titles of this category.
+    // This is independent of the home page's year/rating/sort controls.
+    function sgSyncCategoryYearSelect() {
+      const select = document.getElementById('sg-filter-year');
+      if (!select || !auroraActiveCategory) return;
+      const years = [...new Set(auroraRecommendationItems
+        .filter(auroraCategoryPredicate)
+        .map(item => String(item.year || '').trim())
+        .filter(value => /^\d{4}$/.test(value)))].sort((a,b) => Number(b) - Number(a));
+      const key = years.join(',');
+      if (select.dataset.yearsKey !== key) {
+        select.replaceChildren(new Option('全部年份',''), ...years.map(y => new Option(`${y}年`,y)));
+        select.dataset.yearsKey = key;
+      }
+      if (sgCategoryFilters.year && !years.includes(sgCategoryFilters.year)) sgCategoryFilters.year = '';
+      select.value = sgCategoryFilters.year;
+    }
+    document.getElementById('sg-filter-year')?.addEventListener('change', event => {
+      if (!auroraActiveCategory) return;
+      sgCategoryFilters.year = event.target.value;
+      renderAuroraRecommendations();
+    });
     function sgPillSelect(kind, value) {
       if (!auroraActiveCategory) return;
       if (kind === 'sub') sgCategoryFilters.sub = value;
@@ -2505,7 +2527,7 @@
         : auroraRecommendationItems.filter(item => ['电影', '电视剧'].includes(classifyAuroraMedia(item)));
       // Only the HOME view uses the year/rating/order selectors.
       // Hidden home filters must never restrict movie/series/variety/anime rails.
-      const year = auroraActiveCategory ? '' : (document.getElementById('aurora-filter-year')?.value || '');
+      const year = auroraActiveCategory ? sgCategoryFilters.year : (document.getElementById('aurora-filter-year')?.value || '');
       const minRating = auroraActiveCategory ? 0 : Number(document.getElementById('aurora-filter-rating')?.value || 0);
       const sort = auroraActiveCategory ? 'popular' : (document.getElementById('aurora-filter-sort')?.value || 'popular');
       const filtered = visible.filter(item =>
@@ -2696,6 +2718,7 @@
       auroraHeroIndex = 0;
       sgCategoryFilters.sub = 'all';
       sgCategoryFilters.region = 'all';
+      sgCategoryFilters.year = '';
       document.body.classList.remove('sg-category-view');
       document.body.classList.add('aurora-home-view');
       sgSyncCategoryPills();
@@ -2718,6 +2741,7 @@
       if (auroraActiveCategory !== category) {
         sgCategoryFilters.sub = 'all';
         sgCategoryFilters.region = 'all';
+        sgCategoryFilters.year = '';
       }
       auroraActiveCategory = category || '';
       auroraHeroIndex = 0;
@@ -2737,7 +2761,15 @@
       renderAuroraRecommendations();
       if (!auroraRecommendationItems.length || !auroraRecommendationItems.some(auroraCategoryPredicate)) refreshAuroraRecommendations();
       const section = document.querySelector('.aurora-home-section');
-      if (section && !sgUiRestoring) section.scrollIntoView({behavior:'smooth',block:'start'});
+      if (section && !sgUiRestoring) {
+        // With the old category heading hidden, offset the sticky header explicitly.
+        // Also reset the homepage's inner scrolling when switching from a long poster rail.
+        const homeScroller = document.getElementById('aurora-home');
+        if (homeScroller) homeScroller.scrollTop = 0;
+        const headerBottom = Math.max(0, document.getElementById('aurora-topnav')?.getBoundingClientRect().bottom || 0);
+        const targetY = window.scrollY + section.getBoundingClientRect().top - headerBottom - 10;
+        window.scrollTo({top:Math.max(0,targetY),behavior:'smooth'});
+      }
     }
     function openAuroraSearch(keyword) {
       stopSitePlaybackOnNavigation();
@@ -2797,6 +2829,7 @@
       const count = document.getElementById('aurora-resource-count');
       if (!host) return;
       updateAuroraYearFilter();
+      if (auroraActiveCategory) sgSyncCategoryYearSelect();
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
         host._sgPosterRenderKey = null;
@@ -2819,7 +2852,7 @@
       if (count) count.textContent = String(visibleItems.length);
       // AURORA 3.18: Preserve existing poster DOM when content is unchanged.
       // This avoids re-decoding/reloading many images after opening settings or returning home.
-      const posterRenderKey = JSON.stringify([auroraActiveCategory, sgCategoryFilters.sub, sgCategoryFilters.region, visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source])]);
+      const posterRenderKey = JSON.stringify([auroraActiveCategory, sgCategoryFilters.sub, sgCategoryFilters.region, sgCategoryFilters.year, visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source])]);
       if (host._sgPosterRenderKey !== posterRenderKey ||
           !host.querySelector('.aurora-poster-card')) {
         // UI-only grouping: keep the EXACT original poster buttons, lazy images,
