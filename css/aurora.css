@@ -3578,13 +3578,7 @@ body > .aurora-nav-links .sg-nav-icon { flex-basis:26px; width:27px; height:27px
 body > .aurora-nav-links .sg-nav-icon svg { width:24px; height:24px; }
 body.aurora-home-view #aurora-home { padding-bottom:calc(112px + env(safe-area-inset-bottom,0px)) !important; }
 body:not(.aurora-home-view) #channel-list { padding-bottom:calc(103px + env(safe-area-inset-bottom,0px)) !important; }
-/* Favorites/history: back sits OUTSIDE the compact titlebar. */
-#channel-list .sg-personal-back-row { display:flex; margin:8px 0 8px; justify-content:flex-start; }
-#channel-list .sg-personal-back {
-  padding:7px 13px; border:1px solid var(--border-light);
-  border-radius:999px; background:var(--bg-card); color:var(--text-main);
-  font:700 12px/1.3 inherit; cursor:pointer;
-}
+/* Favorites/history: keep compact titlebars; no standalone back buttons. */
 #channel-list > .top-unified-bar.sg-personal-titlebar {
   display:flex !important; justify-content:space-between !important; align-items:center !important;
   width:min(100%,740px) !important; min-height:0 !important;
@@ -3641,3 +3635,39 @@ body.sg-category-view .aurora-discovery-filters { width:100%; margin:0 0 15px; j
     aspect-ratio:16/9 !important;
   }
 }
+
+/* 3.20.2 L7: compact two-row category/region capsules, no legacy selectors. */
+body.sg-category-view .aurora-discovery-filters { display:none !important; }
+body.sg-category-view .aurora-section-overline,
+body.sg-category-view .aurora-section-head p { display:none !important; }
+body.sg-category-view .aurora-section-head { margin-bottom:0 !important; }
+body.sg-category-view .aurora-section-head h2 { margin:0 !important; }
+body.sg-category-view .sg-category-filters {
+  display:grid; grid-template-columns:minmax(0,1fr);
+  row-gap:7px; width:100%; min-width:0;
+  padding:9px 11px; margin:8px 0 13px;
+  border-radius:15px;
+}
+body.sg-category-view .sg-filter-line,
+body.sg-category-view .sg-filter-line + .sg-filter-line {
+  display:block; margin:0 !important; padding:0; min-width:0; width:100%;
+}
+body.sg-category-view .sg-filter-pills {
+  display:flex; flex-wrap:nowrap; gap:6px; width:100%; min-width:0;
+  overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  touch-action:pan-x; padding:1px 0 3px;
+}
+body.sg-category-view .sg-filter-pills::-webkit-scrollbar { display:none; }
+body.sg-category-view .sg-filter-pill {
+  flex:0 0 auto; white-space:nowrap; padding:7px 11px;
+  font-size:12px; line-height:1.2; min-height:31px;
+}
+body.sg-category-view .sg-filter-pill:focus-visible { outline-offset:-2px; }
+@media(max-width:600px) {
+  body.sg-category-view .sg-category-filters { padding:8px 9px; row-gap:5px; margin:7px 0 10px; }
+  body.sg-category-view .sg-filter-pills { gap:5px; }
+  body.sg-category-view .sg-filter-pill { padding:7px 10px; font-size:11px; min-height:30px; }
+}
+
+body.sg-category-view .sg-category-filters[hidden] { display:none !important; }
