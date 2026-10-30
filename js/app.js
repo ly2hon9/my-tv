@@ -256,6 +256,8 @@
     let hls = null;
     let playbackGeneration = 0;
     let playWatchdogTimer = null;
+    // Only active media-session listeners and timers may affect playback.
+    let sgPlaybackMonitorCleanup = null;
     let gestureTipTimer = null;
     let controlsTimer = null;
 
@@ -722,10 +724,13 @@
       setD1Data(getCurrentHistoryKey(), history);
     }
 
-    async function restorePlaybackProgress() {
+    async function restorePlaybackProgress(expectedGeneration = playbackGeneration) {
       if (isLiveMode || !currentVodUniqueKey) return;
+      const expectedVodKey = currentVodUniqueKey;
       const history = await getHistoryList();
-      const record = history.find(h => h.key === currentVodUniqueKey);
+      // A slow D1 history read must never seek a newer episode or source.
+      if (expectedGeneration !== playbackGeneration || expectedVodKey !== currentVodUniqueKey || isLiveMode) return;
+      const record = history.find(h => h.key === expectedVodKey);
       if (record && record.time > 5 && (!video.duration || record.time < video.duration - 15)) {
         video.currentTime = record.time;
         showGestureTip(`⏱ 已自动续播至 ${formatTime(record.time)}`);
@@ -4477,7 +4482,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
     const missingEpText = (isSameWork && currentPlayingMeta?.epName) || (prevEpIdx >= 0 ? `第${prevEpIdx + 1}集` : '当前集数');
     currentActiveEp = -1;
     currentStreamUrl = "";
+    ++playbackGeneration; // No stale success/error from the previous episode.
     destroyHlsInstance();
+    video.onplaying = video.onloadeddata = video.onloadedmetadata = video.oncanplay = video.onerror = null;
     updatePlayBtn(false);
     try {
       video.pause();
@@ -4575,6 +4582,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     function destroyHlsInstance() {
       clearPlayWatchdog();
+      // Switching pages, sources, or channels must cancel pending buffer recovery.
+      if (sgPlaybackMonitorCleanup) {
+        const cleanup = sgPlaybackMonitorCleanup;
+        sgPlaybackMonitorCleanup = null;
+        cleanup();
+      }
       exitPictureInPictureMode();
       if (hls) {
         hls.stopLoad();
@@ -4718,154 +4731,314 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       return sgHlsLoadPromise;
     }
 
+    // AURORA Playback Stability: identify direct video files before selecting
+    // the HLS engine. Unknown extensionless URLs retain the old HLS path.
+    function sgPlaybackMediaKind(url, live) {
+      if (live) return 'hls'; // VPS /live.m3u8 is always an HLS manifest.
+      if (/^(?:blob:|data:(?:video|audio)\/)/i.test(url)) return 'direct';
+      let parsed;
+      try { parsed = new URL(url, window.location.href); }
+      catch (_) { return 'unknown'; }
+      const path = parsed.pathname.toLowerCase();
+      if (/\.(?:m3u8|m3u)$/.test(path)) return 'hls';
+      if (/\.(?:mp4|m4v|mov|webm|ogv|ogg|mp3|m4a)$/.test(path)) return 'direct';
+      const hintedType = String(parsed.searchParams.get('type') ||
+        parsed.searchParams.get('format') || parsed.searchParams.get('ext') || '').toLowerCase();
+      if (/^(?:m3u8?|hls)$/.test(hintedType)) return 'hls';
+      if (/^(?:mp4|m4v|mov|webm|ogv|ogg|mp3|m4a)$/.test(hintedType)) return 'direct';
+      // Some providers proxy the stream through ?url=<encoded media URL>.
+      for (const key of ['url', 'play', 'src']) {
+        const inner = parsed.searchParams.get(key) || '';
+        if (/\.m3u8?(?:[?#]|$)/i.test(inner)) return 'hls';
+        if (/\.(?:mp4|m4v|mov|webm|ogv|ogg)(?:[?#]|$)/i.test(inner)) return 'direct';
+      }
+      return 'unknown';
+    }
+
     async function manualPlayOnly(url) {
       if (!url) return;
       let playUrl = url;
 
       if (isLiveMode) {
-        // 电视直播模式：全局强制转为 https://jp.luyizhong.eu.org/tv/live.m3u8?url=...
+        // Keep original VPS transcoding behavior and raw URL for external apps.
         let rawTarget = url;
         if (url.startsWith(`${VPS_TV_BASE}/live.m3u8?url=`)) {
           try { rawTarget = decodeURIComponent(url.split('url=')[1].split('&')[0]); } catch (_) {}
         }
         playUrl = `${VPS_TV_BASE}/live.m3u8?url=${encodeURIComponent(rawTarget)}`;
-        currentStreamUrl = playUrl; // 复制直链使用转换后的 https 地址
-        window.currentRawStreamUrl = rawTarget; // 保留原始 http 直链供外部播放器直连
+        currentStreamUrl = playUrl;
+        window.currentRawStreamUrl = rawTarget;
         hasActiveRemoteTv = true;
       } else {
-        // 影视剧场模式：与 VPS 完全隔离，若之前在看电视则立刻关停 VPS 转码
         stopRemoteTvTranscode();
         currentStreamUrl = url;
       }
-
       url = playUrl;
 
       const generation = ++playbackGeneration;
-      const v4StartedAt = Date.now();
-      let v4OutcomeRecorded = false;
-      const recordV4Outcome = (success) => {
-        if (v4OutcomeRecorded || generation !== playbackGeneration) return;
-        v4OutcomeRecorded = true;
-        recordV4LineHealth(url, success, Date.now() - v4StartedAt);
+      const liveSession = isLiveMode;
+      const kind = sgPlaybackMediaKind(url, liveSession);
+      const startedAt = Date.now();
+      let outcomeRecorded = false;
+      let hasStarted = false;
+      let manualStartNeeded = false;
+      let recoveryAttempts = 0;
+      let networkRecoveryAttempts = 0;
+      let mediaRecoveryAttempts = 0;
+      let lastNetworkErrorAt = 0;
+      let lastMediaErrorAt = 0;
+      let hasBufferStatus = false;
+      let bufferNoticeTimer = null;
+      let bufferRecoveryTimer = null;
+      let bufferFinalTimer = null;
+      let networkRecoveryTimer = null;
+      let lastPlaybackTime = 0;
+      const isCurrent = () => generation === playbackGeneration;
+      const recordOutcome = success => {
+        if (outcomeRecorded || !isCurrent()) return;
+        outcomeRecorded = true;
+        recordV4LineHealth(url, success, Date.now() - startedAt);
       };
-      const v4FailTip = (message) => {
-        recordV4Outcome(false);
+      const fail = message => {
+        if (!isCurrent()) return;
+        recordOutcome(false);
         showFailTip(message);
       };
+      const clearBufferTimers = () => {
+        clearTimeout(bufferNoticeTimer); bufferNoticeTimer = null;
+        clearTimeout(bufferRecoveryTimer); bufferRecoveryTimer = null;
+        clearTimeout(bufferFinalTimer); bufferFinalTimer = null;
+      };
+      const stopSessionTimers = () => {
+        clearBufferTimers();
+        clearTimeout(networkRecoveryTimer); networkRecoveryTimer = null;
+      };
+      // The current playback session owns all its buffer event listeners.
+      const onWaiting = () => {
+        if (!isCurrent() || !hasStarted || manualStartNeeded ||
+            video.paused || video.seeking || document.hidden || bufferRecoveryTimer) return;
+        bufferNoticeTimer = setTimeout(() => {
+          if (isCurrent() && !video.paused && !video.seeking && !document.hidden) {
+            hasBufferStatus = true;
+            setStatus('正在缓冲…');
+          }
+        }, 2500);
+        bufferRecoveryTimer = setTimeout(() => {
+          if (!isCurrent() || video.paused || video.seeking || document.hidden) return;
+          if (recoveryAttempts >= 1) return;
+          recoveryAttempts++;
+          hasBufferStatus = true;
+          const recoveryPosition = Number(video.currentTime) || 0;
+          setStatus('网络不稳定，正在尝试恢复…');
+          if (hls && typeof hls.startLoad === 'function') {
+            try { hls.startLoad(); } catch (_) {}
+          } else if (liveSession) {
+            // Only reload native live HLS: reloading VOD would lose its position.
+            try { video.load(); } catch (_) {}
+            attemptPlay();
+          } else {
+            attemptPlay();
+          }
+          bufferFinalTimer = setTimeout(() => {
+            if (isCurrent() && !video.paused && !video.seeking && !document.hidden &&
+                Math.abs((Number(video.currentTime) || 0) - recoveryPosition) < 0.2) {
+              fail('当前线路持续缓冲，请切换线路或使用外部播放器');
+            }
+          }, 14000);
+        }, 16000);
+      };
+      const onProgressTime = () => {
+        if (!isCurrent()) return;
+        const now = Number(video.currentTime) || 0;
+        if (Math.abs(now - lastPlaybackTime) > 0.1) {
+          lastPlaybackTime = now;
+          clearBufferTimers();
+          if (hasBufferStatus) {
+            hasBufferStatus = false;
+            setStatus('', false);
+          }
+        }
+      };
+      const onPause = () => { if (isCurrent()) clearBufferTimers(); };
+      const onSeeked = () => { if (isCurrent()) clearBufferTimers(); };
+      const onVisible = () => { if (document.hidden) clearBufferTimers(); };
+      // In addition to source cancellation, remove all listeners when leaving.
       clearPlayWatchdog();
-      exitPictureInPictureMode();
       destroyHlsInstance();
-      try { video.pause(); video.removeAttribute("src"); video.load(); } catch (_) {}
-      setStatus(isLiveMode ? "正在加载…" : "正在建立连接，请稍候...");
+      // Release the old media BEFORE attaching the new error handlers.
+      try { video.pause(); video.removeAttribute('src'); video.load(); } catch (_) {}
+      video.addEventListener('waiting', onWaiting);
+      video.addEventListener('stalled', onWaiting);
+      video.addEventListener('timeupdate', onProgressTime);
+      video.addEventListener('pause', onPause);
+      video.addEventListener('seeked', onSeeked);
+      document.addEventListener('visibilitychange', onVisible);
+      sgPlaybackMonitorCleanup = () => {
+        stopSessionTimers();
+        video.removeEventListener('waiting', onWaiting);
+        video.removeEventListener('stalled', onWaiting);
+        video.removeEventListener('timeupdate', onProgressTime);
+        video.removeEventListener('pause', onPause);
+        video.removeEventListener('seeked', onSeeked);
+        document.removeEventListener('visibilitychange', onVisible);
+      };
+      setStatus(liveSession ? '正在加载…' : '正在建立连接，请稍候...');
+      updatePlayBtn(false);
 
-      let hasStarted = false;
-      const markPlaySuccess = () => {
-        if (hasStarted || generation !== playbackGeneration) return;
+      const markPlaying = () => {
+        if (!isCurrent()) return;
+        recordOutcome(true);
+        clearBufferTimers();
+        manualStartNeeded = false;
+        recoveryAttempts = 0;
+        if (hasStarted) return;
         hasStarted = true;
         clearPlayWatchdog();
-        setStatus("", false);
+        setStatus('', false);
         updatePlayBtn(true);
-        restorePlaybackProgress();
+        restorePlaybackProgress(generation);
         showControls();
       };
-
-      // 给 VPS 首次跨国拉流预留 20 秒缓冲时间
-      playWatchdogTimer = setTimeout(() => {
-        if (generation === playbackGeneration && !hasStarted && (video.paused || !video.currentTime || video.currentTime === 0)) {
-          v4FailTip("当前线路受限 (响应超时)<br><span style='color:var(--text-sub);font-size:12px;'>该片源长时间无数据响应，请选择其他源或点击播放器图标一键秒播</span>");
-        }
-      }, 20000);
-
-      // V4.1: 仅在真正进入播放或获得媒体数据时记录线路成功；
-      // 元数据/可播放事件仍沿用原有 UI 和看门狗行为，避免改变播放逻辑。
-      video.onplaying = () => { recordV4Outcome(true); markPlaySuccess(); };
-      video.onloadeddata = () => { recordV4Outcome(true); markPlaySuccess(); };
-      video.onloadedmetadata = markPlaySuccess;
-      video.oncanplay = markPlaySuccess;
-      video.onerror = () => {
-        if (generation !== playbackGeneration) return;
-        v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
-      };
-
-      const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
-
-      if (isApple && video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            if (generation !== playbackGeneration) return;
-            if (err && err.name === 'NotAllowedError') {
-              video.muted = true;
-              video.play().then(markPlaySuccess).catch(() => {});
-            } else if (err && err.name === 'NotSupportedError') {
-              v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
+      const attemptPlay = () => {
+        if (!isCurrent()) return;
+        let promise;
+        try { promise = video.play(); }
+        catch (err) { promise = Promise.reject(err); }
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(err => {
+            if (!isCurrent()) return;
+            if (err?.name === 'AbortError') return; // Old source was stopped.
+            if (err?.name === 'NotAllowedError') {
+              // Safari: do NOT mute the stream without the user's permission.
+              manualStartNeeded = true;
+              clearPlayWatchdog();
+              clearBufferTimers();
+              updatePlayBtn(false);
+              setStatus('浏览器已暂停自动播放，请点击播放器的播放按钮');
+            } else if (err?.name === 'NotSupportedError') {
+              fail('当前视频格式或编码不受浏览器支持，请切换线路或使用外部播放器');
+            } else {
+              // A transient play() rejection can coincide with HLS attaching;
+              // leave the startup watchdog to distinguish it from a real outage.
             }
           });
         }
+      };
+
+      // The first frame/metadata is not proof of actual playback.
+      video.onplaying = markPlaying;
+      video.onloadeddata = () => { if (!isCurrent()) return; };
+      video.onloadedmetadata = () => { if (!isCurrent()) return; };
+      video.oncanplay = () => { if (!isCurrent()) return; };
+      video.onerror = () => {
+        if (!isCurrent()) return;
+        // HLS.js may handle media errors internally and attempt bounded recovery.
+        if (hls) return;
+        const code = video.error?.code;
+        if (code === 2) {
+          fail('当前视频网络连接失败，请切换线路或稍后重试');
+        } else if (code === 3 || code === 4) {
+          fail('当前视频格式或编码不受浏览器支持，请切换线路或使用外部播放器');
+        } else {
+          fail('当前线路播放失败，请检查网络或切换线路');
+        }
+      };
+      // Late metadata or canplay never cancels this startup watchdog.
+      playWatchdogTimer = setTimeout(() => {
+        if (isCurrent() && !hasStarted && !manualStartNeeded && !document.hidden) {
+          fail('当前线路响应超时，请切换线路或使用外部播放器');
+        }
+      }, liveSession ? 25000 : 20000);
+
+      // Direct files must not be passed to Hls.js (e.g. MP4 on desktop Chrome).
+      if (kind === 'direct') {
+        video.src = url;
+        try { video.load(); } catch (_) {}
+        attemptPlay();
         return;
       }
 
-      if (!video.canPlayType('application/vnd.apple.mpegurl') &&
-          (typeof Hls === 'undefined' || !Hls.isSupported())) {
+      // Native Safari/iPadOS HLS; do not download an unnecessary decoder.
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        try { video.load(); } catch (_) {}
+        attemptPlay();
+        return;
+      }
+
+      // Extensionless provider URLs retain the original HLS-compatible route.
+      if (!(window.Hls?.isSupported?.())) {
         setStatus('正在准备兼容播放器，请稍候...');
         const supported = await sgEnsureHlsJs();
-        // User switched channel/page while the CDN request was pending.
-        if (generation !== playbackGeneration) return;
+        if (!isCurrent()) return;
         if (!supported) {
-          v4FailTip("播放器组件加载失败，请检查网络或使用外部播放器");
+          fail('播放器组件加载失败，请检查网络或使用外部播放器');
           return;
         }
       }
-      if (typeof Hls !== "undefined" && Hls.isSupported()) {
-        let mediaRecoveryAttempts = 0;
-        const player = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 60,
-          manifestLoadingTimeOut: 20000,
-          manifestLoadingMaxRetry: 3,
-          levelLoadingTimeOut: 20000,
-          fragLoadingTimeOut: 20000,
-          fragLoadingMaxRetry: 3,
-          xhrSetup: (xhr) => { xhr.withCredentials = false; }
-        });
-        hls = player;
-        player.loadSource(url);
-        player.attachMedia(video);
-
-        player.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (generation !== playbackGeneration) return;
-          video.play().catch(() => {});
-        });
-
-        player.on(Hls.Events.ERROR, (_, data) => {
-          if (generation !== playbackGeneration || player !== hls) return;
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                v4FailTip("当前线路受限 (网络连接失败或跨域拦截)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源，或点击下方播放器图标调用外置客户端秒播</span>");
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                if (mediaRecoveryAttempts++ < 2) {
-                  player.recoverMediaError();
-                } else {
-                  v4FailTip("当前线路受限 (媒体解码连续失败)<br><span style='color:var(--text-sub);font-size:12px;'>请切换其他视频源</span>");
-                }
-                break;
-              default:
-                v4FailTip("当前线路受限 (编码格式不支持)<br><span style='color:var(--text-sub);font-size:12px;'>请尝试选择其他源或调用外部播放器播放</span>");
-                break;
-            }
-          }
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.load();
-        video.play().catch(() => {});
-      } else {
-        v4FailTip("当前浏览器不支持此视频格式，请尝试外部播放器");
+      if (!window.Hls?.isSupported?.()) {
+        fail('当前浏览器不支持此视频格式，请尝试外部播放器');
+        return;
       }
+      const HlsEngine = window.Hls;
+      const player = new HlsEngine({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
+        manifestLoadingTimeOut: 20000,
+        manifestLoadingMaxRetry: 3,
+        levelLoadingTimeOut: 20000,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 3,
+        xhrSetup: xhr => { xhr.withCredentials = false; }
+      });
+      if (!isCurrent()) { player.destroy(); return; }
+      hls = player;
+      player.loadSource(url);
+      player.attachMedia(video);
+      player.on(HlsEngine.Events.MANIFEST_PARSED, () => {
+        if (isCurrent() && player === hls) attemptPlay();
+      });
+      player.on(HlsEngine.Events.ERROR, (_, data) => {
+        if (!isCurrent() || player !== hls || !data?.fatal) return;
+        switch (data.type) {
+          case HlsEngine.ErrorTypes.NETWORK_ERROR:
+            // Give long-running live channels a fresh retry budget after a
+            // quiet period, but never enter an unbounded immediate retry loop.
+            if (Date.now() - lastNetworkErrorAt > 90000) networkRecoveryAttempts = 0;
+            lastNetworkErrorAt = Date.now();
+            if (networkRecoveryAttempts < 2) {
+              networkRecoveryAttempts++;
+              hasBufferStatus = true;
+              setStatus(`网络中断，正在重试（${networkRecoveryAttempts}/2）…`);
+              clearTimeout(networkRecoveryTimer);
+              networkRecoveryTimer = setTimeout(() => {
+                if (isCurrent() && player === hls) {
+                  try { player.startLoad(); }
+                  catch (_) { fail('当前线路网络连接失败，请切换其他视频源'); }
+                }
+              }, networkRecoveryAttempts === 1 ? 1200 : 2500);
+            } else {
+              fail('当前线路网络连续失败，请切换其他视频源或使用外部播放器');
+            }
+            break;
+          case HlsEngine.ErrorTypes.MEDIA_ERROR:
+            if (Date.now() - lastMediaErrorAt > 90000) mediaRecoveryAttempts = 0;
+            lastMediaErrorAt = Date.now();
+            if (mediaRecoveryAttempts < 2) {
+              mediaRecoveryAttempts++;
+              hasBufferStatus = true;
+              setStatus('视频解码异常，正在尝试恢复…');
+              try { player.recoverMediaError(); }
+              catch (_) { fail('当前线路解码失败，请切换其他视频源'); }
+            } else {
+              fail('当前线路媒体解码连续失败，请切换其他视频源');
+            }
+            break;
+          default:
+            fail('当前线路播放失败或格式不受支持，请切换线路或使用外部播放器');
+        }
+      });
     }
 
     /* === 电视直播模块：持久化拉取、EPG 电子节目单与 VPS 测速排序逻辑 === */
