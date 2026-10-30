@@ -236,7 +236,8 @@
     let disabledSites = [];
     let sourceFailures = {};
     let failThreshold = 5;
-    let currentThemeSetting = 'auto';
+    // Frosted Cinema theme defaults to dark; explicitly saved light/auto settings stay respected.
+    let currentThemeSetting = 'dark';
     let gateAuthMode = 'login';
     let currentEditingGroupId = null;
     let userAssigningIdx = -1;
@@ -2582,7 +2583,8 @@
       document.body.classList.add('aurora-home-view');
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'false');
-      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.remove('active'));
+      // Homepage uses the movie dock highlight; category buttons keep their original behavior.
+      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', b.dataset.auroraNav === 'movie'));
       const heading = document.querySelector('.aurora-home-section .aurora-section-head h2');
       const overline = document.querySelector('.aurora-home-section .aurora-section-overline');
       const copy = document.querySelector('.aurora-home-section .aurora-section-head p');
@@ -2688,13 +2690,28 @@
       if (count) count.textContent = String(visibleItems.length);
       // AURORA 3.18: Preserve existing poster DOM when content is unchanged.
       // This avoids re-decoding/reloading many images after opening settings or returning home.
-      const posterRenderKey = JSON.stringify(visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source]));
+      const posterRenderKey = JSON.stringify([auroraActiveCategory, visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source])]);
       if (host._sgPosterRenderKey !== posterRenderKey ||
-          host.querySelectorAll(':scope > .aurora-poster-card').length !== visibleItems.length) {
-        host.innerHTML = visibleItems.map((item, index) => {
+          host.querySelectorAll('.aurora-poster-card').length !== visibleItems.length) {
+        // UI-only grouping: keep the EXACT original poster buttons, lazy images,
+        // click-to-search behavior and filtered data; lay out movie/TV rails.
+        const sgPosterCard = (item, index) => {
           const art = item.poster && isSafeUrl(item.poster) ? `<img loading="lazy" src="${escapeHtml(item.poster)}" alt="${escapeHtml(item.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
           return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
-        }).join('');
+        };
+        const groupsForDisplay = auroraActiveCategory
+          ? [{ name: `热门${auroraActiveCategory === '电视剧' ? '剧集' : auroraActiveCategory}`, items: visibleItems }]
+          : [
+              { name:'热门电影', items: visibleItems.filter(item => classifyAuroraMedia(item) === '电影') },
+              { name:'热播剧集', items: visibleItems.filter(item => classifyAuroraMedia(item) !== '电影') }
+            ];
+        let posterIndex = 0;
+        host.innerHTML = groupsForDisplay.filter(group => group.items.length).map(group => `
+          <section class="sg-poster-section" aria-label="${escapeHtml(group.name)}">
+            <div class="sg-poster-section-heading"><h3>${escapeHtml(group.name)}</h3><span>左右滑动查看更多</span></div>
+            <div class="sg-poster-track">${group.items.map(item => sgPosterCard(item, posterIndex++)).join('')}</div>
+          </section>
+        `).join('');
         host.querySelectorAll('[data-aurora-title]').forEach(card => card.addEventListener('click', () => openAuroraSearch(card.getAttribute('data-aurora-title') || '')));
         host._sgPosterRenderKey = posterRenderKey;
         sgBalancePosterRows();
@@ -2873,6 +2890,8 @@
       openAuroraWorkspace();
       currentMode = mode;
       currentView = 'normal';
+      // Bottom dock highlights the existing live button in TV mode.
+      document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', mode === 'tv' && b.dataset.auroraNav === 'live'));
 
       // 切换板块时彻底清空上方搜索框文字并重置清除按钮
       const filterInput = document.getElementById('filter');
