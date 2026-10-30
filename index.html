@@ -11,7 +11,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.20.2-layout-ff442c1e4cec">
+  <link rel="stylesheet" href="css/aurora.css?v=3.20.2-compact-18761592e457">
 </head>
 <body class="aurora-home-view shiguang-booting">
 
@@ -109,8 +109,8 @@
         <label>排序<select id="aurora-filter-sort" onchange="applyAuroraDiscoveryFilters()"><option value="popular">热门优先</option><option value="rating">评分最高</option><option value="newest">最近上映</option></select></label>
       </div></div>
       <div id="sg-category-filters" class="sg-category-filters" hidden aria-label="分类和地区筛选">
-        <div class="sg-filter-line"><span class="sg-filter-label">分类</span><div id="sg-filter-categories" class="sg-filter-pills" role="group" aria-label="分类筛选"></div></div>
-        <div class="sg-filter-line"><span class="sg-filter-label">地区</span><div id="sg-filter-regions" class="sg-filter-pills" role="group" aria-label="地区筛选"></div></div>
+        <div class="sg-filter-line"><div id="sg-filter-categories" class="sg-filter-pills" role="group" aria-label="分类筛选"></div></div>
+        <div class="sg-filter-line"><div id="sg-filter-regions" class="sg-filter-pills" role="group" aria-label="地区筛选"></div></div>
       </div>
       <div id="aurora-recommendations" class="aurora-poster-grid"><div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取 D1 热门榜</strong><small>电影与电视剧每日更新，不使用个人收藏或观看历史</small></div></div>
     </section>
@@ -433,6 +433,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.20.2-layout-f22a09ac56e0"></script>
+  <script defer src="js/app.js?v=3.20.2-compact-37fc1c7b31ee"></script>
 </body>
 </html>
