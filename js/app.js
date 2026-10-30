@@ -775,15 +775,11 @@
     const favs = await getFavoritesList(true);
 
       if (favs.length === 0) {
-        container.innerHTML = `<div class="sg-personal-back-row"><button type="button" class="sg-personal-back" onclick="switchSidebarView('normal')">‹ 返回</button></div><div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">⭐ 我的收藏 (0)</span></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
+        container.innerHTML = `<div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">⭐ 我的收藏 (0)</span></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
         return;
       }
 
       const frag = document.createDocumentFragment();
-      const backBar = document.createElement('div');
-      backBar.className = 'sg-personal-back-row';
-      backBar.innerHTML = '<button type="button" class="sg-personal-back" onclick="switchSidebarView(\'normal\')" aria-label="返回搜索列表">‹ 返回</button>';
-      frag.appendChild(backBar);
       const headerBar = document.createElement('div');
       headerBar.className = 'top-unified-bar sg-personal-titlebar';
       headerBar.innerHTML = `<span class="sources-header-title">⭐ 我的收藏 (${favs.length})</span>`;
@@ -1134,15 +1130,11 @@
       const history = await getHistoryList();
 
       if (history.length === 0) {
-        container.innerHTML = `<div class="sg-personal-back-row"><button type="button" class="sg-personal-back" onclick="switchSidebarView('normal')">‹ 返回</button></div><div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">🕒 观看历史 (0)</span><button type="button" class="sg-personal-clear" onclick="clearAllHistory()">清空</button></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
+        container.innerHTML = `<div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">🕒 观看历史 (0)</span><button type="button" class="sg-personal-clear" onclick="clearAllHistory()">清空</button></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
         return;
       }
 
       const frag = document.createDocumentFragment();
-      const backBar = document.createElement('div');
-      backBar.className = 'sg-personal-back-row';
-      backBar.innerHTML = '<button type="button" class="sg-personal-back" onclick="switchSidebarView(\'normal\')" aria-label="返回搜索列表">‹ 返回</button>';
-      frag.appendChild(backBar);
       const headerBar = document.createElement('div');
       headerBar.className = 'top-unified-bar sg-personal-titlebar';
       headerBar.innerHTML = `
@@ -2400,8 +2392,8 @@
     let auroraActiveCategory = '';
     let auroraHeroIndex = 0;
     let auroraHeroTimer = null;
-    // 3.20.2 view-only category discovery: uses the already loaded D1/cached list.
-    // The existing year, rating and order selectors still filter these same items.
+    // Category discovery uses the existing D1/cache list. Only capsule category/region
+    // filters apply here; home-page year/rating/order selectors stay independent.
     const sgCategoryFilters = { sub:'all', region:'all' };
     const sgCategoryPillNames = {
       '电影':['全部','热门电影','最新电影','高分佳片','冷门佳片'],
@@ -2437,14 +2429,14 @@
       const wrapper = document.getElementById('sg-category-filters');
       if (!wrapper) return;
       wrapper.hidden = !auroraActiveCategory;
-      // Keep year/rating/order controls, but place the new capsule filters first.
+      // Legacy year/rating/order controls remain in the HOME heading only.
+      // Category pages hide them in CSS; do not move them beneath the capsule filter.
       const originalFilters = document.querySelector('.aurora-discovery-filters');
       const heading = document.querySelector('.aurora-section-head');
       if (!auroraActiveCategory) {
         if (originalFilters && heading && originalFilters.parentElement !== heading) heading.appendChild(originalFilters);
         return;
       }
-      if (originalFilters && wrapper.nextElementSibling !== originalFilters) wrapper.insertAdjacentElement('afterend',originalFilters);
       const names = sgCategoryPillNames[auroraActiveCategory] || sgCategoryPillNames['电影'];
       const makePills = (items, kind, active) => items.map(({id,label}) =>
         `<button type="button" class="sg-filter-pill ${id === active ? 'active' : ''}" aria-pressed="${id === active}" data-sg-kind="${kind}" data-sg-value="${id}">${escapeHtml(label)}</button>`).join('');
@@ -2511,9 +2503,11 @@
       const visible = auroraActiveCategory
         ? auroraRecommendationItems.filter(auroraCategoryPredicate)
         : auroraRecommendationItems.filter(item => ['电影', '电视剧'].includes(classifyAuroraMedia(item)));
-      const year = document.getElementById('aurora-filter-year')?.value || '';
-      const minRating = Number(document.getElementById('aurora-filter-rating')?.value || 0);
-      const sort = document.getElementById('aurora-filter-sort')?.value || 'popular';
+      // Only the HOME view uses the year/rating/order selectors.
+      // Hidden home filters must never restrict movie/series/variety/anime rails.
+      const year = auroraActiveCategory ? '' : (document.getElementById('aurora-filter-year')?.value || '');
+      const minRating = auroraActiveCategory ? 0 : Number(document.getElementById('aurora-filter-rating')?.value || 0);
+      const sort = auroraActiveCategory ? 'popular' : (document.getElementById('aurora-filter-sort')?.value || 'popular');
       const filtered = visible.filter(item =>
         (!year || String(item.year || '') === year) &&
         (!minRating || Number(item.voteAverage || 0) >= minRating)
@@ -2806,7 +2800,7 @@
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
         host._sgPosterRenderKey = null;
-        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '当前筛选暂无匹配内容' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '可以切换上方分类、地区、年份或评分；榜单内容取决于 D1 已同步的影视资料。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
+        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '当前筛选暂无匹配内容' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '可以切换上方胶囊选项；榜单内容取决于 D1 已同步的影视资料。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
         if (heroTitle) { heroTitle.textContent = '你的私人影院'; heroTitle.dataset.title = ''; }
         if (heroDesc) heroDesc.textContent = '连接你自己的影视源后，这里会显示真实影片与海报。';
         if (heroMeta) heroMeta.innerHTML = '<span>个人影视源</span><span>不展示收藏和历史</span>';
