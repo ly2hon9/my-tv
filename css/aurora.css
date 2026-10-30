@@ -1,0 +1,3121 @@
+    :root {
+      --bg-base: #0f0f0f;
+      --bg-workspace: #08080a;
+      --bg-sidebar: #161616;
+      --bg-search-box: #1f1f1f;
+      --bg-input: #111111;
+      --bg-card: #181818;
+      --bg-card-hover: #222222;
+      --bg-tag: #2a2a2a;
+      --bg-sub-panel: #111111;
+      --border-color: #282828;
+      --border-light: #383838;
+      --text-main: #eeeeee;
+      --text-sub: #888888;
+      --text-mute: #666666;
+      --accent: #0070f3;
+      --accent-soft: rgba(0, 112, 243, 0.15);
+      --card-shadow: 0 4px 12px rgba(0,0,0,0.5);
+
+      /* 高级毛玻璃系统变量 (暗色) */
+      --glass-bg: rgba(28, 28, 32, 0.78);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      --glass-mask: rgba(0, 0, 0, 0.65);
+    }
+
+    body.theme-light {
+      --bg-base: #f1f5f9;
+      --bg-workspace: #e2e8f0;
+      --bg-sidebar: #f8fafc;
+      --bg-search-box: #ffffff;
+      --bg-input: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --bg-tag: #e2e8f0;
+      --bg-sub-panel: #f8fafc;
+      --border-color: #e2e8f0;
+      --border-light: #cbd5e1;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --text-mute: #94a3b8;
+      --accent: #0070f3;
+      --accent-soft: rgba(0, 112, 243, 0.08);
+      --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
+
+      /* 高级毛玻璃系统变量 (亮色) */
+      --glass-bg: rgba(255, 255, 255, 0.84);
+      --glass-border: rgba(255, 255, 255, 0.75);
+      --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
+      --glass-mask: rgba(15, 23, 42, 0.35);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; background-color: var(--bg-base); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; display: flex; flex-direction: column; transition: background-color 0.25s, color 0.25s; }
+
+    #auth-gate-screen {
+      position: fixed; inset: 0; z-index: 9999999;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      background: linear-gradient(180deg, #edf5f8 0%, #f4f7f6 45%, #fcfdfc 100%);
+      transition: background 0.3s ease;
+    }
+    #auth-gate-screen.dark-theme {
+      background: linear-gradient(180deg, #0e1114 0%, #15181c 50%, #1a1e22 100%);
+    }
+
+    .gate-top-bar { position: absolute; top: 18px; right: 20px; }
+    .gate-theme-btn { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; outline: none; }
+
+    .gate-card {
+      background: #ffffff; border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.06);
+      width: 86%; max-width: 320px; padding: 32px 24px 28px 24px;
+      box-sizing: border-box; text-align: center;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #auth-gate-screen.dark-theme .gate-card {
+      background: #1e2126; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    }
+
+    .gate-logo {
+      font-size: 23px; font-weight: 800; color: #54a56a;
+      letter-spacing: 3px; margin-bottom: 22px; font-family: -apple-system, sans-serif;
+    }
+    .gate-sub-tip { font-size: 11px; color: #888; margin-top: -14px; margin-bottom: 18px; display: none; }
+
+    .gate-input-box {
+      display: flex; align-items: center; background: #f7f8fa;
+      border: 1px solid #eef0f4; border-radius: 8px; padding: 0 12px;
+      height: 44px; margin-bottom: 14px; box-sizing: border-box;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #auth-gate-screen.dark-theme .gate-input-box {
+      background: #14161a; border-color: #2b3038;
+    }
+    .gate-input-box:focus-within {
+      border-color: #72b784; background: #fff;
+    }
+    #auth-gate-screen.dark-theme .gate-input-box:focus-within {
+      background: #111316; border-color: #54a56a;
+    }
+
+    .gate-input-icon { font-size: 14px; color: #999; flex-shrink: 0; margin-right: 8px; user-select: none; }
+    .gate-input-box input {
+      border: none; background: transparent; outline: none;
+      font-size: 13px; color: #333; flex: 1; width: 100%;
+    }
+    #auth-gate-screen.dark-theme .gate-input-box input { color: #eee; }
+    .gate-input-box input::placeholder { color: #aaa; }
+
+    .gate-eye-btn { 
+      background: none; border: none; cursor: pointer; color: #888; padding: 0 2px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; outline: none;
+      transition: color 0.15s;
+    }
+    .gate-eye-btn:hover { color: #555; }
+    #auth-gate-screen.dark-theme .gate-eye-btn:hover { color: #ccc; }
+
+    .gate-options-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: #888; margin-top: 4px; margin-bottom: 22px; user-select: none;
+    }
+    .gate-remember-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #888; }
+    .gate-remember-wrap input { accent-color: #54a56a; width: 14px; height: 14px; cursor: pointer; }
+    .gate-switch-link { color: #54a56a; cursor: pointer; font-weight: 500; }
+
+    .gate-submit-btn {
+      width: 100%; height: 42px; background: #b0d4bb;
+      color: #fff; font-size: 14px; font-weight: 600; border: none;
+      border-radius: 8px; cursor: pointer; transition: background 0.25s, box-shadow 0.25s, transform 0.1s;
+    }
+    .gate-submit-btn.btn-ready {
+      background: #2e7d44 !important;
+      box-shadow: 0 4px 14px rgba(46, 125, 68, 0.4);
+    }
+    .gate-submit-btn.btn-ready:hover { background: #256637 !important; }
+    .gate-submit-btn:active { transform: scale(0.98); }
+
+    .gate-error-tip { font-size: 12px; color: #ef4444; margin-top: 10px; display: none; text-align: center; }
+
+    #player-wrap { 
+      width: 100%; height: 40vh; min-height: 240px; background: #000; position: relative; 
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default;
+    }
+    #player-wrap.pseudo-fullscreen {
+      position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999 !important; max-height: none !important;
+    }
+
+    video { width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 1; transition: object-fit 0.2s; }
+    video.fit-cover { object-fit: cover; }
+    video.fit-fill { object-fit: fill; }
+
+    #top-bar { 
+      position: absolute; top: 0; left: 0; right: 0; padding: 10px 14px; 
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); 
+      display: flex; justify-content: space-between; align-items: center; z-index: 10; transition: opacity 0.3s ease;
+    }
+    .top-left-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    #current-title { font-size: 14px; font-weight: bold; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.9); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #btn-fav-toggle { background: none; border: none; font-size: 18px; cursor: pointer; color: #aaa; transition: transform 0.15s, color 0.15s; line-height: 1; flex-shrink: 0; }
+    #btn-fav-toggle.active { color: #facc15; transform: scale(1.15); }
+    #current-route-badge { font-size: 11px; background: #0070f3; color: #fff; padding: 2px 6px; border-radius: 4px; display: none; flex-shrink: 0; }
+
+    #status-layer { 
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 8; 
+      color: #fff; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(12px); 
+      border: 1px solid rgba(255,255,255,0.18); padding: 14px 22px; border-radius: 12px; 
+      font-size: 13px; pointer-events: auto; display: none; text-align: center; max-width: 85%; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7); line-height: 1.6;
+    }
+
+    #gesture-tip {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 20px; border-radius: 24px;
+      font-size: 14px; font-weight: 600; z-index: 9; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    }
+
+    #custom-controls {
+      position: absolute; bottom: 0; left: 0; right: 0; 
+      background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 75%, transparent 100%); 
+      display: flex; flex-direction: column; z-index: 15; transition: opacity 0.3s ease;
+    }
+    #player-wrap.controls-hidden #custom-controls,
+    #player-wrap.controls-hidden #top-bar { opacity: 0; pointer-events: none; }
+    #player-wrap.controls-hidden { cursor: none; }
+
+    #progress-container {
+      width: 100%; height: 18px; cursor: pointer; display: flex; align-items: center; padding: 0 10px; touch-action: none; user-select: none;
+    }
+    #progress-track {
+      width: 100%; height: 3px; background: rgba(255,255,255,0.25); border-radius: 2px; position: relative; transition: height 0.15s ease;
+    }
+    #progress-container.dragging #progress-track,
+    #progress-container:hover #progress-track { height: 5px; }
+    #progress-bar { height: 100%; width: 0%; background: #0070f3; border-radius: 2px; position: relative; }
+    #progress-thumb {
+      width: 12px; height: 12px; border-radius: 50%; background: #fff; position: absolute; right: -6px; top: 50%; 
+      transform: translateY(-50%) scale(0); transition: transform 0.15s ease; box-shadow: 0 0 6px rgba(0,0,0,0.8); pointer-events: none;
+    }
+    #progress-container.dragging #progress-thumb,
+    #progress-container:hover #progress-thumb { transform: translateY(-50%) scale(1); }
+
+    .controls-inner { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; gap: 6px; }
+    .ctrl-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .ctrl-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; opacity: 0.85; transition: opacity 0.2s; font-size: 12px; padding: 2px; }
+    .ctrl-btn:hover { opacity: 1; }
+    .ctrl-time { font-size: 11px; color: #aaa; font-family: monospace; white-space: nowrap; user-select: none; }
+    
+    .pill-btn {
+      font-size: 11px; font-weight: 600; padding: 2px 5px; border-radius: 4px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ddd; white-space: nowrap;
+    }
+
+    .volume-box { display: flex; align-items: center; gap: 4px; }
+    .volume-slider { width: 50px; height: 3px; -webkit-appearance: none; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; cursor: pointer; }
+    .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #fff; }
+
+    .ctrl-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+    .external-group { 
+      display: flex; align-items: center; gap: 5px; 
+      background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(8px); 
+      padding: 3px 6px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15); 
+      overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-shrink: 1; max-width: 140px;
+    }
+    .external-group::-webkit-scrollbar { display: none; }
+    .ext-btn { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: none; background: rgba(255,255,255,0.9); cursor: pointer; padding: 0; flex-shrink: 0; }
+    .ext-btn svg { width: 14px; height: 14px; }
+
+    #sidebar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-sidebar); border-top: 1px solid var(--border-color); transition: background 0.25s, border-color 0.25s; }
+    #search-box { padding: 10px 12px; background: var(--bg-search-box); border-bottom: 1px solid var(--border-color); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: background 0.25s, border-color 0.25s; }
+
+    .search-row-primary { display: flex; align-items: center; gap: 6px; width: 100%; }
+    .search-row-secondary { display: flex; align-items: center; gap: 6px; width: 100%; }
+
+    .search-input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+    #search-box input { width: 100%; padding: 8px 28px 8px 12px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-input); color: var(--text-main); font-size: 13px; outline: none; transition: background 0.25s, border-color 0.25s, color 0.25s; }
+    .btn-clear-kw { position: absolute; right: 8px; color: var(--text-sub); cursor: pointer; font-size: 14px; display: none; }
+
+    .btn-search { background: var(--accent); border: none; color: #fff; border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+    
+    .btn-quick-theme {
+      background: var(--bg-input); border: 1px solid var(--border-light); border-radius: 6px;
+      width: 35px; height: 34px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; outline: none; transition: background 0.2s, border-color 0.2s; }
+    .btn-quick-theme:hover { background: var(--bg-card-hover); }
+
+    .btn-tool-mid { 
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 6px; 
+      padding: 7px 0; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; text-align: center;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .btn-tool-mid:hover { background: var(--bg-card-hover); }
+    .btn-tool-mid.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .mode-tab-group { display: flex; gap: 6px; }
+    .mode-tab { flex: 1; padding: 7px 0; background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub); font-size: 12px; border-radius: 6px; cursor: pointer; text-align: center; transition: all 0.2s ease; outline: none; }
+    .mode-tab.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; font-weight: 600; }
+
+    #channel-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    /* ===================================================================
+       单排常驻吸顶工具栏：手机端一排完整排下，绝不左右滑动
+       ================================================================== */
+    .top-unified-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 3px; padding: 6px 8px; background: var(--bg-search-box);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky; top: 0; z-index: 20;
+      width: 100%; box-sizing: border-box; overflow: hidden;
+    }
+
+    .bar-left-group {
+      display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0;
+    }
+
+    .bar-right-group {
+      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+
+    .filter-pill-btn {
+      background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-sub);
+      padding: 3px 6px; border-radius: 6px; font-size: 11px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s ease;
+      display: inline-flex; align-items: center; justify-content: center; outline: none;
+      line-height: 1.2;
+    }
+    .filter-pill-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
+    .filter-pill-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0, 112, 243, 0.35); font-weight: 600;
+    }
+
+    .btn-sort-action { 
+      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 6px; 
+      padding: 3px 7px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      gap: 3px; white-space: nowrap; font-weight: 500; transition: all 0.15s ease; outline: none;
+      line-height: 1.2;
+    }
+    .btn-sort-action:hover { background: var(--bg-card-hover); }
+    .btn-sort-action.active-sort { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+    @media (max-width: 400px) {
+      .filter-pill-btn, .btn-sort-action {
+        padding: 2.5px 4.5px;
+        font-size: 10px;
+      }
+      .top-unified-bar {
+        padding: 5px 4px;
+        gap: 2px;
+      }
+    }
+
+    .title-group-box { border-bottom: 1px solid var(--border-color); background: var(--bg-card); transition: background 0.2s; }
+    .title-group-header {
+      padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none; transition: background 0.15s;
+    }
+    .title-group-header:hover { background: var(--bg-card-hover); }
+    .title-group-box.active-group .title-group-header { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+    .group-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+    .group-poster { width: 44px; height: 60px; border-radius: 4px; object-fit: cover; background: var(--border-color); flex-shrink: 0; }
+    .group-info-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+    .group-main-title { font-size: 14px; font-weight: bold; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .group-meta-tag { font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .group-badge-count { background: var(--bg-tag); color: var(--accent); padding: 1px 6px; border-radius: 10px; font-weight: 500; }
+    .group-pub-time { font-size: 10px; color: var(--text-mute); font-family: monospace; }
+    .group-arrow { font-size: 12px; color: var(--text-sub); transition: transform 0.2s ease; margin-left: 8px; flex-shrink: 0; }
+    .title-group-box.expanded .group-arrow { transform: rotate(180deg); color: var(--accent); }
+
+    .group-body-panel { display: none; background: var(--bg-sub-panel); padding: 6px 10px 12px 10px; border-top: 1px solid var(--border-color); }
+    .title-group-box.expanded .group-body-panel { display: block; }
+
+    .episodes-collapse-box { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; padding: 8px 10px; margin-top: 8px; margin-bottom: 6px; }
+    .episodes-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--text-main); }
+    .episodes-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-ep-order { background: var(--bg-tag); border: 1px solid var(--border-light); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+    .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; margin-top: 8px; max-height: 140px; overflow-y: auto; }
+    .ep-item { background: var(--bg-tag); border: 1px solid var(--border-light); padding: 5px 2px; border-radius: 4px; font-size: 11px; color: var(--text-sub); text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ep-item.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: bold; }
+
+    .source-sub-card { 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); 
+      border-radius: 6px; cursor: pointer; transition: background 0.15s;
+    }
+    .source-sub-card:hover { background: var(--bg-card-hover); }
+    .source-sub-card.active-sub { border-color: var(--accent); background: var(--accent-soft); }
+    
+    .source-sub-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+    .card-sitename-tag { background: var(--bg-tag); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--text-main); font-weight: 500; }
+    .source-sub-card.active-sub .card-sitename-tag, .single-source-card.active-group .card-sitename-tag { background: var(--accent); color: #fff; }
+    
+    .card-quality { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+    .card-quality.q-4k { background: #4a2828; color: #f87171; }
+    .card-quality.q-1080 { background: #283e2e; color: #4ade80; }
+    .card-quality.q-720 { background: #26354a; color: #60a5fa; }
+    .card-quality.q-normal { background: var(--bg-tag); color: var(--text-sub); }
+
+    .card-censor { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
+    .card-censor.c-wuma { background: #3b0764; color: #f0abfc; border: 1px solid #a855f7; }
+    .card-censor.c-youma { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
+    body.theme-light .card-censor.c-wuma { background: #fdf4ff; color: #a21caf; border-color: #f0abfc; }
+    body.theme-light .card-censor.c-youma { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+    .card-status-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: monospace; }
+    .metric-ping-ok { color: #4ade80; }
+    .metric-ping-warn { color: #facc15; }
+    .metric-ping-err { color: #f87171; }
+    .metric-ping-wait { color: var(--text-sub); }
+
+    .history-card { 
+      display: flex; gap: 10px; align-items: center; padding: 10px 14px; 
+      border-bottom: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer;
+      box-sizing: border-box; transform-origin: top center;
+    }
+    .history-card:hover { background: var(--bg-card-hover); }
+    .history-info { flex: 1; min-width: 0; }
+    .history-title { font-size: 14px; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .history-meta { font-size: 12px; color: var(--text-sub); margin-top: 4px; display: flex; gap: 10px; align-items: center; }
+    .btn-del-item { background: none; border: none; color: var(--text-mute); font-size: 14px; cursor: pointer; padding: 4px; }
+    .btn-del-item:hover { color: #ef4444; }
+
+    .group-header { padding: 12px 16px; background: var(--bg-card); font-size: 13px; font-weight: bold; color: var(--text-sub); cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); user-select: none; }
+    .channel-row { border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
+    .channel-main { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+    .channel-title { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-main); }
+    .channel-row.expanded .channel-arrow { transform: rotate(90deg); color: var(--accent); }
+    .channel-row.playing .channel-title { color: var(--accent); font-weight: bold; }
+    .sources-panel { display: none; background: var(--bg-sub-panel); padding: 8px 12px 12px 16px; border-top: 1px solid var(--border-color); }
+    .channel-row.expanded .sources-panel { display: block; }
+    .source-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-top: 6px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .source-item:hover { background: var(--bg-card-hover); }
+    .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
+
+    /* 电视直播专属：EPG 电子节目预告与 VPS 测速面板 */
+    .tv-epg-inline-tag { font-size: 11px; color: var(--text-sub); font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+    .channel-row.playing .tv-epg-inline-tag { color: var(--accent); }
+    .tv-epg-box { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; font-size: 12px; }
+    .tv-epg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: var(--text-sub); }
+    .tv-epg-actions { display: flex; align-items: center; gap: 6px; }
+    .tv-epg-btn { background: var(--bg-tag); border: 1px solid var(--border-light); color: var(--accent); padding: 2px 7px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 500; }
+    .tv-epg-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; line-height: 1.4; }
+    .tv-epg-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+    .tv-epg-badge.live { background: rgba(0, 112, 243, 0.18); color: var(--accent); border: 1px solid rgba(0, 112, 243, 0.4); }
+    .tv-epg-badge.next { background: var(--bg-tag); color: var(--text-sub); }
+    .tv-epg-time { font-family: monospace; font-size: 11px; color: var(--text-sub); flex-shrink: 0; }
+    .tv-epg-title { color: var(--text-main); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .tv-epg-progress { width: 100%; height: 3px; background: var(--border-color); border-radius: 2px; margin: 5px 0 4px 0; overflow: hidden; }
+    .tv-epg-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+    .tv-epg-schedule { display: none; max-height: 170px; overflow-y: auto; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-light); scrollbar-width: thin; }
+    .tv-epg-schedule.show { display: block; }
+    .tv-epg-schedule-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: 11px; color: var(--text-sub); }
+    .tv-epg-schedule-item.is-live { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .tv-fast-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; background: #283e2e; color: #4ade80; font-weight: 600; margin-left: 6px; }
+
+    /* ===================================================================
+       高级全套毛玻璃系统 (Glassmorphism Modal System)
+       =================================================================== */
+    .glass-modal-mask {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--glass-mask);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      z-index: 10000;
+      display: none; align-items: center; justify-content: center;
+      padding: 16px; box-sizing: border-box;
+      animation: glassFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes glassFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .glass-modal-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(35px) saturate(190%);
+      -webkit-backdrop-filter: blur(35px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: var(--glass-shadow);
+      color: var(--text-main);
+      width: 100%; max-width: 480px;
+      padding: 22px 20px 20px 20px;
+      box-sizing: border-box;
+      max-height: 88vh; overflow-y: auto;
+      scrollbar-width: thin;
+      transition: all 0.25s ease;
+    }
+    .glass-modal-card h3 {
+      font-size: 16px; font-weight: 700;
+      margin-bottom: 14px;
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--text-main);
+    }
+
+    .glass-nav-card-btn {
+      width: 100%; height: 46px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px; margin-bottom: 10px;
+      color: var(--text-main); font-size: 13px; font-weight: 600;
+      cursor: pointer; outline: none; transition: all 0.15s ease;
+    }
+    body.theme-light .glass-nav-card-btn { background: rgba(0, 0, 0, 0.03); }
+    .glass-nav-card-btn:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .input-label { font-size: 12px; color: var(--text-sub); margin-top: 10px; margin-bottom: 4px; display: block; }
+    .glass-modal-card input, .glass-modal-card select {
+      width: 100%; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-input); color: var(--text-main);
+      font-size: 13px; outline: none; transition: border-color 0.2s;
+    }
+    .glass-modal-card input:focus, .glass-modal-card select:focus {
+      border-color: var(--accent);
+    }
+    .sub-stats { font-size: 12px; color: var(--accent); margin-top: 6px; }
+    .last-sync-time { font-size: 12px; color: var(--text-sub); margin-top: 4px; font-family: monospace; }
+
+    .settings-user-header-box {
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 10px 14px; margin-bottom: 14px;
+    }
+    body.theme-light .settings-user-header-box { background: rgba(0, 0, 0, 0.03); }
+
+    .user-badge-role { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .role-admin { background: #3b2d11; color: #facc15; }
+
+    /* 采集源列表内部独立视窗 */
+    #sites-items-container {
+      max-height: 320px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-sub-panel);
+      padding: 4px 6px;
+      scrollbar-width: thin;
+    }
+
+    .site-toggle-row { 
+      display: flex; 
+      align-items: center; 
+      padding: 8px 4px; 
+      border-bottom: 1px solid var(--border-color); 
+      font-size: 12px; 
+    }
+    .site-toggle-row:last-child { border-bottom: none; }
+    .btn-site-toggle { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
+    .btn-site-toggle.enabled { background: #238636; color: #fff; }
+    .btn-site-toggle.disabled { background: var(--border-light); color: var(--text-sub); }
+    
+    .btn-small-perm { background: var(--bg-card); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 500; }
+    .btn-small-del, .btn-danger-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; margin-left: 4px; }
+
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .btn-action { padding: 8px 14px; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: 500; white-space: nowrap; }
+    .btn-cancel { background: var(--bg-tag); color: var(--text-main); }
+    .btn-sync { background: #238636; color: #fff; }
+    .btn-save { background: var(--accent); color: #fff; }
+
+    .perm-sites-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px; max-height: 260px; overflow-y: auto; margin-top: 10px; padding: 6px 0;
+    }
+    .perm-site-chip {
+      display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border-light);
+      padding: 6px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; user-select: none; color: var(--text-main);
+    }
+    .perm-site-chip input { width: 14px; height: 14px; accent-color: var(--accent); }
+
+    .group-card-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 6px; font-size: 12px;
+    }
+
+    .scroll-loading-indicator {
+      padding: 12px; text-align: center; font-size: 12px; color: var(--text-sub);
+    }
+
+    @media (max-width: 600px) {
+      .volume-slider { display: none; }
+      .pip-btn { display: none; }
+    }
+
+    @media (min-width: 601px) {
+      .search-row-primary { flex: 1; }
+      .search-row-secondary { width: auto; flex-shrink: 0; gap: 6px; }
+      .btn-tool-mid { flex: none; padding: 8px 14px; }
+      .external-group { max-width: none; }
+    }
+
+    /* 电脑 / 平板端 剧场沉浸双视窗布局 (Theatre Workspace) */
+    @media (min-width: 900px) {
+      body {
+        flex-direction: row;
+        background-color: var(--bg-workspace);
+        padding: 18px 24px;
+        gap: 20px;
+        align-items: stretch;
+      }
+      #player-wrap {
+        flex: 1;
+        height: 100%;
+        min-height: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+      }
+      #sidebar {
+        width: 420px;
+        max-width: 450px;
+        height: 100%;
+        border-top: none;
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+      }
+    }
+
+    /* ================================================================
+       拾光影视 · AURORA 全新主题层
+       只重绘视觉与响应式布局；保留原 DOM、事件、播放器及数据逻辑。
+       ================================================================ */
+    :root {
+      --bg-base: #080b14;
+      --bg-workspace: #070a12;
+      --bg-sidebar: #0e1321;
+      --bg-search-box: #11182a;
+      --bg-input: #0a1020;
+      --bg-card: #121b2d;
+      --bg-card-hover: #1a2740;
+      --bg-tag: #1b2940;
+      --bg-sub-panel: #0b1220;
+      --border-color: rgba(148, 163, 184, .16);
+      --border-light: rgba(148, 163, 184, .26);
+      --text-main: #f2f5ff;
+      --text-sub: #a0acc5;
+      --text-mute: #697791;
+      --accent: #8b7cff;
+      --accent-soft: rgba(139, 124, 255, .16);
+      --card-shadow: 0 14px 36px rgba(0,0,0,.26);
+      --glass-bg: rgba(15, 22, 38, .94);
+      --glass-border: rgba(169, 183, 220, .18);
+      --glass-shadow: 0 28px 90px rgba(0,0,0,.55);
+      --glass-mask: rgba(2, 5, 12, .78);
+      color-scheme: dark;
+    }
+    body.theme-light {
+      --bg-base: #f4f6fc;
+      --bg-workspace: #e9edf7;
+      --bg-sidebar: #ffffff;
+      --bg-search-box: #f8faff;
+      --bg-input: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f0f3ff;
+      --bg-tag: #edf0fa;
+      --bg-sub-panel: #f6f8fd;
+      --border-color: rgba(49, 64, 100, .12);
+      --border-light: rgba(49, 64, 100, .2);
+      --text-main: #17213b;
+      --text-sub: #66728d;
+      --text-mute: #8d98b0;
+      --accent: #6557e8;
+      --accent-soft: rgba(101, 87, 232, .1);
+      --card-shadow: 0 12px 30px rgba(36, 49, 91, .08);
+      --glass-bg: rgba(255,255,255,.96);
+      --glass-border: rgba(255,255,255,.8);
+      --glass-shadow: 0 24px 70px rgba(31,42,80,.2);
+      --glass-mask: rgba(16, 25, 48, .4);
+      color-scheme: light;
+    }
+    html, body { background: var(--bg-workspace); color: var(--text-main); }
+    body { gap: 0; }
+    button, input, select { font: inherit; }
+    button { transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* 登录 / 初始化：品牌化玻璃面板 */
+    #auth-gate-screen,
+    #auth-gate-screen.dark-theme {
+      background: radial-gradient(ellipse at 18% 12%, rgba(91, 79, 214, .32), transparent 42%),
+                  radial-gradient(ellipse at 85% 82%, rgba(34, 211, 238, .13), transparent 36%),
+                  #080b14;
+      color: #f2f5ff;
+    }
+    #auth-gate-screen::before { content: "SHIGUANG  /  CINEMA"; position: absolute; top: 30px; left: 34px; color: rgba(220,228,255,.55); font-size: 10px; letter-spacing: .28em; font-weight: 800; }
+    .gate-card {
+      width: min(420px, calc(100vw - 36px)); padding: 38px 34px 32px !important;
+      border-radius: 28px !important; border: 1px solid rgba(180,190,255,.2) !important;
+      background: linear-gradient(145deg, rgba(23,31,54,.94), rgba(12,17,31,.96)) !important;
+      box-shadow: 0 30px 100px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.07) !important;
+      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+    }
+    .gate-logo { color: #fff !important; font-size: 28px !important; letter-spacing: .12em !important; margin-bottom: 12px !important; }
+    .gate-logo::before { content: "✦"; display: block; color: #a99fff; font-size: 25px; margin-bottom: 14px; }
+    .gate-sub-tip { color: #a9b5d0 !important; margin-top: 0 !important; }
+    .gate-input-box, #auth-gate-screen.dark-theme .gate-input-box {
+      height: 50px; border-radius: 14px; background: rgba(5,10,22,.72); border: 1px solid rgba(154,169,211,.22);
+    }
+    .gate-input-box:focus-within, #auth-gate-screen.dark-theme .gate-input-box:focus-within { background: rgba(5,10,22,.95); border-color: #8b7cff; box-shadow: 0 0 0 4px rgba(139,124,255,.12); }
+    .gate-input-box input, #auth-gate-screen.dark-theme .gate-input-box input { color: #f2f5ff; }
+    .gate-remember-wrap, .gate-options-row { color: #9aa8c6; }
+    .gate-switch-link, .gate-remember-wrap input { color: #b1a8ff; accent-color: #8b7cff; }
+    .gate-submit-btn, .gate-submit-btn.btn-ready { height: 50px; border-radius: 14px; background: linear-gradient(100deg,#7b68f5,#4f9ef8) !important; box-shadow: 0 12px 28px rgba(93,104,243,.28) !important; color: white; }
+    .gate-submit-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    .gate-top-bar { top: 24px; right: 28px; }
+
+    /* 播放器：沉浸式影院窗口 */
+    #player-wrap {
+      background: #03050a; border: 1px solid rgba(170,180,230,.15); border-radius: 22px;
+      box-shadow: 0 24px 65px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.04);
+      isolation: isolate;
+    }
+    #player-wrap::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255,255,255,.035); }
+    #top-bar { padding: 18px 20px; background: linear-gradient(180deg,rgba(4,7,16,.9),rgba(4,7,16,.18),transparent); }
+    #current-title { font-size: 15px; letter-spacing: .01em; }
+    #btn-fav-toggle { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,.1); color: #d4dcf5; }
+    #btn-fav-toggle.active { background: rgba(255,198,89,.16); color: #ffc659; }
+    #current-route-badge { background: linear-gradient(100deg,#7868f2,#3b9bde); border-radius: 999px; padding: 5px 10px; font-weight: 700; }
+    #status-layer { border-radius: 18px; border-color: rgba(176,188,255,.2); background: rgba(10,15,29,.88); }
+    #custom-controls { padding: 0 10px 10px; background: linear-gradient(to top,rgba(3,6,14,.98),rgba(3,6,14,.55) 72%,transparent); }
+    #progress-container { height: 22px; }
+    #progress-track { height: 4px; background: rgba(255,255,255,.22); }
+    #progress-bar { background: linear-gradient(90deg,#8b7cff,#38c9ec); }
+    .controls-inner { min-height: 44px; }
+    .ctrl-btn { border-radius: 9px; }
+    .ctrl-btn:hover { background: rgba(255,255,255,.12); }
+    .pill-btn { border-radius: 999px; padding: 5px 9px; background: rgba(137,150,194,.17); border-color: rgba(200,210,255,.18); }
+    .external-group { border-radius: 999px; background: rgba(17,25,45,.78); border-color: rgba(190,202,255,.18); }
+
+    /* 工作区与导航 */
+    #sidebar { background: var(--bg-sidebar); border-color: var(--border-color); min-width: 0; }
+    #search-box { padding: 16px; gap: 12px; background: linear-gradient(180deg,var(--bg-search-box),var(--bg-sidebar)); border-bottom: 1px solid var(--border-color); }
+    .search-row-primary { gap: 9px; }
+    #search-box input { min-height: 43px; padding: 10px 38px 10px 15px; border-radius: 13px; border: 1px solid var(--border-light); background: var(--bg-input); font-size: 13px; }
+    #search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+    .btn-search { min-height: 43px; padding: 0 18px; border-radius: 13px; background: linear-gradient(110deg,#7b68f5,#4d9df6); box-shadow: 0 7px 18px rgba(92,105,242,.2); font-weight: 700; }
+    .btn-search:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    .btn-quick-theme { width: 43px; height: 43px; border-radius: 13px; border-color: var(--border-light); }
+    .search-row-secondary { gap: 8px; }
+    .btn-tool-mid { min-height: 39px; border-radius: 12px; border-color: var(--border-color); background: var(--bg-card); font-weight: 600; }
+    .btn-tool-mid:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .btn-tool-mid.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .mode-tab-group { gap: 8px; padding: 5px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 15px; }
+    .mode-tab { min-height: 42px; border: 0; border-radius: 11px; background: transparent; font-weight: 700; font-size: 13px; }
+    .mode-tab.active { background: linear-gradient(110deg,#7b68f5,#4d9df6) !important; box-shadow: 0 5px 14px rgba(92,105,242,.2); }
+    #channel-list { background: var(--bg-sidebar); scrollbar-color: var(--border-light) transparent; scrollbar-width: thin; }
+
+    /* 搜索筛选、分类、排序与列表卡片 */
+    .top-unified-bar { background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); padding: 10px 12px; gap: 6px; }
+    .filter-pill-btn, .btn-sort-action { border-radius: 999px; border-color: var(--border-light); background: var(--bg-card); padding: 6px 10px; font-size: 11px; }
+    .filter-pill-btn.active, .btn-sort-action.active-sort { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(139,124,255,.12); }
+    .title-group-box { margin: 8px 10px; border: 1px solid var(--border-color); border-radius: 16px; overflow: hidden; background: var(--bg-card); box-shadow: 0 5px 18px rgba(0,0,0,.08); }
+    .title-group-header { padding: 13px; gap: 12px; }
+    .title-group-header:hover { background: var(--bg-card-hover); }
+    .title-group-box.active-group .title-group-header { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+    .group-poster { width: 54px; height: 72px; border-radius: 9px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+    .group-main-title { font-size: 14px; letter-spacing: .01em; }
+    .group-badge-count { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 8px; }
+    .group-body-panel { padding: 12px; }
+    .episodes-collapse-box { border-radius: 14px; padding: 12px; }
+    .episodes-grid { grid-template-columns: repeat(auto-fill,minmax(58px,1fr)); gap: 7px; max-height: 220px; }
+    .ep-item { padding: 9px 4px; border-radius: 9px; background: var(--bg-input); }
+    .ep-item.active { background: linear-gradient(110deg,#7b68f5,#4d9df6); border-color: transparent; }
+    .source-sub-card, .source-item { border-radius: 12px; padding: 11px 13px; border-color: var(--border-color); }
+    .source-sub-card.active-sub, .source-item.active-source { border-color: var(--accent); background: var(--accent-soft); }
+    .card-sitename-tag { border-radius: 999px; padding: 4px 9px; }
+    .history-card { margin: 6px 10px; border: 1px solid var(--border-color); border-radius: 13px; padding: 12px; }
+    .group-header { background: var(--bg-search-box); color: var(--text-sub); padding: 14px 16px; }
+    .channel-row { margin: 6px 10px; border: 1px solid var(--border-color); border-radius: 13px; overflow: hidden; }
+    .channel-main { padding: 13px 14px; }
+    .channel-row.playing .channel-title { color: var(--accent); }
+    .sources-panel { padding: 10px 12px 13px; }
+    .tv-epg-box { border-radius: 13px; padding: 12px; }
+    .tv-epg-badge.live { background: var(--accent-soft); color: var(--accent); border-color: var(--border-light); }
+    .scroll-loading-indicator { color: var(--text-sub); }
+
+    /* 设置、账号管理及其他弹窗统一换肤 */
+    .glass-modal-mask { background: var(--glass-mask); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 16px; }
+    .glass-modal-card { width: min(560px,100%); max-height: min(88dvh,900px); overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 24px; padding: 22px; background: var(--glass-bg); box-shadow: var(--glass-shadow); color: var(--text-main); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); }
+    .glass-modal-card h3 { font-size: 17px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); }
+    .settings-user-header-box, .glass-nav-card-btn, .group-card-item { border-radius: 13px; border-color: var(--border-color); background: var(--bg-card); }
+    .glass-nav-card-btn { padding: 13px 14px; margin-bottom: 8px; }
+    .glass-nav-card-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .glass-modal-card input, .glass-modal-card select { min-height: 40px; border-radius: 11px; border-color: var(--border-light); background: var(--bg-input); color: var(--text-main); }
+    .glass-modal-card input:focus, .glass-modal-card select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .btn-action { border-radius: 11px; padding: 10px 14px; font-weight: 700; }
+    .btn-save { background: linear-gradient(110deg,#7b68f5,#4d9df6); }
+    .btn-sync { background: linear-gradient(110deg,#0c9f9a,#24b88c); }
+    .btn-cancel { border: 1px solid var(--border-color); }
+    .perm-site-chip { border-radius: 10px; }
+    .btn-small-perm, .btn-small-del, .btn-danger-del, .btn-site-toggle { border-radius: 9px; }
+
+    /* 滚动条、微交互、可访问性 */
+    * { scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @media (hover:hover) {
+      .title-group-box, .channel-row, .history-card, .source-sub-card, .source-item { transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
+      .title-group-box:hover, .channel-row:hover, .history-card:hover { border-color: rgba(139,124,255,.42); box-shadow: 0 8px 24px rgba(0,0,0,.13); }
+    }
+    @media (min-width: 900px) {
+      body { flex-direction: row; padding: 18px; gap: 16px; align-items: stretch; background: radial-gradient(ellipse at 48% 0%,rgba(93,85,191,.11),transparent 46%),var(--bg-workspace); }
+      #player-wrap { flex: 1 1 58%; width: auto; height: 100%; min-width: 0; min-height: 0; border-radius: 24px; }
+      #sidebar { flex: 0 0 clamp(380px, 40%, 560px); width: auto; max-width: none; height: 100%; border: 1px solid var(--border-color); border-radius: 24px; box-shadow: var(--card-shadow); overflow: hidden; }
+      #search-box { padding: 18px; }
+    }
+    @media (min-width: 601px) and (max-width: 899px) {
+      body { background: var(--bg-workspace); }
+      #player-wrap { border-radius: 0 0 20px 20px; }
+      #sidebar { border-radius: 20px 20px 0 0; overflow: hidden; }
+    }
+    @media (max-width: 600px) {
+      html, body { height: 100%; min-height: 100%; }
+      #player-wrap { height: 34dvh; min-height: 190px; max-height: 44dvh; border-radius: 0 0 18px 18px; border-top: 0; }
+      #top-bar { padding: 12px 14px; }
+      #custom-controls { padding: 0 6px 7px; }
+      .controls-inner { gap: 4px; padding: 0 3px; }
+      .ctrl-left, .ctrl-right { gap: 4px; }
+      .ctrl-time { font-size: 10px; }
+      .external-group { max-width: 112px; }
+      .ext-btn { width: 20px; height: 20px; }
+      #sidebar { flex: 1 1 auto; min-height: 0; border-radius: 18px 18px 0 0; margin-top: 8px; overflow: hidden; }
+      #search-box { padding: 10px; gap: 9px; }
+      .search-row-primary { gap: 6px; }
+      #search-box input { min-height: 40px; padding-left: 12px; }
+      .btn-search { min-height: 40px; padding: 0 12px; }
+      .btn-quick-theme { width: 40px; height: 40px; }
+      .btn-tool-mid { min-height: 36px; font-size: 11px; padding: 6px 2px; }
+      .mode-tab { min-height: 38px; }
+      .top-unified-bar { padding: 8px; }
+      .title-group-box, .channel-row, .history-card { margin-left: 7px; margin-right: 7px; }
+      .glass-modal-mask { padding: 10px; align-items: flex-end; }
+      .glass-modal-card { max-height: 88dvh; border-radius: 22px 22px 14px 14px; padding: 18px; }
+      .modal-actions { flex-wrap: wrap; }
+      .modal-actions .btn-action { flex: 1 1 auto; }
+      #auth-gate-screen::before { top: 20px; left: 20px; font-size: 9px; }
+      .gate-card { padding: 30px 24px 26px !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+
+  
+
+    /* ================================================================
+       AURORA 2.1 — structural redesign, not a color-only skin.
+       The old player/search logic and all existing element IDs are retained.
+       New hierarchy: branded navigation → cinematic player → full-width library.
+       ================================================================ */
+    #aurora-topnav {
+      position: sticky; top: 0; z-index: 5000; flex: 0 0 auto;
+      min-height: 76px; width: 100%; padding: 12px clamp(16px,4vw,58px);
+      display: flex; align-items: center; gap: clamp(14px,2.4vw,38px);
+      background: color-mix(in srgb, var(--bg-sidebar) 91%, transparent);
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    }
+    .aurora-brand { display:flex; align-items:center; gap:12px; min-width:190px; color:var(--text-main); text-decoration:none; }
+    .aurora-brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:14px; color:#fff; font-size:24px; background:linear-gradient(140deg,#8d75ff,#42b9ed); box-shadow:0 8px 24px rgba(105,103,245,.32); }
+    .aurora-brand-copy { display:flex; flex-direction:column; gap:3px; line-height:1.1; }
+    .aurora-brand-copy strong { font-size:19px; font-weight:850; letter-spacing:.06em; }
+    .aurora-brand-copy small { font-size:8px; color:var(--text-sub); letter-spacing:.19em; font-weight:800; }
+    .aurora-nav-links { display:flex; align-items:center; gap:6px; flex:1; min-width:0; }
+    .aurora-nav-link { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:42px; padding:0 15px; border:1px solid transparent; border-radius:13px; color:var(--text-sub); background:transparent; font-size:13px; font-weight:750; white-space:nowrap; cursor:pointer; }
+    .aurora-nav-link span { font-size:17px; color:var(--accent); }
+    .aurora-nav-link:hover { color:var(--text-main); background:var(--accent-soft); border-color:var(--border-color); }
+    .aurora-nav-settings { margin-left:auto; }
+    .aurora-theme-action { width:42px; height:42px; flex:0 0 42px; border-radius:14px; border:1px solid var(--border-light); color:var(--text-main); background:var(--bg-card); font-size:21px; cursor:pointer; }
+    .aurora-theme-action:hover { transform:rotate(18deg); border-color:var(--accent); }
+
+    html, body { width:100%; height:auto !important; min-height:100%; overflow-x:hidden !important; overflow-y:auto !important; }
+    body { display:flex !important; flex-direction:column !important; align-items:stretch !important; gap:0 !important; padding:0 !important; background:radial-gradient(ellipse at 50% -12%,rgba(105,96,235,.18),transparent 48%),var(--bg-workspace) !important; }
+    #player-wrap { order:2; flex:0 0 auto !important; width:100% !important; height:clamp(350px,66vh,790px) !important; min-height:350px !important; max-height:none !important; border-radius:0 !important; border:0 !important; border-bottom:1px solid var(--border-color) !important; box-shadow:none !important; }
+    #player-wrap::after { border-radius:0 !important; box-shadow:inset 0 0 0 1px rgba(255,255,255,.025) !important; }
+    #sidebar { order:3; display:flex !important; flex:0 0 auto !important; width:100% !important; max-width:none !important; height:auto !important; min-height:520px !important; margin:0 !important; border:0 !important; border-radius:0 !important; overflow:visible !important; box-shadow:none !important; background:transparent !important; }
+    #search-box { padding:22px clamp(16px,4vw,58px) 18px !important; display:grid !important; grid-template-columns:minmax(220px,1fr) auto; gap:14px 18px !important; background:var(--bg-sidebar) !important; border-bottom:1px solid var(--border-color) !important; }
+    .search-row-primary { grid-column:1 / -1; gap:10px !important; max-width:1000px; width:100% !important; }
+    #search-box input { min-height:48px !important; border-radius:15px !important; padding-left:18px !important; font-size:14px !important; }
+    .btn-search { min-height:48px !important; border-radius:15px !important; padding:0 24px !important; }
+    .btn-quick-theme { display:none !important; }
+    .search-row-secondary { grid-column:1; grid-row:2; align-self:center; gap:8px !important; }
+    .btn-tool-mid { min-height:42px !important; padding:0 16px !important; border-radius:13px !important; }
+    .mode-tab-group { grid-column:2; grid-row:2; align-self:center; min-width:290px; }
+    #channel-list { flex:0 0 auto !important; width:100%; min-height:380px; max-height:none !important; overflow:visible !important; padding:20px clamp(12px,3vw,44px) 48px !important; background:transparent !important; }
+    #channel-list > .top-unified-bar, #channel-list > .group-header, #channel-list > .scroll-loading-indicator { width:100% !important; }
+    #channel-list .title-group-box { display:inline-flex !important; vertical-align:top; flex-direction:column; width:calc(33.333% - 18px) !important; min-width:280px; margin:8px 8px 16px !important; border-radius:20px !important; border:1px solid var(--border-color) !important; background:var(--bg-card) !important; box-shadow:var(--card-shadow) !important; }
+    #channel-list .title-group-header { padding:16px !important; min-height:108px; }
+    #channel-list .group-poster { width:68px !important; height:88px !important; border-radius:12px !important; }
+    #channel-list .group-body-panel { padding:14px !important; }
+    #channel-list .episodes-collapse-box { max-height:none !important; }
+    #channel-list .episodes-grid { max-height:270px !important; }
+    #channel-list .channel-row, #channel-list .history-card { border-radius:16px !important; }
+    .glass-modal-card { border-radius:24px !important; }
+
+    @media (min-width:900px) {
+      body { flex-direction:column !important; padding:0 !important; gap:0 !important; }
+      #player-wrap { flex:none !important; width:100% !important; height:min(66vh,790px) !important; min-height:390px !important; }
+      #sidebar { flex:none !important; width:100% !important; height:auto !important; max-width:none !important; overflow:visible !important; border:0 !important; }
+      #search-box { grid-template-columns:minmax(260px,1fr) auto; }
+      #channel-list .title-group-box { width:calc(25% - 20px) !important; }
+    }
+    @media (min-width:601px) and (max-width:899px) {
+      #aurora-topnav { min-height:68px; padding:10px 18px; gap:14px; }
+      .aurora-brand { min-width:auto; }
+      .aurora-brand-copy small { display:none; }
+      .aurora-nav-link { padding:0 9px; font-size:12px; }
+      #player-wrap { height:52vw !important; min-height:320px !important; }
+      #search-box { display:flex !important; flex-direction:column; padding:16px 20px !important; }
+      .search-row-secondary, .mode-tab-group { width:100%; }
+      #channel-list .title-group-box { width:calc(50% - 18px) !important; }
+    }
+    @media (max-width:600px) {
+      #aurora-topnav { position:sticky; min-height:62px; padding:9px 12px; gap:8px; }
+      .aurora-brand { min-width:0; gap:8px; flex:1; }
+      .aurora-brand-mark { width:36px; height:36px; border-radius:12px; font-size:21px; }
+      .aurora-brand-copy strong { font-size:16px; }
+      .aurora-brand-copy small { display:none; }
+      .aurora-nav-links { flex:0 1 auto; gap:3px; }
+      .aurora-nav-link { min-height:36px; padding:0 8px; font-size:0; border-radius:10px; }
+      .aurora-nav-link span { font-size:19px; }
+      .aurora-nav-settings { margin-left:0; }
+      .aurora-theme-action { width:36px; height:36px; flex-basis:36px; border-radius:11px; font-size:18px; }
+      #player-wrap { order:2; height:54vw !important; min-height:210px !important; max-height:44dvh !important; border-radius:0 !important; }
+      #top-bar { padding:11px 13px !important; }
+      #current-title { max-width:68vw; font-size:13px !important; }
+      #sidebar { order:3; min-height:0 !important; }
+      #search-box { display:flex !important; flex-direction:column; gap:10px !important; padding:13px 12px !important; }
+      .search-row-primary { gap:7px !important; }
+      #search-box input { min-height:43px !important; font-size:13px !important; }
+      .btn-search { min-height:43px !important; padding:0 14px !important; }
+      .search-row-secondary { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px !important; }
+      .btn-tool-mid { min-width:0; padding:0 5px !important; font-size:11px !important; }
+      .mode-tab-group { min-width:0 !important; width:100%; }
+      .mode-tab { flex:1; }
+      #channel-list { padding:12px 8px 36px !important; min-height:300px; }
+      #channel-list .title-group-box { display:flex !important; width:calc(100% - 8px) !important; min-width:0 !important; margin:6px 4px 12px !important; }
+      #channel-list .title-group-header { padding:12px !important; }
+      #channel-list .episodes-grid { grid-template-columns:repeat(auto-fill,minmax(54px,1fr)) !important; max-height:240px !important; }
+      .glass-modal-mask { position:fixed !important; }
+    }
+
+  
+    /* AURORA 2.2 — real discovery homepage, not a recolored player layout */
+    #aurora-topnav { position:sticky; top:0; }
+    .aurora-brand { border:0; background:transparent; cursor:pointer; padding:0; text-align:left; }
+    .aurora-nav-link.active { color:var(--text-main); background:var(--accent-soft); border-color:var(--border-color); }
+    #aurora-home { display:none; width:100%; max-width:1540px; margin:0 auto; padding:24px clamp(16px,4vw,58px) 46px; flex:1 0 auto; }
+    body.aurora-home-view #aurora-home { display:block; }
+    body.aurora-home-view #player-wrap, body.aurora-home-view #sidebar { display:none !important; }
+    body.aurora-home-view { min-height:100vh !important; }
+    .aurora-hero { min-height:clamp(350px,42vw,520px); position:relative; display:flex; align-items:flex-end; overflow:hidden; isolation:isolate; border:1px solid var(--border-color); border-radius:28px; background:linear-gradient(120deg,#111a31,#1a2340 55%,#101827); box-shadow:0 26px 70px rgba(0,0,0,.2); }
+    .aurora-hero-backdrop { position:absolute; inset:0; z-index:-2; background-position:center 35%; background-size:cover; opacity:.7; transform:scale(1.015); transition:background-image .25s; }
+    .aurora-hero-shade { position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg,rgba(5,9,18,.97) 0%,rgba(5,9,18,.83) 36%,rgba(5,9,18,.22) 76%,rgba(5,9,18,.12) 100%),linear-gradient(0deg,rgba(5,9,18,.78),transparent 45%); }
+    .aurora-hero-copy { width:min(690px,76%); padding:clamp(26px,4.2vw,58px); color:#fff; }
+    .aurora-eyebrow { display:flex; align-items:center; gap:9px; font-size:10px; font-weight:850; letter-spacing:.24em; color:#b8c6ef; margin-bottom:25px; }
+    .aurora-live-dot { width:7px; height:7px; border-radius:50%; background:#6be2c1; box-shadow:0 0 16px #6be2c1; }
+    .aurora-hero-kicker { color:#a9b4d0; font-size:13px; margin-bottom:12px; }
+    #aurora-hero-title { color:white; font-size:clamp(30px,4.2vw,58px); line-height:1.12; letter-spacing:-.035em; font-weight:900; text-shadow:0 3px 20px #0008; }
+    #aurora-hero-desc { color:#d4dbeb; font-size:14px; line-height:1.8; max-width:530px; margin-top:16px; }
+    .aurora-hero-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; min-height:24px; }
+    .aurora-hero-meta span { border:1px solid #ffffff2c; border-radius:999px; background:#ffffff13; color:#e4eaff; padding:5px 10px; font-size:11px; }
+    .aurora-hero-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:25px; }
+    .aurora-primary-cta,.aurora-secondary-cta { min-height:46px; padding:0 19px; border-radius:13px; font-size:13px; font-weight:800; cursor:pointer; }
+    .aurora-primary-cta { border:0; color:#fff; background:linear-gradient(110deg,#8d75ff,#479cf6); box-shadow:0 10px 30px #6c68ff40; }
+    .aurora-secondary-cta { color:#f4f6ff; background:#ffffff14; border:1px solid #ffffff38; }
+    .aurora-secondary-cta span { margin-left:12px; }
+    .aurora-hero-count { position:absolute; right:26px; bottom:25px; display:flex; align-items:center; gap:8px; padding:10px 14px; border:1px solid #ffffff28; background:#08101d8c; backdrop-filter:blur(16px); border-radius:14px; color:#d7e1ff; }
+    .aurora-hero-count strong { font-size:20px; color:#fff; }
+    .aurora-hero-count span { font-size:11px; }
+    .aurora-home-section { margin-top:40px; }
+    .aurora-section-head { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:19px; }
+    .aurora-section-overline { color:var(--accent); font-size:9px; letter-spacing:.24em; font-weight:900; }
+    .aurora-section-head h2 { font-size:25px; font-weight:900; margin-top:5px; letter-spacing:-.025em; }
+    .aurora-section-head p { font-size:12px; color:var(--text-sub); margin-top:7px; }
+    .aurora-text-action { color:var(--text-sub); background:transparent; border:1px solid var(--border-color); border-radius:11px; padding:10px 13px; cursor:pointer; white-space:nowrap; }
+    .aurora-text-action:hover { color:var(--accent); border-color:var(--accent); }
+    .aurora-text-action:disabled { opacity:.55; cursor:wait; }
+    .aurora-poster-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:17px; }
+    .aurora-poster-card { min-width:0; cursor:pointer; border:0; padding:0; background:transparent; text-align:left; color:var(--text-main); }
+    .aurora-poster-art { position:relative; display:block; overflow:hidden; aspect-ratio:2/2.85; border-radius:16px; background:linear-gradient(145deg,var(--bg-card),var(--bg-sub-panel)); border:1px solid var(--border-color); box-shadow:0 9px 25px #0002; }
+    .aurora-poster-art img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .35s ease,filter .35s ease; }
+    .aurora-poster-card:hover .aurora-poster-art img { transform:scale(1.055); filter:brightness(1.08); }
+    .aurora-poster-placeholder { height:100%; min-height:170px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; padding:15px; text-align:center; color:var(--text-sub); background:radial-gradient(circle at 50% 20%,var(--accent-soft),transparent 65%); }
+    .aurora-poster-placeholder b { font-size:25px; color:var(--accent); }
+    .aurora-poster-placeholder small { font-size:11px; line-height:1.5; }
+    .aurora-poster-tag { position:absolute; top:9px; left:9px; padding:5px 7px; border-radius:7px; background:#0a1020c9; color:#fff; font-size:9px; backdrop-filter:blur(10px); }
+    .aurora-poster-title { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:800; margin:11px 2px 5px; }
+    .aurora-poster-sub { display:block; color:var(--text-sub); font-size:11px; margin:0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .aurora-empty-state { grid-column:1/-1; min-height:170px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:var(--text-sub); border:1px dashed var(--border-light); border-radius:18px; background:var(--bg-card); }
+    .aurora-empty-state strong { color:var(--text-main); font-size:14px; }
+    .aurora-empty-state small { font-size:11px; }
+    .aurora-loading-orbit { width:26px; height:26px; border:2px solid var(--border-light); border-top-color:var(--accent); border-radius:50%; animation:aurora-spin .8s linear infinite; }
+    @keyframes aurora-spin { to { transform:rotate(360deg); } }
+    .aurora-home-bottom { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin-top:34px; }
+    .aurora-bottom-tile { display:flex; align-items:center; gap:14px; padding:17px; border-radius:16px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); text-align:left; cursor:pointer; }
+    .aurora-bottom-tile:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .aurora-tile-icon { width:42px; height:42px; display:grid; place-items:center; flex:0 0 42px; border-radius:13px; background:var(--accent-soft); color:var(--accent); font-size:21px; }
+    .aurora-bottom-tile span:nth-child(2) { display:flex; flex-direction:column; gap:5px; flex:1; }
+    .aurora-bottom-tile strong { font-size:13px; }
+    .aurora-bottom-tile small { font-size:11px; color:var(--text-sub); }
+    .aurora-bottom-tile b { color:var(--text-sub); }
+    .aurora-home-footer { text-align:center; color:var(--text-mute); font-size:10px; padding:30px 0 0; }
+    @media(max-width:1100px) { .aurora-poster-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } .aurora-nav-link { padding:0 9px; } }
+    @media(max-width:700px) {
+      #aurora-home { padding:12px 12px 32px; }
+      #aurora-topnav { gap:7px; padding:9px 11px; }
+      .aurora-brand { gap:7px; }
+      .aurora-brand-mark { width:34px; height:34px; border-radius:11px; font-size:18px; }
+      .aurora-brand-copy strong { font-size:14px; letter-spacing:0; }
+      .aurora-nav-links { gap:2px; overflow-x:auto; scrollbar-width:none; }
+      .aurora-nav-link { font-size:0; min-width:33px; min-height:34px; padding:0 7px; }
+      .aurora-nav-link span { font-size:17px; }
+      .aurora-nav-settings { margin-left:0; }
+      .aurora-theme-action { width:34px; height:34px; flex-basis:34px; }
+      .aurora-hero { min-height:390px; border-radius:20px; }
+      .aurora-hero-copy { width:100%; padding:24px 20px; }
+      .aurora-hero-shade { background:linear-gradient(0deg,rgba(5,9,18,.98),rgba(5,9,18,.65) 58%,rgba(5,9,18,.18)); }
+      .aurora-eyebrow { margin-bottom:18px; }
+      #aurora-hero-title { font-size:34px; }
+      #aurora-hero-desc { font-size:12px; }
+      .aurora-hero-count { top:14px; right:14px; bottom:auto; padding:7px 10px; }
+      .aurora-hero-count strong { font-size:16px; }
+      .aurora-home-section { margin-top:28px; }
+      .aurora-section-head h2 { font-size:21px; }
+      .aurora-section-head p { max-width:260px; line-height:1.6; }
+      .aurora-poster-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px 10px; }
+      .aurora-poster-art { border-radius:13px; }
+      .aurora-poster-title { font-size:12px; }
+      .aurora-home-bottom { grid-template-columns:1fr; gap:9px; margin-top:26px; }
+      .aurora-bottom-tile { padding:13px; }
+    }
+
+
+
+    /* AURORA 2.3: balanced workspace, compact top actions, cached trending posters */
+    #aurora-topnav { grid-area: header; width:100%; min-width:0; position:sticky; top:0; z-index:50; }
+    #aurora-home { grid-area: home; width:100%; max-width:1600px; min-width:0; min-height:0; }
+    #player-wrap { grid-area: player; }
+    #sidebar { grid-area: sidebar; }
+    body {
+      display:grid !important;
+      grid-template-columns:minmax(0,1.62fr) minmax(350px,1fr);
+      grid-template-rows:auto minmax(0,1fr);
+      grid-template-areas:"header header" "player sidebar";
+      width:100%; height:100dvh; min-height:560px; overflow:hidden;
+      padding:12px !important; gap:12px !important; align-items:stretch !important;
+    }
+    #aurora-topnav { position:relative; border:1px solid var(--border-color); border-radius:18px; background:var(--bg-sidebar); box-shadow:var(--card-shadow); padding:10px 14px; }
+    .aurora-nav-links { flex-wrap:nowrap; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    .aurora-nav-links::-webkit-scrollbar { display:none; }
+    .aurora-nav-link { flex-shrink:0; white-space:nowrap; }
+    body:not(.aurora-home-view) #aurora-home { display:none !important; }
+    body.aurora-home-view {
+      grid-template-columns:minmax(0,1fr) !important;
+      grid-template-rows:auto minmax(0,1fr) !important;
+      grid-template-areas:"header" "home" !important;
+      overflow:hidden;
+    }
+    body.aurora-home-view #aurora-home { display:block !important; overflow:auto; }
+    body.aurora-home-view #player-wrap, body.aurora-home-view #sidebar { display:none !important; }
+    body:not(.aurora-home-view) #player-wrap {
+      width:auto !important; height:auto !important; min-width:0 !important; min-height:0 !important; max-height:none !important;
+      flex:none !important; border-radius:20px !important; border:1px solid var(--border-color) !important;
+      box-shadow:var(--card-shadow); align-self:stretch;
+    }
+    body:not(.aurora-home-view) #sidebar {
+      width:auto !important; max-width:none !important; height:auto !important; min-width:0 !important; min-height:0 !important;
+      flex:none !important; border:1px solid var(--border-color) !important; border-radius:20px !important;
+      overflow:hidden !important; align-self:stretch;
+    }
+    #channel-list { flex:1 1 auto !important; min-height:0 !important; overflow-y:auto !important; overscroll-behavior:contain; }
+    #search-box { padding:12px !important; }
+    .aurora-home-section { margin-top:28px; }
+    .aurora-poster-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:15px; }
+    .aurora-home-bottom { display:none !important; }
+    .aurora-player-empty { position:absolute; z-index:4; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; pointer-events:none; color:#dbe5ff; background:radial-gradient(ellipse at center,#18233a 0%,#080c15 68%); }
+    .aurora-player-empty-mark { display:grid; place-items:center; width:64px; height:64px; border-radius:22px; font-size:28px; color:white; background:linear-gradient(135deg,#8070ff,#3e9af8); box-shadow:0 14px 42px #6c68ff44; }
+    .aurora-player-empty strong { font-size:20px; letter-spacing:.02em; }
+    .aurora-player-empty span { font-size:12px; color:#8f9bb7; text-align:center; padding:0 16px; }
+    #player-wrap.has-active-video .aurora-player-empty { display:none; }
+    @media(max-width:1100px) {
+      body { grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr) !important; }
+      .aurora-poster-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+      .aurora-nav-link { padding:0 8px; font-size:11px; }
+    }
+    @media(max-width:760px) {
+      body { display:grid !important; grid-template-columns:minmax(0,1fr) !important; grid-template-rows:auto minmax(220px,36dvh) minmax(440px,1fr) !important; grid-template-areas:"header" "player" "sidebar" !important; height:auto !important; min-height:100dvh !important; overflow:visible !important; padding:8px !important; gap:9px !important; }
+      #aurora-topnav { border-radius:15px; padding:8px; gap:7px; flex-wrap:wrap; }
+      .aurora-brand { flex:0 0 auto; }
+      .aurora-nav-links { order:3; flex:1 1 100%; width:100%; padding-bottom:2px; }
+      .aurora-nav-link { min-height:34px; font-size:11px !important; padding:0 10px !important; }
+      .aurora-theme-action { margin-left:auto; }
+      body:not(.aurora-home-view) #player-wrap { grid-area:player; height:36dvh !important; min-height:220px !important; max-height:430px !important; border-radius:16px !important; }
+      body:not(.aurora-home-view) #sidebar { grid-area:sidebar; min-height:440px !important; height:auto !important; overflow:visible !important; border-radius:16px !important; }
+      #channel-list { overflow:visible !important; max-height:none !important; }
+      #aurora-home { padding:12px 8px 28px !important; }
+      .aurora-hero { min-height:320px; border-radius:20px; }
+      .aurora-hero-copy { width:100%; padding:22px; }
+      .aurora-hero-count { right:12px; bottom:12px; }
+      .aurora-poster-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+      .aurora-poster-art { border-radius:11px; }
+      .aurora-poster-title { font-size:12px; }
+    }
+    @media(max-width:420px) { .aurora-poster-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+    /* AURORA 2.4: functional top search, distinct palettes, carousel and cleaner expanded cards */
+    :root {
+      --bg-base:#070b13; --bg-workspace:#0b1120; --bg-sidebar:#101a2c; --bg-search-box:#111c30;
+      --bg-input:#0b1425; --bg-card:#121f34; --bg-card-hover:#1a2c45; --bg-tag:#1a2b44; --bg-sub-panel:#0d1728;
+      --border-color:#253854; --border-light:#354a69; --text-main:#eef4ff; --text-sub:#a7b8d3; --text-mute:#7185a6;
+      --accent:#52d6c8; --accent-soft:rgba(82,214,200,.13); --card-shadow:0 12px 34px rgba(0,0,0,.22);
+    }
+    body.theme-light {
+      --bg-base:#f8f5ed; --bg-workspace:#f3efe5; --bg-sidebar:#fffdf7; --bg-search-box:#fffdf7; --bg-input:#fffaf0;
+      --bg-card:#fffdf8; --bg-card-hover:#f1eadc; --bg-tag:#eee6d6; --bg-sub-panel:#f7f1e6;
+      --border-color:#e4d9c5; --border-light:#d2c3a9; --text-main:#282f32; --text-sub:#59696b; --text-mute:#87918e;
+      --accent:#187f75; --accent-soft:rgba(24,127,117,.11); --card-shadow:0 10px 28px rgba(85,70,40,.08);
+      --glass-bg:rgba(255,253,247,.94); --glass-border:rgba(255,255,255,.9); --glass-shadow:0 24px 60px rgba(90,75,45,.15); --glass-mask:rgba(50,46,36,.32);
+    }
+    body { background:radial-gradient(ellipse at 52% -10%,rgba(82,214,200,.11),transparent 44%),var(--bg-workspace) !important; }
+    body.theme-light { background:radial-gradient(ellipse at 50% -10%,rgba(224,172,82,.18),transparent 42%),var(--bg-workspace) !important; }
+    #aurora-topnav { display:flex; flex-wrap:wrap; gap:12px; min-height:unset; padding:12px clamp(12px,2.2vw,28px); border-radius:0 0 20px 20px; border-width:0 0 1px; background:var(--bg-sidebar); box-shadow:0 8px 30px rgba(0,0,0,.07); }
+    .aurora-brand { min-width:max-content; }
+    .aurora-nav-search { display:flex; align-items:center; gap:7px; flex:1 1 230px; max-width:410px; min-width:170px; }
+    .aurora-nav-search input { width:100%; min-width:0; height:42px; border:1px solid var(--border-light); border-radius:13px; padding:0 13px; outline:none; color:var(--text-main); background:var(--bg-input); font-size:13px; }
+    .aurora-nav-search input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .aurora-nav-search button { height:42px; padding:0 14px; border:0; border-radius:13px; color:#06141b; background:var(--accent); font-weight:850; cursor:pointer; white-space:nowrap; }
+    .aurora-nav-search button span { font-size:12px; }
+    .aurora-nav-links { flex:1 1 500px; min-width:0; }
+    .aurora-nav-link { border-radius:11px; }
+    .aurora-theme-action { flex:0 0 42px; }
+    #search-box { display:none !important; }
+    .search-row-secondary { width:100%; flex-wrap:wrap; }
+    .btn-tool-mid { border-radius:12px !important; }
+    .aurora-hero { min-height:clamp(360px,39vw,510px); border-color:var(--border-color); background:linear-gradient(120deg,#111a29,#1c3140 58%,#101d2a); }
+    .aurora-hero-backdrop { opacity:.76; transition:background-image .4s ease, opacity .3s ease; }
+    .aurora-hero-shade { background:linear-gradient(90deg,rgba(4,10,16,.96),rgba(4,10,16,.77) 35%,rgba(4,10,16,.2) 82%),linear-gradient(0deg,rgba(4,10,16,.75),transparent 50%); }
+    .aurora-hero-controls { position:absolute; right:24px; bottom:25px; z-index:2; display:flex; align-items:center; gap:10px; padding:7px 9px; border:1px solid #ffffff28; border-radius:999px; background:#06101bb8; backdrop-filter:blur(14px); }
+    .aurora-hero-controls > button { width:30px; height:30px; border:1px solid #ffffff35; border-radius:50%; background:#ffffff12; color:white; font-size:24px; line-height:1; cursor:pointer; }
+    .aurora-hero-dots { display:flex; gap:5px; align-items:center; }
+    .aurora-hero-dot { width:6px; height:6px; padding:0; border:0; border-radius:50%; background:#ffffff65; cursor:pointer; }
+    .aurora-hero-dot.active { width:20px; border-radius:999px; background:var(--accent); }
+    .aurora-hero-count { bottom:25px; right:auto; left:clamp(22px,4vw,56px); transform:translateY(-1px); }
+    .aurora-empty-action { margin-top:5px; padding:9px 13px; border:1px solid var(--accent); border-radius:10px; background:var(--accent-soft); color:var(--text-main); cursor:pointer; }
+    .aurora-home-section { margin-top:30px; }
+    .aurora-poster-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:17px 15px; }
+    .aurora-poster-card { padding:8px; border:1px solid transparent; border-radius:17px; transition:transform .2s,border-color .2s,background .2s; }
+    .aurora-poster-card:hover { transform:translateY(-4px); border-color:var(--border-color); background:var(--bg-card); }
+    .aurora-poster-art { border-radius:13px; box-shadow:0 9px 22px rgba(0,0,0,.17); }
+    .aurora-poster-title { margin-top:10px; }
+    #channel-list { padding:14px clamp(10px,2vw,24px) 36px !important; }
+    #channel-list .title-group-box { display:inline-flex !important; vertical-align:top; flex-direction:column; width:calc(33.333% - 18px) !important; min-width:260px; margin:7px 7px 14px !important; border-radius:17px !important; overflow:hidden; border:1px solid var(--border-color) !important; background:var(--bg-card) !important; box-shadow:var(--card-shadow) !important; }
+    #channel-list .title-group-header { min-height:104px; padding:13px !important; gap:10px; }
+    #channel-list .group-poster { width:62px !important; height:82px !important; border-radius:10px !important; }
+    #channel-list .group-main-title { font-size:13px; line-height:1.45; }
+    #channel-list .group-body-panel { padding:12px !important; background:var(--bg-sub-panel) !important; }
+    #channel-list .episodes-collapse-box { margin:0 0 10px !important; padding:12px !important; border-radius:13px !important; border-color:var(--border-color) !important; }
+    #channel-list .episodes-header { gap:10px; flex-wrap:wrap; line-height:1.5; }
+    #channel-list .episodes-grid { grid-template-columns:repeat(auto-fill,minmax(58px,1fr)) !important; gap:7px !important; max-height:245px !important; padding:2px; }
+    #channel-list .ep-item { min-height:34px; padding:6px 4px !important; border-radius:9px !important; font-size:11px !important; }
+    #channel-list .source-sub-card { gap:8px; padding:10px 11px !important; margin-top:8px !important; border-radius:11px !important; flex-wrap:wrap; }
+    @media(max-width:1100px) { .aurora-poster-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } #channel-list .title-group-box { width:calc(50% - 16px) !important; } }
+    @media(max-width:760px) {
+      #aurora-topnav { gap:8px; padding:10px; }
+      .aurora-brand { flex:1 0 auto; }
+      .aurora-nav-search { order:4; flex:1 0 100%; max-width:none; }
+      .aurora-nav-links { order:3; flex:1 0 100%; width:100%; }
+      .aurora-nav-link { font-size:11px !important; }
+      .aurora-hero-controls { right:12px; bottom:12px; gap:6px; }
+      .aurora-hero-count { left:14px; bottom:16px; top:auto; }
+      .aurora-hero-copy { padding-bottom:78px; }
+      .aurora-poster-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+      #channel-list .title-group-box { width:calc(100% - 12px) !important; min-width:0; margin:6px !important; }
+      #channel-list .episodes-grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
+    }
+    @media(max-width:420px) { .aurora-poster-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .aurora-nav-search input { height:39px; } .aurora-nav-search button { height:39px; } }
+
+
+
+    /* AURORA 2.5: 登录/注册页同步使用新版主题，昼夜配色清晰区分 */
+    #auth-gate-screen,
+    #auth-gate-screen.dark-theme {
+      background:
+        radial-gradient(ellipse at 18% 18%, rgba(82,214,200,.20), transparent 38%),
+        radial-gradient(ellipse at 82% 78%, rgba(35,111,131,.18), transparent 36%),
+        linear-gradient(135deg, #07101a 0%, #0b1925 48%, #101c2b 100%) !important;
+      color: #eef8f8 !important;
+    }
+    #auth-gate-screen .gate-card {
+      width: min(440px, calc(100vw - 32px)) !important;
+      padding: 42px 36px 34px !important;
+      border-radius: 26px !important;
+      border: 1px solid rgba(82,214,200,.24) !important;
+      background: linear-gradient(145deg, rgba(18,35,49,.97), rgba(9,22,34,.98)) !important;
+      box-shadow: 0 28px 90px rgba(0,0,0,.48), inset 0 1px rgba(255,255,255,.06) !important;
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    }
+    #auth-gate-screen .gate-logo {
+      color: #f3ffff !important;
+      font-size: 29px !important;
+      letter-spacing: .13em !important;
+      margin-bottom: 18px !important;
+    }
+    #auth-gate-screen .gate-logo::before {
+      content: "✦"; display: block; color: #52d6c8; font-size: 25px; margin-bottom: 13px;
+      text-shadow: 0 0 24px rgba(82,214,200,.38);
+    }
+    #auth-gate-screen .gate-sub-tip { color: #9eb8c2 !important; }
+    #auth-gate-screen .gate-input-box,
+    #auth-gate-screen.dark-theme .gate-input-box {
+      height: 50px; margin-bottom: 13px; border-radius: 13px;
+      background: rgba(3,13,22,.74) !important; border: 1px solid rgba(135,177,190,.24) !important;
+    }
+    #auth-gate-screen .gate-input-box:focus-within,
+    #auth-gate-screen.dark-theme .gate-input-box:focus-within {
+      background: rgba(3,13,22,.94) !important; border-color: #52d6c8 !important;
+      box-shadow: 0 0 0 4px rgba(82,214,200,.12) !important;
+    }
+    #auth-gate-screen .gate-input-box input,
+    #auth-gate-screen.dark-theme .gate-input-box input { color: #eef8f8 !important; }
+    #auth-gate-screen .gate-input-box input::placeholder { color: #718d9a !important; }
+    #auth-gate-screen .gate-input-icon { color: #82a8b3 !important; }
+    #auth-gate-screen .gate-options-row,
+    #auth-gate-screen .gate-remember-wrap { color: #9eb8c2 !important; }
+    #auth-gate-screen .gate-switch-link,
+    #auth-gate-screen .gate-remember-wrap input { color: #52d6c8 !important; accent-color: #2db8a9 !important; }
+    #auth-gate-screen .gate-submit-btn,
+    #auth-gate-screen .gate-submit-btn.btn-ready {
+      height: 50px; border-radius: 13px !important; color: #06171b !important;
+      background: linear-gradient(100deg, #52d6c8, #80e2ce) !important;
+      box-shadow: 0 12px 28px rgba(37,184,169,.22) !important; font-weight: 850;
+    }
+    #auth-gate-screen .gate-submit-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    #auth-gate-screen .gate-theme-btn { padding: 9px; border-radius: 12px; background: rgba(16,35,48,.82); border: 1px solid rgba(82,214,200,.22); }
+
+    /* Light login: warm ivory + forest green, not a recolored dark card */
+    body.theme-light #auth-gate-screen {
+      background:
+        radial-gradient(ellipse at 16% 16%, rgba(24,127,117,.12), transparent 38%),
+        radial-gradient(ellipse at 84% 82%, rgba(224,172,82,.20), transparent 38%),
+        linear-gradient(135deg, #f6f3e9 0%, #fffdf6 52%, #e9f1e9 100%) !important;
+      color: #243b36 !important;
+    }
+    body.theme-light #auth-gate-screen .gate-card {
+      background: rgba(255,253,247,.96) !important;
+      border: 1px solid rgba(24,127,117,.20) !important;
+      box-shadow: 0 26px 75px rgba(62,83,62,.15), inset 0 1px #fff !important;
+    }
+    body.theme-light #auth-gate-screen .gate-logo { color: #203b35 !important; }
+    body.theme-light #auth-gate-screen .gate-logo::before { color: #187f75; text-shadow: 0 0 18px rgba(24,127,117,.18); }
+    body.theme-light #auth-gate-screen .gate-sub-tip { color: #6b7c73 !important; }
+    body.theme-light #auth-gate-screen .gate-input-box,
+    body.theme-light #auth-gate-screen.dark-theme .gate-input-box {
+      background: #fffef9 !important; border-color: #d9e3d7 !important;
+    }
+    body.theme-light #auth-gate-screen .gate-input-box:focus-within,
+    body.theme-light #auth-gate-screen.dark-theme .gate-input-box:focus-within {
+      background: #fff !important; border-color: #187f75 !important; box-shadow: 0 0 0 4px rgba(24,127,117,.10) !important;
+    }
+    body.theme-light #auth-gate-screen .gate-input-box input,
+    body.theme-light #auth-gate-screen.dark-theme .gate-input-box input { color: #263d37 !important; }
+    body.theme-light #auth-gate-screen .gate-input-box input::placeholder { color: #98a59b !important; }
+    body.theme-light #auth-gate-screen .gate-input-icon { color: #70877b !important; }
+    body.theme-light #auth-gate-screen .gate-options-row,
+    body.theme-light #auth-gate-screen .gate-remember-wrap { color: #65786e !important; }
+    body.theme-light #auth-gate-screen .gate-switch-link,
+    body.theme-light #auth-gate-screen .gate-remember-wrap input { color: #187f75 !important; accent-color: #187f75 !important; }
+    body.theme-light #auth-gate-screen .gate-submit-btn,
+    body.theme-light #auth-gate-screen .gate-submit-btn.btn-ready {
+      color: #fff !important; background: linear-gradient(100deg, #187f75, #3a9b76) !important;
+      box-shadow: 0 10px 24px rgba(24,127,117,.20) !important;
+    }
+    body.theme-light #auth-gate-screen .gate-theme-btn { background: rgba(255,253,247,.86); border-color: #d9e3d7; }
+    @media (max-width: 480px) {
+      #auth-gate-screen .gate-card { padding: 34px 24px 28px !important; border-radius: 22px !important; }
+      #auth-gate-screen .gate-logo { font-size: 25px !important; }
+    }
+
+
+    /* AURORA 3.1: stable player workspace, wheel-anywhere scrolling, glass hero play button */
+    .aurora-hero-actions { align-items:center; margin-top:24px; }
+    .aurora-play-glass {
+      position:relative; display:inline-flex; align-items:center; justify-content:center; gap:10px;
+      min-width:64px; min-height:64px; padding:0 20px 0 0; border-radius:999px;
+      color:#fff; cursor:pointer; border:1px solid rgba(255,255,255,.42);
+      background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.07));
+      box-shadow:0 12px 36px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.28);
+      backdrop-filter:blur(22px) saturate(150%); -webkit-backdrop-filter:blur(22px) saturate(150%);
+      transition:transform .2s ease,background .2s ease,border-color .2s ease;
+    }
+    .aurora-play-glass:hover { transform:translateY(-2px) scale(1.025); background:linear-gradient(145deg,rgba(255,255,255,.34),rgba(255,255,255,.12)); border-color:rgba(255,255,255,.7); }
+    .aurora-play-glass svg { width:62px; height:62px; padding:21px; flex:0 0 62px; border-radius:50%; background:rgba(255,255,255,.14); filter:drop-shadow(0 2px 8px #0004); }
+    .aurora-play-glass-label { font-size:12px; font-weight:800; letter-spacing:.04em; white-space:nowrap; }
+    .aurora-hero-count { display:none !important; }
+
+    @media (min-width:900px) {
+      html, body { width:100%; height:100%; min-height:0; overflow:hidden !important; }
+      body:not(.aurora-home-view) {
+        display:grid !important;
+        grid-template-columns:minmax(0,1.58fr) minmax(330px,1fr) !important;
+        grid-template-rows:68px minmax(0,1fr) !important;
+        grid-template-areas:"header header" "player sidebar" !important;
+        height:100dvh !important; min-height:560px !important;
+        padding:10px !important; gap:10px !important;
+        align-items:stretch !important;
+      }
+      body:not(.aurora-home-view) #aurora-topnav { grid-area:header !important; min-width:0; }
+      body:not(.aurora-home-view) #player-wrap {
+        grid-area:player !important; position:relative !important; align-self:stretch !important;
+        width:auto !important; height:auto !important; min-width:0 !important; min-height:0 !important;
+        max-height:none !important; flex:none !important; order:initial !important;
+        overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #sidebar {
+        grid-area:sidebar !important; display:flex !important; flex-direction:column !important;
+        width:auto !important; max-width:none !important; height:auto !important;
+        min-width:0 !important; min-height:0 !important; max-height:none !important;
+        flex:none !important; order:initial !important; overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #search-box { flex:0 0 auto !important; }
+      body:not(.aurora-home-view) #channel-list {
+        flex:1 1 0 !important; width:100% !important; min-height:0 !important;
+        max-height:none !important; overflow-x:hidden !important; overflow-y:auto !important;
+        overscroll-behavior:contain !important; -webkit-overflow-scrolling:touch;
+      }
+      body.aurora-home-view {
+        display:grid !important; grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:auto minmax(0,1fr) !important; grid-template-areas:"header" "home" !important;
+        height:100dvh !important; overflow:hidden !important; padding:0 !important; gap:0 !important;
+      }
+      body.aurora-home-view #aurora-home { min-height:0 !important; overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior:contain; }
+    }
+    @media (min-width:900px) and (max-width:1120px) {
+      body:not(.aurora-home-view) { grid-template-columns:minmax(0,1.2fr) minmax(310px,1fr) !important; }
+      body:not(.aurora-home-view) #aurora-nav-search { max-width:300px; }
+      body:not(.aurora-home-view) .aurora-nav-link { padding:0 8px; font-size:11px; }
+    }
+    @media (min-width:601px) and (max-width:899px) {
+      html, body { height:auto !important; min-height:100% !important; overflow-x:hidden !important; overflow-y:auto !important; }
+      body:not(.aurora-home-view) {
+        display:flex !important; flex-direction:column !important; align-items:stretch !important;
+        height:auto !important; min-height:100dvh !important; overflow:visible !important;
+        padding:0 !important; gap:0 !important;
+      }
+      body:not(.aurora-home-view) #player-wrap { order:2 !important; flex:none !important; width:100% !important; height:52vw !important; min-height:300px !important; max-height:58dvh !important; }
+      body:not(.aurora-home-view) #sidebar { order:3 !important; flex:none !important; width:100% !important; height:auto !important; min-height:500px !important; overflow:visible !important; }
+      body:not(.aurora-home-view) #channel-list { flex:none !important; min-height:360px !important; max-height:none !important; overflow:visible !important; }
+    }
+    @media (max-width:600px) {
+      .aurora-play-glass { min-width:58px; min-height:58px; padding-right:15px; }
+      .aurora-play-glass svg { width:56px; height:56px; flex-basis:56px; padding:19px; }
+      .aurora-play-glass-label { font-size:11px; }
+    }
+
+
+    /* AURORA 3.4: keep play action aligned in the same carousel control row */
+    .aurora-hero-controls {
+      left: 50% !important;
+      right: auto !important;
+      bottom: 16px !important;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 7px 10px;
+      max-width: calc(100% - 24px);
+    }
+    .aurora-hero-controls > .aurora-play-glass {
+      display: inline-flex;
+      flex: 0 0 40px;
+      width: 40px;
+      min-width: 40px;
+      height: 40px;
+      min-height: 40px;
+      padding: 0;
+      margin: 0 3px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.58);
+      background: linear-gradient(145deg,rgba(255,255,255,.30),rgba(255,255,255,.08));
+      box-shadow: 0 5px 18px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.24);
+      backdrop-filter: blur(16px);
+    }
+    .aurora-hero-controls > .aurora-play-glass svg {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      padding: 12px;
+      background: transparent;
+      filter: drop-shadow(0 1px 3px #0008);
+    }
+    .aurora-hero-controls > .aurora-play-glass .aurora-play-glass-label { display:none !important; }
+    @media (max-width: 600px) {
+      .aurora-hero-controls {
+        left: 50% !important;
+        right: auto !important;
+        bottom: 10px !important;
+        gap: 7px;
+        padding: 5px 7px;
+      }
+      .aurora-hero-controls > .aurora-play-glass {
+        flex-basis: 36px;
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        min-height: 36px;
+        margin: 0 1px;
+      }
+      .aurora-hero-controls > .aurora-play-glass svg {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+        padding: 10px;
+      }
+    }
+
+
+/* AURORA 3.5 — mobile-first controls, stable workspace, separate hero action */
+.aurora-hero { position:relative !important; }
+.aurora-hero-controls {
+  left:auto !important; right:clamp(88px,9vw,122px) !important; bottom:22px !important;
+  transform:none !important; gap:7px !important; z-index:8 !important;
+  height:46px; padding:5px 9px !important; border-radius:999px;
+}
+.aurora-hero-controls > button { flex-shrink:0; }
+.aurora-play-glass.aurora-hero-play-float {
+  position:absolute !important; left:auto !important; top:auto !important;
+  right:24px !important; bottom:22px !important; z-index:9 !important;
+  display:grid !important; place-items:center !important; transform:none !important;
+  width:46px !important; height:46px !important; min-width:46px !important; min-height:46px !important;
+  padding:0 !important; margin:0 !important; border-radius:50% !important;
+  border:1px solid rgba(255,255,255,.52) !important;
+  background:rgba(255,255,255,.19) !important;
+  box-shadow:0 5px 20px #0007,inset 0 1px #fff5 !important;
+  backdrop-filter:blur(18px) saturate(150%); -webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.aurora-play-glass.aurora-hero-play-float:hover { transform:scale(1.07) !important; background:rgba(255,255,255,.28) !important; }
+.aurora-play-glass.aurora-hero-play-float svg {
+  width:44px !important; height:44px !important; padding:13px !important;
+  background:transparent !important; flex:none !important;
+}
+#aurora-topnav { align-content:center; }
+.aurora-nav-link { min-width:0; }
+/* The desktop player and source pane remain in separate fixed grid areas even while a card expands. */
+@media(min-width:900px) {
+  body:not(.aurora-home-view) { min-height:0 !important; }
+  body:not(.aurora-home-view) #player-wrap { position:relative !important; min-height:0 !important; max-height:100% !important; }
+  body:not(.aurora-home-view) #sidebar { min-height:0 !important; overflow:hidden !important; }
+  body:not(.aurora-home-view) #channel-list { overflow-y:auto !important; min-height:0 !important; }
+}
+@media(min-width:601px) and (max-width:899px) {
+  body:not(.aurora-home-view) { display:grid !important; grid-template-columns:1fr !important; grid-template-rows:auto minmax(270px,44dvh) minmax(0,1fr) !important; grid-template-areas:'header' 'player' 'sidebar' !important; height:100dvh !important; min-height:0 !important; overflow:hidden !important; }
+  body:not(.aurora-home-view) #player-wrap { position:relative !important; order:initial !important; height:auto !important; min-height:0 !important; max-height:none !important; }
+  body:not(.aurora-home-view) #sidebar { order:initial !important; height:auto !important; min-height:0 !important; overflow:hidden !important; }
+  body:not(.aurora-home-view) #channel-list { overflow-y:auto !important; max-height:none !important; min-height:0 !important; }
+}
+@media(max-width:760px) {
+  #aurora-topnav { display:grid !important; grid-template-columns:auto minmax(0,1fr) !important; grid-template-areas:'brand search' 'links links' !important; gap:6px 8px !important; padding:8px max(8px,env(safe-area-inset-left)) !important; min-height:0 !important; overflow:visible !important; }
+  .aurora-brand { grid-area:brand; flex:none !important; min-width:0 !important; gap:6px !important; margin:0 !important; }
+  .aurora-brand-mark { width:32px !important; height:32px !important; border-radius:9px !important; font-size:16px !important; }
+  .aurora-brand-copy strong { font-size:clamp(12px,3.1vw,16px) !important; white-space:nowrap; }
+  .aurora-brand-copy small { display:none !important; }
+  #aurora-nav-search { grid-area:search; order:initial !important; width:100% !important; min-width:0 !important; max-width:none !important; flex:none !important; gap:5px !important; }
+  #aurora-nav-search input { height:35px !important; min-width:0 !important; font-size:12px !important; padding:0 8px !important; border-radius:10px !important; }
+  #aurora-nav-search button { height:35px !important; padding:0 8px !important; min-width:35px; border-radius:10px !important; }
+  #aurora-nav-search button span { display:none !important; }
+  .aurora-nav-links { grid-area:links; order:initial !important; display:grid !important; grid-template-columns:repeat(8,minmax(0,1fr)) !important; flex:none !important; gap:0 !important; width:100% !important; min-width:0 !important; overflow:visible !important; padding:0 !important; }
+  .aurora-nav-link, .aurora-nav-link.aurora-nav-settings { font-size:0 !important; padding:0 !important; min-width:0 !important; min-height:34px !important; height:34px !important; width:100% !important; margin:0 !important; gap:0 !important; border-radius:9px !important; }
+  .aurora-nav-link span { font-size:clamp(15px,4.1vw,20px) !important; }
+  .aurora-hero { min-height:clamp(330px,94vw,450px) !important; }
+  .aurora-hero-copy { padding-bottom:88px !important; }
+  .aurora-hero-controls { left:auto !important; right:75px !important; bottom:14px !important; transform:none !important; height:42px; gap:5px !important; padding:5px 7px !important; }
+  .aurora-hero-controls > button { width:29px; height:29px; }
+  .aurora-hero-dots { gap:4px !important; }
+  .aurora-hero-dot { width:5px !important; height:5px !important; }
+  .aurora-hero-dot.active { width:15px !important; }
+  .aurora-play-glass.aurora-hero-play-float { right:14px !important; bottom:14px !important; width:42px !important; min-width:42px !important; height:42px !important; min-height:42px !important; }
+  .aurora-play-glass.aurora-hero-play-float svg { width:40px !important; height:40px !important; padding:12px !important; }
+}
+@media(max-width:600px) {
+  /* Fill the available video width; the controls overlay stays in its own reserved area. */
+  body:not(.aurora-home-view) {
+    display:grid !important; grid-template-columns:minmax(0,1fr) !important;
+    grid-template-rows:auto minmax(0,1fr) !important;
+    grid-template-areas:'header' 'sidebar' !important;
+    height:100dvh !important; min-height:0 !important; overflow:hidden !important; padding:5px !important; gap:6px !important;
+  }
+  body:not(.aurora-home-view) #player-wrap {
+    grid-area:unset !important; position:sticky !important; top:0 !important; z-index:15 !important;
+    width:100% !important; height:auto !important; aspect-ratio:16/9 !important; min-height:clamp(200px,55vw,270px) !important; max-height:40dvh !important;
+    flex:none !important; order:initial !important; border-radius:12px !important; overflow:hidden !important;
+  }
+  body:not(.aurora-home-view) { grid-template-rows:auto auto minmax(0,1fr) !important; grid-template-areas:'header' 'player' 'sidebar' !important; }
+  body:not(.aurora-home-view) #player-wrap { grid-area:player !important; }
+  body:not(.aurora-home-view) #sidebar { grid-area:sidebar !important; min-height:0 !important; height:auto !important; overflow:hidden !important; order:initial !important; }
+  body:not(.aurora-home-view) #channel-list { overflow-y:auto !important; overflow-x:hidden !important; min-height:0 !important; max-height:none !important; padding:8px !important; }
+  body:not(.aurora-home-view) #channel-list .title-group-box { width:100% !important; min-width:0 !important; margin:5px 0 9px !important; }
+  #top-bar { padding:8px 10px !important; }
+  #custom-controls { padding:0 6px 6px !important; }
+  #progress-container { margin-bottom:3px !important; }
+  .controls-inner { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; height:59px !important; min-height:59px !important; gap:1px !important; padding:0 2px !important; }
+  .ctrl-left { display:flex !important; justify-content:space-between !important; width:100% !important; min-width:0 !important; gap:2px !important; }
+  .ctrl-right { display:flex !important; justify-content:flex-end !important; width:100% !important; min-width:0 !important; gap:3px !important; }
+  .controls-inner .ctrl-btn { width:26px !important; min-width:26px !important; height:28px !important; padding:2px !important; }
+  .controls-inner .pill-btn { width:auto !important; min-width:31px !important; padding:0 4px !important; font-size:10px !important; }
+  .controls-inner .volume-box { gap:0 !important; flex:0 0 auto !important; }
+  .controls-inner .volume-slider { display:none !important; }
+  .controls-inner .ctrl-time { font-size:9px !important; white-space:nowrap !important; max-width:81px !important; letter-spacing:-.35px !important; }
+  .external-group { display:flex !important; max-width:none !important; min-width:0 !important; overflow-x:auto !important; gap:2px !important; padding:2px !important; flex:1 1 auto !important; scrollbar-width:none; }
+  .external-group .ext-btn { flex:0 0 23px !important; width:23px !important; height:23px !important; }
+  .controls-inner .pip-btn { display:inline-flex !important; }
+}
+@media(max-width:375px) {
+  .aurora-nav-link span { font-size:16px !important; }
+  .aurora-brand-copy strong { font-size:12px !important; }
+  .controls-inner #ratio-btn { display:inline-flex !important; }
+  .controls-inner .ctrl-time { max-width:62px !important; font-size:8px !important; }
+}
+
+
+    /* AURORA 3.6 — navigation labels, stable 16:9 video area, usable list controls */
+    #gate-theme-toggle, #main-quick-theme-btn { display:none !important; }
+    .aurora-discovery-filters { display:flex; align-items:end; justify-content:flex-end; flex-wrap:wrap; gap:9px; }
+    .aurora-discovery-filters label { display:flex; flex-direction:column; gap:5px; font-size:11px; color:var(--text-sub); font-weight:750; white-space:nowrap; }
+    .aurora-discovery-filters select { min-width:100px; max-width:150px; height:37px; border-radius:11px; padding:0 28px 0 10px; background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-light); font-size:12px; outline:none; }
+    .aurora-discovery-filters select:focus { border-color:var(--accent); }
+    .aurora-hero { isolation:isolate; }
+    /* Separate play (middle) from carousel navigation (right), rather than crowding them together. */
+    .aurora-play-glass.aurora-hero-play-float { left:50% !important; right:auto !important; bottom:20px !important; transform:translateX(-50%) !important; }
+    .aurora-play-glass.aurora-hero-play-float:hover { transform:translateX(-50%) scale(1.06) !important; }
+    .aurora-hero-controls { left:auto !important; right:20px !important; bottom:20px !important; transform:none !important; }
+    @media(max-width:950px) {
+      .aurora-section-head { display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px; }
+      .aurora-discovery-filters { width:100%; justify-content:flex-start; }
+    }
+    @media(max-width:760px) {
+      #aurora-topnav { display:grid !important; grid-template-columns:auto minmax(0,1fr) !important; grid-template-areas:'brand search' 'links links' !important; gap:8px 7px !important; padding:9px 10px !important; min-height:0 !important; }
+      .aurora-brand { grid-area:brand !important; flex:0 0 auto !important; }
+      #aurora-nav-search { grid-area:search !important; flex:0 0 auto !important; width:100% !important; max-width:none !important; min-width:0 !important; order:initial !important; }
+      .aurora-nav-links { grid-area:links !important; display:grid !important; grid-template-columns:repeat(8,minmax(0,1fr)) !important; gap:2px !important; width:100% !important; overflow:visible !important; min-width:0 !important; padding:0 !important; flex:0 0 auto !important; }
+      .aurora-nav-link, .aurora-nav-link.aurora-nav-settings { display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; font-size:10px !important; font-weight:700 !important; gap:2px !important; min-width:0 !important; min-height:48px !important; height:48px !important; width:100% !important; padding:3px 0 !important; border-radius:10px !important; line-height:1.1 !important; white-space:nowrap !important; }
+      .aurora-nav-link span { display:block !important; font-size:19px !important; line-height:21px !important; }
+      .aurora-nav-search input { min-width:0 !important; font-size:12px !important; height:38px !important; }
+      .aurora-nav-search button { height:38px !important; min-width:39px !important; }
+      .aurora-nav-settings { margin:0 !important; }
+      .aurora-hero-controls { right:12px !important; bottom:16px !important; height:40px !important; gap:5px !important; padding:5px 7px !important; }
+      .aurora-hero-controls > button { width:26px !important; height:26px !important; font-size:19px !important; }
+      .aurora-hero-dots { gap:4px !important; }
+      .aurora-hero-dot { width:5px !important; height:5px !important; }
+      .aurora-hero-dot.active { width:13px !important; }
+      .aurora-play-glass.aurora-hero-play-float { left:50% !important; right:auto !important; bottom:16px !important; width:42px !important; height:42px !important; transform:translateX(-50%) !important; }
+      .aurora-discovery-filters { gap:7px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .aurora-discovery-filters label { min-width:0; font-size:10px; }
+      .aurora-discovery-filters select { min-width:0; max-width:100%; width:100%; height:35px; font-size:11px; padding:0 17px 0 5px; }
+      /* Both the player and sources list occupy fixed grid tracks; expanding an episode never pushes video off-screen. */
+      body:not(.aurora-home-view) { display:grid !important; grid-template-columns:minmax(0,1fr) !important; grid-template-rows:auto auto minmax(0,1fr) !important; grid-template-areas:'header' 'player' 'sidebar' !important; width:100% !important; height:100dvh !important; min-height:0 !important; overflow:hidden !important; gap:6px !important; padding:5px !important; }
+      body:not(.aurora-home-view) #aurora-topnav { grid-area:header !important; }
+      body:not(.aurora-home-view) #player-wrap { grid-area:player !important; width:100% !important; height:clamp(266px,calc(56.25vw + 76px),420px) !important; min-height:266px !important; max-height:calc(100dvh - 190px) !important; border-radius:15px !important; position:relative !important; flex:none !important; order:initial !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) #sidebar { grid-area:sidebar !important; flex:none !important; min-height:0 !important; height:auto !important; overflow:hidden !important; order:initial !important; }
+      body:not(.aurora-home-view) #channel-list { flex:1 1 auto !important; overflow-y:auto !important; overflow-x:hidden !important; min-height:0 !important; max-height:100% !important; overscroll-behavior:contain; }
+      body:not(.aurora-home-view) #player-wrap > video { position:absolute !important; inset:0 auto auto 0 !important; display:block !important; width:100% !important; height:calc(100% - 75px) !important; object-fit:contain !important; }
+      body:not(.aurora-home-view) #player-wrap > .aurora-player-empty { bottom:75px !important; }
+      body:not(.aurora-home-view) #custom-controls { height:75px !important; padding:0 6px 4px !important; background:#02050c !important; }
+      body:not(.aurora-home-view) #progress-container { height:13px !important; padding:0 6px !important; margin:0 0 2px !important; }
+      body:not(.aurora-home-view) .controls-inner { display:grid !important; grid-template-columns:minmax(0,1fr) !important; grid-template-rows:27px 27px !important; height:54px !important; min-height:54px !important; gap:1px !important; padding:0 !important; }
+      body:not(.aurora-home-view) .ctrl-left, body:not(.aurora-home-view) .ctrl-right { height:27px !important; min-height:27px !important; width:100% !important; min-width:0 !important; gap:3px !important; align-items:center !important; justify-content:space-between !important; }
+      body:not(.aurora-home-view) .ctrl-left { grid-row:1; }
+      body:not(.aurora-home-view) .ctrl-right { grid-row:2; }
+      body:not(.aurora-home-view) .controls-inner .ctrl-btn { width:26px !important; height:26px !important; min-width:26px !important; padding:2px !important; }
+      body:not(.aurora-home-view) .controls-inner .pill-btn { width:auto !important; min-width:36px !important; padding:1px 5px !important; font-size:10px !important; }
+      body:not(.aurora-home-view) .controls-inner .volume-slider { display:none !important; }
+      body:not(.aurora-home-view) .controls-inner .ctrl-time { font-size:10px !important; max-width:none !important; white-space:nowrap !important; letter-spacing:0 !important; }
+      body:not(.aurora-home-view) .external-group { flex:0 1 auto !important; display:flex !important; max-width:calc(100vw - 95px) !important; overflow-x:auto !important; min-width:0 !important; gap:4px !important; padding:1px !important; scrollbar-width:none !important; }
+      body:not(.aurora-home-view) .external-group .ext-btn { flex:0 0 25px !important; width:25px !important; height:25px !important; }
+      body:not(.aurora-home-view) .controls-inner .pip-btn { display:flex !important; }
+      /* Group filter rows may wrap but must never overlap each other. */
+      .top-unified-bar { display:grid !important; grid-template-columns:minmax(0,1fr) !important; gap:7px !important; padding:9px 9px 10px !important; width:100% !important; overflow:visible !important; position:sticky !important; top:0 !important; min-height:0 !important; }
+      .bar-left-group, .bar-right-group { display:flex !important; width:100% !important; min-width:0 !important; flex-wrap:nowrap !important; gap:6px !important; justify-content:space-between !important; }
+      .bar-left-group > .filter-pill-btn, .bar-right-group > .btn-sort-action { flex:1 1 0 !important; width:auto !important; min-width:0 !important; height:35px !important; font-size:11px !important; padding:5px 4px !important; overflow:hidden !important; text-overflow:ellipsis; border-radius:11px !important; }
+      .bar-left-group > .filter-pill-btn { max-width:none !important; }
+      #channel-list > .top-unified-bar { margin:0 0 10px !important; }
+      #channel-list .title-group-box { width:100% !important; min-width:0 !important; margin:5px 0 10px !important; }
+    }
+    @media(max-width:350px) {
+      .aurora-brand-copy strong { font-size:11px !important; }
+      .aurora-nav-link { font-size:9px !important; }
+      .aurora-nav-link span { font-size:17px !important; }
+      body:not(.aurora-home-view) .ctrl-time { font-size:9px !important; }
+      body:not(.aurora-home-view) .external-group .ext-btn { flex-basis:22px !important; width:22px !important; height:22px !important; }
+    }
+
+
+    /* AURORA 3.6 final: one authoritative layer above legacy conflicting layout styles. */
+    #gate-theme-toggle, #main-quick-theme-btn, .aurora-theme-action { display:none !important; }
+    body.shiguang-booting > #aurora-topnav,
+    body.shiguang-booting > #aurora-home,
+    body.shiguang-booting > #player-wrap,
+    body.shiguang-booting > #sidebar { visibility:hidden !important; }
+    .aurora-play-glass.aurora-hero-play-float {
+      position:absolute !important; z-index:7 !important;
+      left:50% !important; right:auto !important; bottom:18px !important;
+      transform:translateX(-50%) !important;
+    }
+    .aurora-play-glass.aurora-hero-play-float:hover { transform:translateX(-50%) scale(1.05) !important; }
+    .aurora-hero-controls {
+      position:absolute !important; left:auto !important; right:20px !important;
+      bottom:18px !important; transform:none !important;
+      max-width:min(47%,240px) !important;
+    }
+    .aurora-nav-link { white-space:nowrap; }
+    .aurora-discovery-filters select { cursor:pointer; }
+
+    @media (min-width:761px) {
+      #aurora-topnav { display:flex !important; flex-wrap:nowrap !important; min-width:0 !important; }
+      #aurora-nav-search { flex:0 1 260px !important; min-width:142px !important; max-width:280px !important; }
+      .aurora-nav-links { flex:1 1 auto !important; min-width:0 !important; justify-content:flex-end; }
+      .aurora-nav-link { padding:0 clamp(5px,.65vw,12px) !important; font-size:clamp(11px,.9vw,13px) !important; gap:5px !important; }
+    }
+    @media(min-width:761px) and (max-width:1080px) {
+      #aurora-topnav { flex-wrap:wrap !important; }
+      .aurora-nav-links { flex:1 0 100% !important; justify-content:space-evenly; }
+    }
+    @media(max-width:760px) {
+      /* Eight text-labeled entries, no icon-only leftovers or theme button wrapping to third line. */
+      #aurora-topnav { width:100% !important; box-sizing:border-box !important; }
+      .aurora-brand { min-width:0 !important; max-width:118px !important; gap:6px !important; }
+      .aurora-brand-mark { flex:0 0 34px !important; width:34px !important; height:34px !important; font-size:18px !important; }
+      .aurora-brand-copy small { display:none !important; }
+      .aurora-brand-copy strong { font-size:clamp(12px,3.3vw,15px) !important; }
+      .aurora-nav-search { min-width:0 !important; }
+      .aurora-nav-search input { padding:0 8px !important; width:100% !important; font-size:12px !important; }
+      .aurora-nav-search button { flex:0 0 38px !important; width:38px !important; min-width:38px !important; padding:0 !important; }
+      .aurora-nav-search button span { display:none !important; }
+      .aurora-nav-links { width:100% !important; grid-column:1/-1 !important; }
+      .aurora-nav-link { font-size:10px !important; border:0 !important; }
+      .aurora-nav-link span { display:block !important; }
+      .aurora-play-glass.aurora-hero-play-float { bottom:13px !important; width:42px !important; height:42px !important; }
+      .aurora-hero-controls { right:9px !important; bottom:13px !important; max-width:44% !important; }
+      .aurora-hero-controls > button { width:26px !important; height:26px !important; }
+      .aurora-hero-dots { gap:3px !important; }
+      .aurora-hero-dot { width:5px !important; height:5px !important; }
+      .aurora-hero-dot.active { width:12px !important; }
+      body:not(.aurora-home-view) #player-wrap { height:clamp(272px,calc(56.25vw + 79px),430px) !important; max-height:calc(100dvh - 190px) !important; }
+      body:not(.aurora-home-view) #player-wrap > video { height:calc(100% - 74px) !important; }
+      body:not(.aurora-home-view) #custom-controls { height:74px !important; }
+      body:not(.aurora-home-view) #player-wrap .controls-inner { height:54px !important; }
+      body:not(.aurora-home-view) #player-wrap .ctrl-left, body:not(.aurora-home-view) #player-wrap .ctrl-right { width:100% !important; min-width:0 !important; }
+      body:not(.aurora-home-view) #player-wrap .external-group { max-width:calc(100vw - 88px) !important; overflow-x:auto !important; }
+    }
+    @media (max-width:350px) {
+      .aurora-nav-link { font-size:9px !important; }
+      .aurora-nav-link span { font-size:16px !important; }
+      .aurora-hero-controls { right:6px !important; }
+      .aurora-play-glass.aurora-hero-play-float { width:38px !important; height:38px !important; }
+    }
+
+
+    /* Tablet portrait: player stays visible while playlists/episodes scroll independently. */
+    @media (min-width:761px) and (max-width:899px) {
+      html, body { height:100dvh !important; min-height:0 !important; overflow:hidden !important; }
+      body:not(.aurora-home-view) {
+        display:grid !important; grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:auto minmax(340px,52vh) minmax(0,1fr) !important;
+        grid-template-areas:'header' 'player' 'sidebar' !important;
+        width:100% !important; height:100dvh !important; min-height:0 !important;
+        padding:8px !important; gap:8px !important; overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #aurora-topnav { grid-area:header !important; }
+      body:not(.aurora-home-view) #player-wrap {
+        grid-area:player !important; width:100% !important; height:auto !important;
+        max-height:none !important; min-height:0 !important;
+        order:initial !important; position:relative !important; overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #sidebar {
+        grid-area:sidebar !important; display:flex !important; flex-direction:column !important;
+        height:auto !important; min-height:0 !important; max-height:none !important;
+        order:initial !important; overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #channel-list {
+        flex:1 1 auto !important; height:auto !important; min-height:0 !important;
+        max-height:none !important; overflow-y:auto !important; overflow-x:hidden !important;
+      }
+      body.aurora-home-view { height:100dvh !important; min-height:0 !important; overflow:hidden !important; }
+      body.aurora-home-view #aurora-home { flex:1 1 auto !important; height:100% !important; min-height:0 !important; overflow-y:auto !important; }
+    }
+
+  /* AURORA 3.7: compact two-column mobile VOD results; expanding one card takes full width.
+   Applies only to search results; favorites, history and live TV keep their own layouts. */
+@media (max-width: 600px) {
+  body:not(.aurora-home-view) #channel-list.sg-results-grid {
+    display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-auto-flow:row !important; grid-auto-rows:max-content !important; align-items:stretch !important; align-content:start !important;
+    gap:8px !important; padding:7px 8px 22px !important;
+    overflow-x:hidden !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch;
+    scroll-padding-top:60px;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .top-unified-bar {
+    grid-column:1/-1 !important; display:flex !important; flex-flow:row nowrap !important;
+    align-items:center !important; gap:4px !important; min-height:0 !important;
+    width:100% !important; min-width:0 !important; margin:0 0 2px !important;
+    padding:6px 5px !important; overflow:hidden !important; position:sticky !important;
+    top:0 !important; z-index:25 !important; border:1px solid var(--border-color);
+    border-radius:11px !important; background:var(--bg-sidebar) !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .bar-left-group {
+    display:flex !important; flex:1 1 auto !important; width:auto !important;
+    min-width:0 !important; gap:3px !important; flex-wrap:nowrap !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .bar-right-group {
+    display:flex !important; flex:0 1 auto !important; width:auto !important;
+    min-width:0 !important; gap:3px !important; flex-wrap:nowrap !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .filter-pill-btn,
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .btn-sort-action {
+    min-width:0 !important; flex:0 1 auto !important; width:auto !important;
+    height:34px !important; padding:4px 5px !important; font-size:clamp(9px,2.55vw,11px) !important;
+    line-height:1.1 !important; border-radius:9px !important; white-space:nowrap !important;
+    overflow:hidden !important; text-overflow:ellipsis;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box {
+    grid-column:span 1 !important; display:flex !important; flex-direction:column !important;
+    align-self:stretch !important; width:100% !important; min-width:0 !important;
+    max-width:none !important; height:auto !important; margin:0 !important;
+    padding:0 !important; border-radius:13px !important; overflow:hidden !important;
+    box-shadow:none !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded {
+    grid-column:1/-1 !important; width:100% !important;
+    border-color:var(--accent) !important; box-shadow:0 4px 18px #0003 !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .title-group-header {
+    min-height:90px !important; height:auto !important; padding:7px !important;
+    gap:4px !important; align-items:center !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-header-left {
+    min-width:0 !important; width:100% !important; gap:6px !important; align-items:center !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-poster {
+    flex:0 0 44px !important; width:44px !important; height:62px !important;
+    border-radius:8px !important; object-fit:cover !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-info-wrap {
+    min-width:0 !important; gap:4px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-main-title {
+    font-size:11px !important; line-height:1.35 !important; white-space:normal !important;
+    display:-webkit-box !important; -webkit-box-orient:vertical !important; -webkit-line-clamp:2;
+    overflow:hidden !important; overflow-wrap:anywhere; max-height:2.7em !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag {
+    gap:3px !important; font-size:10px !important; line-height:1.3 !important;
+    overflow:hidden !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box:not(.expanded)
+    .group-meta-tag > span:not(:first-child):not(.group-badge-count) { display:none !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-badge-count {
+    padding:2px 5px !important; margin:0 !important; font-size:9px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-arrow {
+    min-width:9px !important; font-size:10px !important; margin:0 !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-poster {
+    width:52px !important; height:72px !important; flex-basis:52px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-main-title { font-size:13px !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-body-panel {
+    width:100% !important; min-width:0 !important; padding:10px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .episodes-grid {
+    grid-template-columns:repeat(auto-fill,minmax(54px,1fr)) !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid > :not(.title-group-box):not(.top-unified-bar) { grid-column:1/-1 !important; }
+}
+@media (max-width:350px) {
+  body:not(.aurora-home-view) #channel-list.sg-results-grid { gap:6px !important; padding-left:6px !important; padding-right:6px !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-poster {
+    flex-basis:38px !important; width:38px !important; height:55px !important;
+  }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .title-group-header { padding:5px !important; }
+  body:not(.aurora-home-view) #channel-list.sg-results-grid .group-main-title { font-size:10px !important; }
+}
+
+
+    /* =====================================================================
+       AURORA 3.8: 75%-density native layout (NOT viewport zoom)
+       Small enough for Safari on phones, but touch targets remain usable.
+       Standalone glass arrows, separate right-bottom play action.
+       ===================================================================== */
+    #aurora-topnav { box-sizing:border-box !important; }
+    #aurora-home { width:100%; box-sizing:border-box; }
+    .aurora-hero-controls {
+      position:absolute !important; inset:0 !important;
+      top:0 !important; bottom:0 !important; left:0 !important; right:0 !important;
+      display:block !important; width:100% !important; height:100% !important;
+      max-width:none !important; min-width:0 !important;
+      padding:0 !important; margin:0 !important; transform:none !important;
+      border:0 !important; border-radius:0 !important;
+      background:none !important; box-shadow:none !important;
+      -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+      pointer-events:none !important; z-index:6 !important;
+    }
+    .aurora-hero-controls > #aurora-slide-prev,
+    .aurora-hero-controls > #aurora-slide-next {
+      position:absolute !important; top:51% !important;
+      width:clamp(34px,3.3vw,44px) !important;
+      height:clamp(34px,3.3vw,44px) !important;
+      min-width:34px !important; padding:0 !important;
+      display:grid !important; place-items:center !important;
+      transform:translateY(-50%) !important;
+      border:1px solid rgba(255,255,255,.32) !important;
+      border-radius:50% !important;
+      background:rgba(22,32,46,.34) !important;
+      color:white !important; font-size:26px !important;
+      box-shadow:0 6px 22px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.12) !important;
+      -webkit-backdrop-filter:blur(17px) saturate(155%) !important;
+      backdrop-filter:blur(17px) saturate(155%) !important;
+      pointer-events:auto !important; cursor:pointer;
+      transition:background .2s ease, border-color .2s ease !important;
+    }
+    .aurora-hero-controls > #aurora-slide-prev { left:clamp(9px,2vw,20px) !important; right:auto !important; }
+    .aurora-hero-controls > #aurora-slide-next { right:clamp(9px,2vw,20px) !important; left:auto !important; }
+    .aurora-hero-controls > #aurora-slide-prev:hover,
+    .aurora-hero-controls > #aurora-slide-next:hover {
+      background:rgba(255,255,255,.25) !important; border-color:rgba(255,255,255,.66) !important;
+    }
+    #aurora-hero-dots.aurora-hero-dots {
+      position:absolute !important; bottom:clamp(14px,2.2vw,22px) !important;
+      left:50% !important; right:auto !important; top:auto !important;
+      display:flex !important; justify-content:center !important; align-items:center !important;
+      transform:translateX(-50%) !important; pointer-events:auto !important;
+      border-radius:999px !important; padding:6px 9px !important;
+      background:rgba(5,12,22,.28) !important;
+      -webkit-backdrop-filter:blur(12px) !important; backdrop-filter:blur(12px) !important;
+      gap:6px !important; max-width:43% !important;
+    }
+    .aurora-play-glass.aurora-hero-play-float {
+      position:absolute !important; left:auto !important;
+      right:clamp(14px,2vw,26px) !important; bottom:clamp(13px,2vw,22px) !important;
+      top:auto !important; transform:none !important;
+      width:clamp(40px,4.3vw,52px) !important; height:clamp(40px,4.3vw,52px) !important;
+      min-height:40px !important; min-width:40px !important;
+      background:rgba(240,247,255,.23) !important;
+      border:1px solid rgba(255,255,255,.49) !important;
+      border-radius:50% !important;
+      box-shadow:0 6px 22px rgba(0,0,0,.2) !important;
+      -webkit-backdrop-filter:blur(18px) saturate(140%) !important;
+      backdrop-filter:blur(18px) saturate(140%) !important;
+      pointer-events:auto !important; z-index:8 !important;
+    }
+    .aurora-play-glass.aurora-hero-play-float:hover {
+      transform:scale(1.05) !important; background:rgba(255,255,255,.29) !important;
+    }
+    .aurora-play-glass.aurora-hero-play-float svg {
+      width:38px !important; height:38px !important; padding:11px !important; box-sizing:border-box !important;
+    }
+    #aurora-hero-title { overflow-wrap:anywhere; }
+
+    @media (min-width:1101px) {
+      .aurora-hero-copy { padding-left:clamp(77px,6vw,102px) !important; }
+      #aurora-topnav { gap:clamp(8px,1vw,17px) !important; padding:8px clamp(14px,2vw,32px) !important; min-height:58px !important; }
+      .aurora-brand { min-width:155px !important; gap:9px !important; }
+      .aurora-brand-mark { width:38px !important; height:38px !important; }
+      .aurora-brand-copy strong { font-size:17px !important; }
+      #aurora-nav-search { min-width:158px !important; flex:0 1 250px !important; }
+      .aurora-nav-links { min-width:0 !important; display:flex !important; justify-content:flex-end !important; gap:2px !important; }
+      .aurora-nav-link { min-width:0 !important; padding:0 7px !important; height:36px !important; min-height:36px !important; gap:5px !important; font-size:12px !important; }
+      .aurora-nav-link span { font-size:15px !important; }
+      #aurora-home { max-width:1480px !important; padding:17px clamp(18px,3vw,48px) 36px !important; }
+      .aurora-hero { min-height:clamp(310px,30vw,450px) !important; }
+      .aurora-hero-copy { padding:24px clamp(30px,3.5vw,52px) 60px !important; }
+      .aurora-home-section { margin-top:24px !important; }
+    }
+    @media (min-width:761px) and (max-width:1100px) {
+      #aurora-topnav { display:grid !important; grid-template-columns:auto minmax(0,1fr) !important;
+        grid-template-areas:'brand search' 'links links' !important; padding:7px 15px !important; gap:5px 12px !important; }
+      #aurora-topnav .aurora-brand { grid-area:brand !important; min-width:0 !important; }
+      #aurora-nav-search { grid-area:search !important; width:100% !important; min-width:0 !important; max-width:430px !important; justify-self:end !important; }
+      #aurora-topnav .aurora-nav-links { grid-area:links !important; display:grid !important; grid-template-columns:repeat(8,minmax(0,1fr)) !important;
+        min-width:0 !important; width:100% !important; justify-content:stretch !important; gap:3px !important; flex:none !important; }
+      #aurora-topnav .aurora-nav-link { width:100% !important; min-width:0 !important; font-size:11px !important; padding:0 3px !important; min-height:34px !important; height:34px !important; }
+      #aurora-home { padding:15px 19px 34px !important; }
+      .aurora-hero { min-height:clamp(280px,41vw,400px) !important; }
+      .aurora-hero-copy { padding:22px 28px 60px !important; }
+      .aurora-poster-grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
+    }
+    @media (max-width:760px) {
+      html { -webkit-text-size-adjust:100% !important; text-size-adjust:100% !important; }
+      #aurora-topnav { display:grid !important; box-sizing:border-box !important;
+        grid-template-columns:auto minmax(0,1fr) !important;
+        grid-template-areas:'brand search' 'links links' !important;
+        align-items:center !important; width:100% !important; min-height:0 !important;
+        padding:6px max(7px,env(safe-area-inset-left)) 5px max(7px,env(safe-area-inset-right)) !important;
+        gap:4px 7px !important; border-radius:0 0 13px 13px !important;
+        overflow:visible !important; }
+      #aurora-topnav .aurora-brand { grid-area:brand !important; min-width:0 !important; max-width:none !important;
+        display:flex !important; gap:5px !important; margin:0 !important; }
+      .aurora-brand-mark { flex:0 0 28px !important; width:28px !important; height:28px !important;
+        border-radius:9px !important; font-size:15px !important; }
+      #aurora-topnav .aurora-brand-copy strong { font-size:clamp(11px,3vw,13px) !important; letter-spacing:0 !important; }
+      .aurora-brand-copy small { display:none !important; }
+      #aurora-nav-search { grid-area:search !important; display:flex !important; flex:none !important;
+        min-width:0 !important; width:100% !important; max-width:none !important; gap:5px !important; }
+      #aurora-nav-search input { height:31px !important; font-size:12px !important;
+        min-width:0 !important; padding:0 9px !important; border-radius:9px !important; }
+      #aurora-nav-search button { flex:0 0 33px !important; height:31px !important; min-width:33px !important;
+        width:33px !important; border-radius:9px !important; padding:0 !important; }
+      #aurora-topnav .aurora-nav-links { grid-area:links !important; display:grid !important;
+        grid-template-columns:repeat(8,minmax(0,1fr)) !important; min-width:0 !important;
+        width:100% !important; margin:0 !important; padding:0 !important;
+        gap:1px !important; overflow:visible !important; justify-content:stretch !important;
+        flex:none !important; }
+      #aurora-topnav .aurora-nav-link,
+      #aurora-topnav .aurora-nav-link.aurora-nav-settings {
+        display:flex !important; width:100% !important; min-width:0 !important;
+        height:35px !important; min-height:35px !important;
+        flex-direction:column !important; align-items:center !important; justify-content:center !important;
+        padding:2px 0 !important; margin:0 !important; gap:1px !important;
+        font-size:clamp(9px,2.45vw,10px) !important; font-weight:750 !important;
+        line-height:1.06 !important; white-space:nowrap !important; border-radius:8px !important;
+      }
+      #aurora-topnav .aurora-nav-link span { display:block !important; font-size:clamp(14px,3.8vw,16px) !important;
+        line-height:17px !important; }
+      #aurora-home { padding:9px 9px 24px !important; margin:0 auto !important; width:100% !important; }
+      .aurora-hero { min-height:clamp(260px,78vw,400px) !important; border-radius:15px !important; }
+      .aurora-hero-copy { padding:16px 17px 62px !important; width:100% !important; }
+      .aurora-eyebrow { font-size:8px !important; letter-spacing:.14em !important; margin-bottom:7px !important; }
+      .aurora-hero-kicker { font-size:11px !important; }
+      #aurora-hero-title { font-size:clamp(24px,6.7vw,34px) !important; line-height:1.12 !important; margin:6px 0 !important; }
+      #aurora-hero-desc { font-size:11px !important; line-height:1.5 !important;
+        display:-webkit-box !important; -webkit-box-orient:vertical !important; -webkit-line-clamp:3 !important;
+        line-clamp:3 !important; overflow:hidden !important; max-height:4.5em !important; }
+      .aurora-hero-meta { font-size:10px !important; gap:6px !important; margin-top:9px !important; }
+      .aurora-hero-meta span { font-size:10px !important; padding:4px 7px !important; }
+      .aurora-hero-controls > #aurora-slide-prev,
+      .aurora-hero-controls > #aurora-slide-next { width:35px !important; height:35px !important;
+        min-width:35px !important; font-size:24px !important; top:50% !important; }
+      #aurora-hero-dots.aurora-hero-dots { bottom:13px !important; padding:5px 8px !important; gap:4px !important; max-width:48% !important; }
+      .aurora-play-glass.aurora-hero-play-float { left:auto !important; right:12px !important;
+        bottom:10px !important; top:auto !important; transform:none !important;
+        width:39px !important; height:39px !important; min-width:39px !important; min-height:39px !important; }
+      .aurora-play-glass.aurora-hero-play-float:hover { transform:scale(1.05) !important; }
+      .aurora-play-glass.aurora-hero-play-float svg { width:36px !important; height:36px !important; padding:11px !important; }
+      .aurora-home-section { margin-top:19px !important; }
+      .aurora-section-head { gap:9px !important; }
+      .aurora-section-head h2 { font-size:19px !important; line-height:1.18 !important; }
+      .aurora-section-head p { font-size:11px !important; max-width:none !important; line-height:1.4 !important; }
+      .aurora-discovery-filters { width:100% !important; display:grid !important;
+        grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:5px !important; }
+      .aurora-discovery-filters label { width:100% !important; min-width:0 !important; font-size:10px !important; }
+      .aurora-discovery-filters select { width:100% !important; min-width:0 !important;
+        height:31px !important; padding:0 4px !important; font-size:11px !important; border-radius:8px !important; }
+      .aurora-poster-grid { grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+        gap:10px 7px !important; }
+      .aurora-poster-card { padding:2px !important; border-radius:10px !important; }
+      .aurora-poster-art { border-radius:9px !important; }
+      .aurora-poster-title { font-size:11px !important; margin:5px 1px 2px !important; }
+      .aurora-poster-sub { font-size:10px !important; }
+      .aurora-poster-tag { top:5px !important; left:5px !important; font-size:8px !important; padding:3px 5px !important; }
+    }
+    @media (max-width:355px) {
+      .aurora-brand-mark { flex-basis:25px !important; width:25px !important; height:25px !important; }
+      #aurora-topnav .aurora-brand-copy strong { font-size:11px !important; }
+      .aurora-nav-search button { flex-basis:30px !important; }
+      #aurora-topnav .aurora-nav-link { font-size:9px !important; }
+      .aurora-poster-grid { gap:8px 5px !important; }
+      .aurora-hero-copy { padding:12px 13px 59px !important; }
+      .aurora-hero-controls > #aurora-slide-prev { left:7px !important; }
+      .aurora-hero-controls > #aurora-slide-next { right:7px !important; }
+    }
+
+  
+
+    /* AURORA 3.9 — responsive media, centered carousel arrows,
+       scale-safe player toolbar and two-column desktop VOD results.
+       Applied after all legacy overrides to retain existing behavior. */
+
+    /* Arrow centers coincide with the geometric center of the hero at every breakpoint. */
+    #aurora-home #aurora-hero .aurora-hero-controls > #aurora-slide-prev,
+    #aurora-home #aurora-hero .aurora-hero-controls > #aurora-slide-next {
+      top:50% !important;
+      bottom:auto !important;
+      margin-top:0 !important;
+      transform:translateY(-50%) !important;
+      -webkit-transform:translateY(-50%) !important;
+      display:grid !important;
+      place-items:center !important;
+    }
+    /* Keep the overlay transparent; only the glass buttons catch pointer events. */
+    #aurora-home #aurora-hero .aurora-hero-controls { pointer-events:none !important; }
+    #aurora-home #aurora-hero .aurora-hero-controls > button,
+    #aurora-home #aurora-hero #aurora-hero-dots { pointer-events:auto !important; }
+
+    /* The picture fills the ENTIRE poster frame; no letterboxing or distorted faces. */
+    #aurora-recommendations .aurora-poster-art {
+      position:relative !important;
+      display:block !important;
+      width:100% !important;
+      aspect-ratio:2 / 3 !important;
+      overflow:hidden !important;
+      isolation:isolate;
+    }
+    #aurora-recommendations .aurora-poster-art > img {
+      position:absolute !important;
+      display:block !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      min-width:100% !important;
+      min-height:100% !important;
+      object-fit:cover !important;
+      object-position:center 25% !important;
+    }
+    #aurora-recommendations .aurora-poster-art > .aurora-poster-placeholder {
+      position:absolute !important; inset:0 !important;
+      width:100% !important; height:100% !important;
+      min-height:0 !important; box-sizing:border-box !important;
+    }
+    #aurora-recommendations .aurora-poster-tag { z-index:2; }
+    #channel-list .group-poster {
+      display:block !important;
+      object-fit:cover !important;
+      object-position:center center !important;
+      overflow:hidden !important;
+      flex-shrink:0 !important;
+    }
+
+    /* Desktop and tablet VOD search results: exactly TWO columns.
+       Expanded cards span both columns so episode selections remain readable. */
+    @media (min-width:601px) {
+      body:not(.aurora-home-view) #channel-list.sg-results-grid {
+        display:grid !important;
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-auto-flow:row !important;
+        grid-auto-rows:max-content !important;
+        align-items:start !important;
+        align-content:start !important;
+        gap:10px !important;
+        padding:10px !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .top-unified-bar,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .group-header,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > #infinite-scroll-loader,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .scroll-loading-indicator {
+        grid-column:1 / -1 !important;
+        width:100% !important;
+        margin:0 !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box {
+        grid-column:span 1 !important;
+        display:flex !important;
+        flex-direction:column !important;
+        align-self:start !important;
+        width:100% !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        margin:0 !important;
+        height:auto !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded {
+        grid-column:1 / -1 !important;
+        width:100% !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box .title-group-header {
+        min-width:0 !important;
+        padding:10px 11px !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box .group-main-title {
+        overflow:hidden !important;
+        white-space:nowrap !important;
+        text-overflow:ellipsis !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded .group-body-panel {
+        width:100% !important;
+        min-width:0 !important;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > :not(.title-group-box):not(.top-unified-bar):not(.group-header) {
+        grid-column:1 / -1 !important;
+      }
+    }
+
+    /* One stable control bar: play/speed/ratio/volume/time on the LEFT,
+       external players/PiP/fullscreen anchored to the RIGHT. */
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      box-sizing:border-box !important;
+      width:100% !important;
+      min-width:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner {
+      display:grid !important;
+      grid-template-columns:minmax(0,1fr) auto !important;
+      grid-template-rows:minmax(32px,auto) !important;
+      align-items:center !important;
+      justify-content:stretch !important;
+      gap:6px !important;
+      width:100% !important;
+      height:auto !important;
+      min-height:38px !important;
+      padding:3px clamp(6px,.9vw,12px) !important;
+      box-sizing:border-box !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left,
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      display:flex !important;
+      flex-wrap:nowrap !important;
+      align-items:center !important;
+      gap:clamp(3px,.45vw,7px) !important;
+      width:auto !important;
+      min-width:0 !important;
+      height:auto !important;
+      min-height:30px !important;
+      max-width:100% !important;
+      margin:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+      grid-column:1 !important;
+      grid-row:1 !important;
+      justify-self:start !important;
+      justify-content:flex-start !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      grid-column:2 !important;
+      grid-row:1 !important;
+      justify-self:end !important;
+      justify-content:flex-end !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+      flex-shrink:0 !important;
+      min-width:26px !important;
+      min-height:26px !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      padding:2px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+      width:auto !important;
+      min-width:36px !important;
+      padding:3px 5px !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .volume-box {
+      display:flex !important;
+      align-items:center !important;
+      flex-shrink:0 !important;
+      gap:2px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .volume-slider {
+      width:clamp(24px,3vw,56px) !important;
+      min-width:0 !important;
+      flex:0 1 auto !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .ctrl-time {
+      flex:0 0 auto !important;
+      font-size:clamp(9px,.75vw,11px) !important;
+      white-space:nowrap !important;
+      font-variant-numeric:tabular-nums !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .external-group {
+      display:flex !important;
+      flex:0 1 auto !important;
+      width:max-content !important;
+      max-width:min(238px,22vw) !important;
+      min-width:0 !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right > .ctrl-btn {
+      flex-shrink:0 !important;
+    }
+
+    /* Smaller tablet player widths need two lines instead of overlaps. */
+    @media (min-width:761px) and (max-width:1130px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner {
+        grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:30px 30px !important;
+        gap:2px !important;
+        min-height:64px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+        grid-column:1 !important; grid-row:1 !important;
+        justify-self:stretch !important; justify-content:flex-start !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        grid-column:1 !important; grid-row:2 !important;
+        justify-self:stretch !important; justify-content:flex-end !important;
+        width:100% !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .external-group {
+        max-width:calc(100% - 75px) !important;
+      }
+    }
+    @media (max-width:760px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner {
+        display:grid !important;
+        grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:28px 28px !important;
+        gap:2px !important;
+        height:60px !important;
+        min-height:60px !important;
+        padding:1px 4px 2px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+        grid-column:1 !important; grid-row:1 !important;
+        width:100% !important;
+        max-width:100% !important;
+        justify-self:stretch !important;
+        justify-content:space-between !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        grid-column:1 !important; grid-row:2 !important;
+        width:100% !important;
+        max-width:100% !important;
+        justify-self:stretch !important;
+        justify-content:flex-end !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .volume-slider { display:none !important; }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+        width:26px !important; height:26px !important;
+        min-width:26px !important; min-height:26px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+        width:auto !important; min-width:34px !important; font-size:10px !important;
+        padding:2px 5px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .ctrl-time {
+        font-size:10px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .external-group {
+        width:max-content !important;
+        max-width:calc(100vw - 98px) !important;
+        min-width:0 !important;
+        gap:4px !important;
+        padding:2px 4px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap #custom-controls {
+        height:78px !important;
+        padding:1px 4px 3px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap #progress-container {
+        height:13px !important; padding:0 5px !important; margin:0 !important;
+      }
+      body:not(.aurora-home-view) #player-wrap > video {
+        height:calc(100% - 78px) !important;
+      }
+      body:not(.aurora-home-view) #player-wrap > .aurora-player-empty {
+        bottom:78px !important;
+      }
+    }
+
+  
+
+    /* AURORA 3.10 — ONE structural footer system, independent of page zoom.
+       Layout is determined by the PLAYER container, not the browser viewport.
+       The VOD filter strip keeps left and right control groups in predictable slots. */
+    body:not(.aurora-home-view) #player-wrap {
+      container-type:inline-size;
+      container-name:sg-player;
+    }
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      left:0 !important;
+      right:0 !important;
+      bottom:0 !important;
+      width:100% !important;
+      height:auto !important;
+      min-height:0 !important;
+      box-sizing:border-box !important;
+      display:flex !important;
+      flex-direction:column !important;
+      gap:0 !important;
+      padding:2px clamp(4px,1vw,10px) 4px !important;
+      background:linear-gradient(180deg,rgba(2,5,12,.05),rgba(2,5,12,.92) 20%,#030711 92%) !important;
+    }
+    body:not(.aurora-home-view) #player-wrap #progress-container {
+      flex:0 0 auto !important;
+      width:100% !important;
+      height:14px !important;
+      margin:0 0 2px !important;
+      padding:0 3px !important;
+      box-sizing:border-box !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner {
+      display:grid !important;
+      grid-template-columns:minmax(0,1fr) minmax(0,max-content) !important;
+      grid-template-rows:minmax(30px,auto) !important;
+      align-items:center !important;
+      justify-content:stretch !important;
+      column-gap:clamp(3px,.8vw,10px) !important;
+      row-gap:1px !important;
+      box-sizing:border-box !important;
+      width:100% !important;
+      height:auto !important;
+      min-height:32px !important;
+      padding:1px 2px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left,
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      display:flex !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:100% !important;
+      height:auto !important;
+      min-height:28px !important;
+      gap:clamp(2px,.4vw,6px) !important;
+      margin:0 !important;
+      overflow:visible !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+      grid-column:1 !important; grid-row:1 !important;
+      justify-self:start !important; justify-content:flex-start !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      grid-column:2 !important; grid-row:1 !important;
+      justify-self:end !important; justify-content:flex-end !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+      display:inline-flex !important;
+      flex:0 0 auto !important;
+      align-items:center !important;
+      justify-content:center !important;
+      width:27px !important;
+      height:27px !important;
+      min-width:27px !important;
+      min-height:27px !important;
+      padding:2px !important;
+      border-radius:8px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+      width:auto !important;
+      min-width:33px !important;
+      height:25px !important;
+      min-height:25px !important;
+      padding:2px 5px !important;
+      font-size:10px !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .ctrl-time {
+      min-width:0 !important;
+      max-width:none !important;
+      font-size:clamp(9px,.76vw,11px) !important;
+      line-height:1 !important;
+      white-space:nowrap !important;
+      font-variant-numeric:tabular-nums !important;
+      letter-spacing:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .volume-box {
+      display:flex !important;
+      align-items:center !important;
+      flex:0 0 auto !important;
+      gap:2px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .external-group {
+      display:flex !important;
+      align-items:center !important;
+      flex:0 1 auto !important;
+      width:max-content !important;
+      min-width:0 !important;
+      max-width:min(230px,22vw) !important;
+      gap:3px !important;
+      padding:3px !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      scrollbar-width:none;
+      -webkit-overflow-scrolling:touch;
+    }
+    body:not(.aurora-home-view) #player-wrap .external-group .ext-btn {
+      width:22px !important;
+      height:22px !important;
+      flex:0 0 22px !important;
+      padding:0 !important;
+    }
+    /* The playback content never slips below or behind the reserved footer. */
+    body:not(.aurora-home-view) #player-wrap > video { height:calc(100% - 54px) !important; }
+    body:not(.aurora-home-view) #player-wrap > .aurora-player-empty { bottom:54px !important; }
+
+    /* Container query: tablet-sized players use two anchored rows even on wide desktop grids. */
+    @container sg-player (max-width:540px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner { /* legacy parser fallback only */ }
+      .controls-inner {
+        grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:28px 28px !important;
+        row-gap:2px !important;
+        min-height:58px !important;
+        height:58px !important;
+      }
+      .controls-inner > .ctrl-left {
+        grid-column:1 !important; grid-row:1 !important;
+        justify-self:stretch !important;
+        justify-content:space-between !important;
+        width:100% !important;
+      }
+      .controls-inner > .ctrl-right {
+        grid-column:1 !important; grid-row:2 !important;
+        justify-self:stretch !important;
+        justify-content:flex-end !important;
+        width:100% !important;
+      }
+      .controls-inner .volume-slider { display:none !important; }
+      .controls-inner .ctrl-time { font-size:10px !important; }
+      .external-group { max-width:calc(100% - 66px) !important; }
+      #custom-controls { padding:1px 4px 4px !important; }
+      #player-wrap > video { height:calc(100% - 78px) !important; }
+      #player-wrap > .aurora-player-empty { bottom:78px !important; }
+    }
+    /* More-specific fallback compatible with browsers without container queries. */
+    @media (max-width:540px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner {
+        grid-template-columns:minmax(0,1fr) !important;
+        grid-template-rows:28px 28px !important;
+        row-gap:2px !important;
+        min-height:58px !important;
+        height:58px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+        grid-column:1 !important; grid-row:1 !important;
+        justify-self:stretch !important; justify-content:space-between !important;
+        width:100% !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        grid-column:1 !important; grid-row:2 !important;
+        justify-self:stretch !important; justify-content:flex-end !important;
+        width:100% !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .volume-slider { display:none !important; }
+      body:not(.aurora-home-view) #player-wrap .external-group { max-width:calc(100% - 68px) !important; }
+      body:not(.aurora-home-view) #player-wrap > video { height:calc(100% - 78px) !important; }
+      body:not(.aurora-home-view) #player-wrap > .aurora-player-empty { bottom:78px !important; }
+    }
+    /* Tighten the toolbar strip under the player: left filters | right sort/speed. */
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar {
+      display:grid !important;
+      grid-template-columns:minmax(0,1fr) auto !important;
+      align-items:center !important;
+      width:100% !important;
+      max-width:100% !important;
+      min-width:0 !important;
+      min-height:43px !important;
+      height:auto !important;
+      gap:clamp(3px,.5vw,9px) !important;
+      margin:0 0 9px !important;
+      padding:5px clamp(4px,.7vw,10px) !important;
+      overflow:hidden !important;
+      box-sizing:border-box !important;
+      border:1px solid var(--border-color) !important;
+      border-radius:12px !important;
+      background:var(--bg-sidebar) !important;
+      position:sticky !important;
+      top:0 !important;
+      z-index:25 !important;
+    }
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-left-group,
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-right-group {
+      display:flex !important;
+      flex-wrap:nowrap !important;
+      align-items:center !important;
+      width:auto !important;
+      max-width:100% !important;
+      min-width:0 !important;
+      height:auto !important;
+      gap:clamp(2px,.45vw,7px) !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow:visible !important;
+    }
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-left-group {
+      grid-column:1 !important;
+      justify-content:flex-start !important;
+      flex:1 1 auto !important;
+    }
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-right-group {
+      grid-column:2 !important;
+      justify-content:flex-end !important;
+      flex:0 0 auto !important;
+    }
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar .filter-pill-btn,
+    body:not(.aurora-home-view) #channel-list > .top-unified-bar .btn-sort-action {
+      flex:0 1 auto !important;
+      min-width:0 !important;
+      width:auto !important;
+      height:29px !important;
+      line-height:1.1 !important;
+      padding:2px clamp(3px,.6vw,8px) !important;
+      border-radius:999px !important;
+      white-space:nowrap !important;
+      font-size:clamp(9px,.75vw,11px) !important;
+      overflow:hidden !important;
+      text-overflow:ellipsis !important;
+      box-sizing:border-box !important;
+    }
+    @media (max-width:480px) {
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar {
+        min-height:38px !important; padding:4px 4px !important;
+        gap:3px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .filter-pill-btn,
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .btn-sort-action {
+        height:27px !important;
+        font-size:clamp(8px,2.3vw,10px) !important;
+        padding:2px 3px !important;
+      }
+    }
+
+    /* Complete final recommendation row without inventing extra movies.
+       Only the incomplete last row is reflowed; a lone title becomes a
+       horizontal feature tile instead of a giant stretched movie poster. */
+    #aurora-recommendations > .sg-poster-tail {
+      grid-column:1 / -1 !important;
+      min-width:0 !important;
+      width:100% !important;
+      display:grid !important;
+      grid-template-columns:repeat(var(--sg-tail-count,1),minmax(0,1fr)) !important;
+      gap:inherit !important;
+      align-items:start !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+    #aurora-recommendations > .sg-poster-tail > .aurora-poster-card { width:100% !important; min-width:0 !important; }
+    #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card {
+      display:grid !important;
+      grid-template-columns:minmax(90px,min(32%,165px)) minmax(0,1fr) !important;
+      grid-template-rows:auto 1fr !important;
+      gap:5px 13px !important;
+      align-items:start !important;
+      border:1px solid var(--border-color) !important;
+      border-radius:16px !important;
+      background:var(--bg-card) !important;
+      padding:9px !important;
+      text-align:left !important;
+    }
+    #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-art {
+      grid-column:1 !important; grid-row:1 / span 2 !important;
+      height:clamp(118px,16vw,176px) !important;
+      aspect-ratio:auto !important;
+      min-height:0 !important;
+    }
+    #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-title {
+      grid-column:2 !important; grid-row:1 !important;
+      font-size:clamp(13px,2vw,18px) !important;
+      line-height:1.5 !important;
+      margin:7px 0 0 !important;
+      white-space:normal !important;
+      overflow-wrap:anywhere !important;
+      display:-webkit-box !important; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+      overflow:hidden !important;
+    }
+    #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-sub {
+      grid-column:2 !important; grid-row:2 !important;
+      font-size:12px !important;
+      line-height:1.6 !important;
+      margin:0 !important;
+      white-space:normal !important;
+      display:-webkit-box !important; -webkit-line-clamp:3; -webkit-box-orient:vertical;
+      overflow:hidden !important;
+    }
+    #aurora-recommendations > .sg-poster-tail:not(.sg-tail-single) .aurora-poster-art {
+      max-height:clamp(180px,38vw,370px) !important;
+    }
+    @media (max-width:760px) {
+      #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card {
+        grid-template-columns:minmax(88px,32%) minmax(0,1fr) !important;
+        padding:7px !important; gap:4px 9px !important;
+      }
+      #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-art {
+        height:clamp(120px,30vw,160px) !important;
+      }
+      #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-title { font-size:13px !important; }
+      #aurora-recommendations > .sg-poster-tail.sg-tail-single > .aurora-poster-card .aurora-poster-sub { font-size:11px !important; }
+    }
+
+
+    /* ===== AURORA 3.11: stable SINGLE-ROW player toolbar =====
+       The progress bar is separate. All playback actions share ONE flex row;
+       external shortcuts reveal only 3 buttons at once, with native horizontal
+       scrolling on touch and pointer-drag/keyboard on desktop. ===== */
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      display:flex !important;
+      flex-flow:column nowrap !important;
+      justify-content:flex-end !important;
+      height:54px !important;
+      min-height:54px !important;
+      padding:1px clamp(3px,.65cqw,9px) 4px !important;
+      box-sizing:border-box !important;
+      overflow:visible !important;
+    }
+    body:not(.aurora-home-view) #player-wrap #progress-container {
+      display:flex !important;
+      width:100% !important;
+      height:12px !important;
+      flex:0 0 12px !important;
+      padding:0 3px !important;
+      margin:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner {
+      display:flex !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:space-between !important;
+      gap:clamp(2px,.6cqw,10px) !important;
+      width:100% !important;
+      min-width:0 !important;
+      height:36px !important;
+      min-height:36px !important;
+      max-height:36px !important;
+      padding:0 2px !important;
+      margin:0 !important;
+      overflow:hidden !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left {
+      display:flex !important;
+      flex:1 1 auto !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:flex-start !important;
+      gap:clamp(2px,.45cqw,9px) !important;
+      grid-column:auto !important;
+      grid-row:auto !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:none !important;
+      height:32px !important;
+      min-height:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      scrollbar-width:none !important;
+      -webkit-overflow-scrolling:touch;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+      display:flex !important;
+      flex:0 0 auto !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:flex-end !important;
+      gap:clamp(2px,.42cqw,8px) !important;
+      grid-column:auto !important;
+      grid-row:auto !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:none !important;
+      height:32px !important;
+      min-height:0 !important;
+      margin:0 0 0 auto !important;
+      padding:0 !important;
+      overflow:visible !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left::-webkit-scrollbar,
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group::-webkit-scrollbar { display:none !important; }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-btn {
+      display:inline-flex !important;
+      flex:0 0 24px !important;
+      justify-content:center !important;
+      align-items:center !important;
+      width:24px !important;
+      min-width:24px !important;
+      height:27px !important;
+      min-height:0 !important;
+      padding:2px !important;
+      margin:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .pill-btn {
+      flex:0 0 auto !important;
+      width:auto !important;
+      min-width:28px !important;
+      max-width:none !important;
+      height:25px !important;
+      min-height:0 !important;
+      padding:2px 4px !important;
+      font-size:10px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .volume-box {
+      flex:0 0 auto !important;
+      display:flex !important;
+      align-items:center !important;
+      gap:2px !important;
+      min-width:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-time {
+      flex:0 0 auto !important;
+      display:block !important;
+      min-width:0 !important;
+      max-width:none !important;
+      white-space:nowrap !important;
+      overflow:visible !important;
+      font-size:clamp(9px,.78cqw,11px) !important;
+      line-height:1 !important;
+      letter-spacing:-.25px !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group {
+      --sg-ext-btn:22px;
+      --sg-ext-gap:3px;
+      flex:0 0 auto !important;
+      display:flex !important;
+      flex-flow:row nowrap !important;
+      align-items:center !important;
+      justify-content:flex-start !important;
+      gap:var(--sg-ext-gap) !important;
+      box-sizing:border-box !important;
+      width:calc(3 * var(--sg-ext-btn) + 2 * var(--sg-ext-gap) + 8px) !important;
+      min-width:calc(3 * var(--sg-ext-btn) + 2 * var(--sg-ext-gap) + 8px) !important;
+      max-width:calc(3 * var(--sg-ext-btn) + 2 * var(--sg-ext-gap) + 8px) !important;
+      height:31px !important;
+      min-height:31px !important;
+      padding:3px 4px !important;
+      margin:0 !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      overscroll-behavior-x:contain;
+      touch-action:pan-x !important;
+      scroll-snap-type:x proximity;
+      scrollbar-width:none !important;
+      -webkit-overflow-scrolling:touch;
+      cursor:grab;
+      border-radius:999px !important;
+      white-space:nowrap !important;
+    }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group.sg-dragging { cursor:grabbing !important; scroll-snap-type:none !important; }
+    body:not(.aurora-home-view) #player-wrap .controls-inner .external-group .ext-btn {
+      display:inline-flex !important;
+      flex:0 0 var(--sg-ext-btn) !important;
+      width:var(--sg-ext-btn) !important;
+      min-width:var(--sg-ext-btn) !important;
+      height:var(--sg-ext-btn) !important;
+      min-height:var(--sg-ext-btn) !important;
+      padding:0 !important;
+      margin:0 !important;
+      scroll-snap-align:start;
+      cursor:pointer;
+    }
+    body:not(.aurora-home-view) #player-wrap > video { height:calc(100% - 54px) !important; }
+    body:not(.aurora-home-view) #player-wrap > .aurora-player-empty { bottom:54px !important; }
+    /* Compact player controls when container is narrow, irrespective of device or zoom. */
+    @container sg-player (max-width:570px) {
+      .controls-inner > .ctrl-left .volume-slider { display:none !important; }
+      .controls-inner .ctrl-left .pill-btn { font-size:9px !important; padding:1px 3px !important; min-width:26px !important; }
+      .controls-inner .ctrl-left .ctrl-time { font-size:9px !important; letter-spacing:-.5px !important; }
+    }
+    @container sg-player (max-width:390px) {
+      .controls-inner .ctrl-left .ctrl-btn,
+      .controls-inner .ctrl-right > .ctrl-btn { flex-basis:21px !important; width:21px !important; min-width:21px !important; height:24px !important; }
+      .controls-inner .external-group { --sg-ext-btn:21px; --sg-ext-gap:2px; }
+      .controls-inner .ctrl-left { gap:2px !important; }
+      .controls-inner .ctrl-right { gap:2px !important; }
+    }
+    /* Very narrow players (phone / extreme zoom): squeeze visible controls,
+       rather than letting the time text be clipped behind external actions. */
+    @media (max-width:360px) {
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .ctrl-btn,
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-right > .ctrl-btn {
+        flex:0 0 20px !important; width:20px !important; min-width:20px !important;
+        height:24px !important; padding:1px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .pill-btn {
+        flex:0 0 auto !important; min-width:23px !important;
+        height:23px !important; font-size:8.5px !important;
+        padding:1px 2px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .volume-box {
+        gap:0 !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .ctrl-left .ctrl-time {
+        font-size:8px !important; letter-spacing:-.65px !important;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner .external-group {
+        --sg-ext-btn:20px; --sg-ext-gap:2px;
+      }
+      body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right {
+        gap:2px !important;
+      }
+    }
+    /* Fixed column size for every poster: gaps at the end use invisible empty slots,
+       instead of stretching the last item or introducing fake clickable movies. */
+    #aurora-recommendations > .sg-poster-spacer {
+      display:block !important;
+      visibility:hidden !important;
+      pointer-events:none !important;
+      user-select:none !important;
+      height:0 !important;
+      min-width:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      border:0 !important;
+      box-shadow:none !important;
+      background:transparent !important;
+    }
+  
+    /* AURORA 3.13 - readable source update and measured single-source ping on narrow cards. */
+    .group-meta-tag > .sg-single-ping { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size:10px; white-space:nowrap; }
+    @media (max-width:600px) {
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box:not(.expanded)
+        .group-meta-tag > span.group-pub-time:not(:first-child):not(.group-badge-count),
+      body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box:not(.expanded)
+        .group-meta-tag > span.sg-single-ping:not(:first-child):not(.group-badge-count),
+      body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag > .group-pub-time,
+      body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag > .sg-single-ping {
+        display:inline-flex !important; font-size:9px !important; line-height:1.3; white-space:nowrap;
+        overflow:hidden; text-overflow:ellipsis; max-width:100%; flex:0 1 auto;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag > .group-pub-time { font-size:0 !important; }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag > .group-pub-time::after {
+        content:attr(data-short-date); font-size:9px !important; white-space:nowrap;
+      }
+      body:not(.aurora-home-view) #channel-list.sg-results-grid .group-meta-tag { row-gap:3px !important; }
+    }
+
+  
+    /* AURORA 3.15 | three minimal layout corrections. */
+    /* If an expanded search result spans both columns, place it directly under
+       the toolbar. Otherwise CSS grid leaves the upper-right cell blank when
+       expanding card #2 (or any card from the right-hand column). Collapsed
+       cards keep their original search order. This is visual-only: no source
+       selection, playback state, or search-sorting behavior is changed. */
+    body:not(.aurora-home-view) #channel-list.sg-results-grid > .top-unified-bar {
+      order:-2 !important;
+    }
+    body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box.expanded {
+      order:-1 !important;
+      grid-column:1 / -1 !important;
+      grid-row:auto !important;
+    }
+    body:not(.aurora-home-view) #channel-list.sg-results-grid > .title-group-box:not(.expanded) {
+      order:0 !important;
+      grid-row:auto !important;
+    }
+
+    /* Keep the action buttons visible at natural mobile browser zoom.
+       The left-side category counts may ellipsize on very narrow screens,
+       but the manual speed-test button always remains tappable. */
+    @media (max-width:760px) {
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar {
+        display:grid !important;
+        grid-template-columns:minmax(0,1fr) max-content !important;
+        align-items:center !important;
+        column-gap:clamp(3px,1vw,7px) !important;
+        overflow:hidden !important;
+        width:100% !important;
+        min-width:0 !important;
+        box-sizing:border-box !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-left-group {
+        grid-column:1 !important;
+        display:flex !important;
+        flex:1 1 auto !important;
+        justify-content:flex-start !important;
+        flex-wrap:nowrap !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        gap:3px !important;
+        overflow:hidden !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-right-group {
+        grid-column:2 !important;
+        display:flex !important;
+        flex:0 0 auto !important;
+        align-items:center !important;
+        justify-content:flex-end !important;
+        gap:3px !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        overflow:visible !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .filter-pill-btn {
+        flex:0 1 auto !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        overflow:hidden !important;
+        text-overflow:ellipsis !important;
+        white-space:nowrap !important;
+        padding-inline:clamp(2px,.6vw,5px) !important;
+        font-size:clamp(9px,2.45vw,11px) !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .btn-sort-action {
+        flex:0 0 auto !important;
+        min-width:0 !important;
+        width:auto !important;
+        max-width:none !important;
+        padding-inline:clamp(4px,1.1vw,8px) !important;
+        white-space:nowrap !important;
+        overflow:visible !important;
+        text-overflow:clip !important;
+        font-size:clamp(10px,2.6vw,11px) !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar #btn-sort-speed-nav {
+        flex:0 0 auto !important;
+        min-width:43px !important;
+        width:auto !important;
+        white-space:nowrap !important;
+        visibility:visible !important;
+        opacity:1 !important;
+      }
+    }
+    @media (max-width:350px) {
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar {
+        padding-inline:3px !important;
+        column-gap:2px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-left-group,
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar > .bar-right-group {
+        gap:2px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar .btn-sort-action {
+        font-size:9px !important;
+        padding-inline:3px !important;
+      }
+      body:not(.aurora-home-view) #channel-list > .top-unified-bar #btn-sort-speed-nav {
+        min-width:40px !important;
+      }
+    }
+
+
+    /* AURORA 3.16: expose MANUALLY measured ping on single-source cards.
+       Metadata chips used to hide or clip the trailing ping at normal Safari zoom.
+       Anchor the stored result independently; never trigger measurement here. */
+    #channel-list .title-group-box .title-group-header {
+      position: relative;
+    }
+    #channel-list .title-group-box.sg-has-manual-ping .title-group-header {
+      padding-bottom: 18px !important;
+    }
+    #channel-list .title-group-box .sg-single-ping.sg-card-ping-indicator {
+      position: absolute !important;
+      right: 7px !important;
+      bottom: 5px !important;
+      z-index: 3;
+      margin: 0 !important;
+      padding: 2px 5px !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 0 0 auto !important;
+      width: auto !important;
+      max-width: calc(100% - 14px) !important;
+      white-space: nowrap !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      font: 700 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace !important;
+      border-radius: 5px;
+      background: var(--bg-card);
+      box-shadow: 0 0 0 2px var(--bg-card);
+      pointer-events: none;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    #channel-list .title-group-box .sg-card-ping-indicator.metric-ping-ok { color: #4ade80 !important; }
+    #channel-list .title-group-box .sg-card-ping-indicator.metric-ping-warn { color: #facc15 !important; }
+    #channel-list .title-group-box .sg-card-ping-indicator.metric-ping-err { color: #f87171 !important; }
+    @media (max-width: 600px) {
+      #channel-list .title-group-box .sg-single-ping.sg-card-ping-indicator {
+        font-size: 10px !important;
+        right: 6px !important;
+        bottom: 5px !important;
+      }
+    }
+
+    /* AURORA 3.19: full-frame video and floating transparent controls.
+       Keep the video in the same coordinate system as the play area at ALL
+       responsive widths, even after controls auto-hide. No reserved footer. */
+    body:not(.aurora-home-view) #player-wrap > video {
+      position:absolute !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      min-height:0 !important;
+      max-height:none !important;
+      display:block !important;
+      object-fit:contain !important;
+    }
+    /* A regular 16:9 phone player should not be 16:9 PLUS an extra footer.
+       The removed footer gives the freed height back to the programme list. */
+    @media (max-width:600px) {
+      body:not(.aurora-home-view) #player-wrap {
+        height:auto !important;
+        aspect-ratio:16 / 9 !important;
+        min-height:0 !important;
+        max-height:min(56.25vw,56dvh) !important;
+      }
+    }
+    body:not(.aurora-home-view) #player-wrap.pseudo-fullscreen {
+      width:100vw !important;
+      height:100dvh !important;
+      max-height:none !important;
+      min-height:0 !important;
+      aspect-ratio:auto !important;
+      border-radius:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap > video.fit-cover { object-fit:cover !important; }
+    body:not(.aurora-home-view) #player-wrap > video.fit-fill { object-fit:fill !important; }
+    body:not(.aurora-home-view) #player-wrap > .aurora-player-empty {
+      inset:0 !important;
+      bottom:0 !important;
+    }
+    body:not(.aurora-home-view) #player-wrap #custom-controls {
+      position:absolute !important;
+      left:0 !important;
+      right:0 !important;
+      bottom:0 !important;
+      height:54px !important;
+      min-height:0 !important;
+      background:linear-gradient(to top,rgba(1,4,12,.57),rgba(1,4,12,.22) 65%,rgba(1,4,12,0)) !important;
+      border:none !important;
+      box-shadow:none !important;
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+      z-index:15 !important;
+      transition:opacity .28s ease !important;
+    }
+    /* Safari can swallow touches on the native media element. This hit layer
+       stays active while the UI hides; top bar (z10) and controls (z15)
+       remain clickable above it. */
+    body:not(.aurora-home-view) #player-gesture-surface {
+      position:absolute;
+      inset:0;
+      display:block;
+      z-index:5;
+      background:transparent;
+      cursor:default;
+      touch-action:manipulation;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    body:not(.aurora-home-view) #player-wrap.controls-hidden #player-gesture-surface {
+      pointer-events:auto;
+      cursor:default;
+    }
+    #player-wrap.controls-hidden #custom-controls,
+    #player-wrap.controls-hidden #top-bar {
+      opacity:0 !important;
+      pointer-events:none !important;
+    }
+    /* Preserve hidden mouse cursor on desktop, but allow touch interaction. */
+    @media (hover:none) {
+      body:not(.aurora-home-view) #player-wrap.controls-hidden { cursor:default; }
+    }
+    @media (hover:hover) and (pointer:fine) {
+      body:not(.aurora-home-view) #player-wrap.controls-hidden #player-gesture-surface { cursor:none; }
+    }
+
+    /* AURORA 3.20: search submit is integrated into the input outline. */
+    #aurora-nav-search {
+      position:relative !important;
+      display:flex !important;
+      align-items:center !important;
+      min-width:0 !important;
+      gap:0 !important;
+    }
+    #aurora-nav-search #aurora-nav-search-input {
+      flex:1 1 auto !important;
+      width:100% !important;
+      min-width:0 !important;
+      padding-right:46px !important;
+    }
+    #aurora-nav-search > button[type="submit"] {
+      position:absolute !important;
+      top:50% !important;
+      right:4px !important;
+      transform:translateY(-50%) !important;
+      display:grid !important;
+      place-items:center !important;
+      flex:none !important;
+      width:32px !important;
+      min-width:32px !important;
+      height:calc(100% - 8px) !important;
+      min-height:27px !important;
+      max-height:35px !important;
+      margin:0 !important;
+      padding:0 !important;
+      border:0 !important;
+      border-radius:9px !important;
+      background:transparent !important;
+      color:var(--accent) !important;
+      box-shadow:none !important;
+      cursor:pointer !important;
+      z-index:1 !important;
+    }
+    #aurora-nav-search > button[type="submit"]:focus-visible {
+      outline:2px solid var(--accent) !important;
+      outline-offset:1px;
+    }
+    #aurora-nav-search > button[type="submit"] span {display:none !important;}
+    #aurora-nav-search input[type="search"]::-webkit-search-cancel-button {
+      margin-right:28px;
+    }
+    /* Always preserve the navigation at the top while scrolling either the
+       home discovery list or the independently scrolling TV/VOD results. */
+    #aurora-topnav {
+      position:sticky !important;
+      top:0 !important;
+      z-index:6000 !important;
+      flex-shrink:0 !important;
+      align-self:start !important;
+      background:var(--bg-sidebar) !important;
+      -webkit-backdrop-filter:blur(20px);
+      backdrop-filter:blur(20px);
+    }
+    @media (max-width:899px) {
+      #aurora-topnav { top:0 !important; }
+    }
+
+    /* AURORA 3.20-L1: compact horizontal live channel tabs, TV view only. */
+    #channel-list > .sg-live-tabs {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(4px, 1.2vw, 10px);
+      width: 100% !important;
+      margin: 0 0 10px !important;
+      padding: 8px clamp(5px, 1.5vw, 12px) !important;
+      box-sizing: border-box;
+      border: 1px solid var(--border-color);
+      background: var(--bg-search-box);
+      border-radius: 14px;
+    }
+    #channel-list > .sg-live-tabs > .sg-live-tab {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+      padding: 7px 3px;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      color: var(--text-sub);
+      font-weight: 700;
+      font-size: clamp(11px, 2.8vw, 13px);
+      line-height: 1.25;
+      white-space: nowrap;
+      text-align: center;
+      cursor: pointer;
+    }
+    #channel-list > .sg-live-tabs > .sg-live-tab.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #channel-list > .sg-live-channel-panel { display:block; min-width:0; }
+    #channel-list > .sg-live-channel-panel > .channel-row { min-width:0; }
+    #channel-list .sg-live-empty {
+      text-align:center; padding:26px 12px; font-size:13px; color:var(--text-sub);
+    }

@@ -23,6 +23,18 @@ export async function onRequest({request,env}) {
     return new Response(body,{status:response.status,headers:{'Content-Type':response.headers.get('content-type')||'text/plain; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
   }
   if(request.method==='GET') {
+    if(action==='batch') {
+      const rawKeys=url.searchParams.get('keys');if(!rawKeys)return json({error:'缺少 keys 参数'},400);
+      const requested=rawKeys.split(',').map(k=>k.trim()).filter(Boolean);
+      if(requested.length>48)return json({error:'批量读取的键数量超出限制'},400);
+      if(requested.some(k=>!validKey(k)))return json({error:'无效的键'},400);
+      const keys=[...new Set(requested)];
+      const readableKeys=keys.filter(k=>canRead(k,user));
+      if(!readableKeys.length)return json({});
+      const placeholders=readableKeys.map(()=>'?').join(',');
+      const {results}=await env.DB.prepare(`SELECT key,value FROM user_data WHERE key IN (${placeholders})`).bind(...readableKeys).all();
+      return json(Object.fromEntries((results||[]).map(x=>[x.key,x.value])));
+    }
     if(key){if(!validKey(key))return json({error:'无效的键'},400);if(!canRead(key,user))return json({error:'无权读取'},403);return json({value:await read(env,key)});}
     if(user.role!=='admin')return json({error:'仅管理员可读取全部配置'},403);
     const {results}=await env.DB.prepare('SELECT key,value FROM user_data').all();return json(Object.fromEntries((results||[]).map(x=>[x.key,x.value])));
