@@ -4707,7 +4707,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       exitPictureInPictureMode();
       destroyHlsInstance();
       try { video.pause(); video.removeAttribute("src"); video.load(); } catch (_) {}
-      setStatus(isLiveMode ? "正在通过 VPS 解码直播流，请稍候..." : "正在建立连接，请稍候...");
+      setStatus(isLiveMode ? "正在加载…" : "正在建立连接，请稍候...");
 
       let hasStarted = false;
       const markPlaySuccess = () => {
