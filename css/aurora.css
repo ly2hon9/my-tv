@@ -3671,3 +3671,62 @@ body.sg-category-view .sg-filter-pill:focus-visible { outline-offset:-2px; }
 }
 
 body.sg-category-view .sg-category-filters[hidden] { display:none !important; }
+
+/* AURORA 3.20.2 L8: focused visual adjustments only. */
+/* Category view uses two compact rows: content preset, then region + year selector. */
+body.sg-category-view .aurora-section-head { display:none !important; }
+/* The category heading is gone; scroll below the sticky global header, not underneath it. */
+body.sg-category-view .aurora-home-section { scroll-margin-top:82px !important; }
+@media(max-width:600px) { body.sg-category-view .aurora-home-section { scroll-margin-top:72px !important; } }
+body.sg-category-view .sg-filter-line-bottom {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  column-gap:8px;
+}
+body.sg-category-view .sg-filter-line-bottom > .sg-filter-pills { min-width:0; }
+body.sg-category-view .sg-filter-year {
+  box-sizing:border-box;
+  flex:none;
+  width:104px;
+  height:32px;
+  min-height:32px;
+  margin:0;
+  padding:0 19px 0 10px;
+  border:1px solid rgba(188,220,255,.27);
+  border-radius:999px;
+  background:rgba(142,165,201,.20);
+  color:var(--text-main);
+  font:600 12px/1.2 inherit;
+  font-size:12px;
+  cursor:pointer;
+  color-scheme:dark;
+  appearance:auto;
+}
+body.sg-category-view .sg-filter-year:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+body.theme-light.sg-category-view .sg-filter-year {
+  background:#e4ecf8;
+  border-color:#95afd0;
+  color:#1b2e4b;
+  color-scheme:light;
+}
+@media(max-width:600px) {
+  body.sg-category-view .sg-filter-line-bottom { column-gap:5px; }
+  body.sg-category-view .sg-filter-year {
+    width:96px; height:30px; min-height:30px;
+    font-size:11px; padding-left:7px; padding-right:14px;
+  }
+}
+/* Brighten only the home slideshow image; do not wash out titles and buttons. */
+body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-backdrop {
+  opacity:1 !important;
+}
+body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-shade {
+  background:linear-gradient(90deg,rgba(1,10,26,.79) 0%,rgba(3,15,37,.40) 48%,rgba(3,15,32,.10) 90%),
+             linear-gradient(0deg,rgba(2,12,29,.42),transparent 64%) !important;
+}
+@media(max-width:600px) {
+  body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-shade {
+    background:linear-gradient(0deg,rgba(3,11,25,.79),rgba(2,11,28,.27) 75%,rgba(3,11,28,.13)) !important;
+  }
+}
