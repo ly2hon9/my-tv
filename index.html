@@ -11,7 +11,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.20.2-glass-34db8caf6f">
+  <link rel="stylesheet" href="css/aurora.css?v=3.20.2-layout-ff442c1e4cec">
 </head>
 <body class="aurora-home-view shiguang-booting">
 
@@ -95,9 +95,7 @@
         <div class="aurora-hero-meta" id="aurora-hero-meta"></div>
         </div>
       <div class="aurora-hero-controls" role="group" aria-label="热门推荐轮播控制">
-        <button id="aurora-slide-prev" type="button" onclick="stepAuroraHero(-1)" aria-label="上一部热门影片">‹</button>
         <div id="aurora-hero-dots" class="aurora-hero-dots" aria-label="轮播进度"></div>
-        <button id="aurora-slide-next" type="button" onclick="stepAuroraHero(1)" aria-label="下一部热门影片">›</button>
       </div>
       <button class="aurora-play-glass aurora-hero-play-float" id="aurora-hero-play" type="button" onclick="openAuroraSearch(document.getElementById('aurora-hero-title').dataset.title || '')" aria-label="查找可播放片源" title="查找可播放片源">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8c0-.78.85-1.25 1.5-.83l9.2 5.7a1.55 1.55 0 0 1 0 2.66l-9.2 5.7A.98.98 0 0 1 8 18.2V5.8Z" fill="currentColor"/></svg>
@@ -110,6 +108,10 @@
         <label>评分<select id="aurora-filter-rating" onchange="applyAuroraDiscoveryFilters()"><option value="0">不限评分</option><option value="8">8 分以上</option><option value="7">7 分以上</option><option value="6">6 分以上</option></select></label>
         <label>排序<select id="aurora-filter-sort" onchange="applyAuroraDiscoveryFilters()"><option value="popular">热门优先</option><option value="rating">评分最高</option><option value="newest">最近上映</option></select></label>
       </div></div>
+      <div id="sg-category-filters" class="sg-category-filters" hidden aria-label="分类和地区筛选">
+        <div class="sg-filter-line"><span class="sg-filter-label">分类</span><div id="sg-filter-categories" class="sg-filter-pills" role="group" aria-label="分类筛选"></div></div>
+        <div class="sg-filter-line"><span class="sg-filter-label">地区</span><div id="sg-filter-regions" class="sg-filter-pills" role="group" aria-label="地区筛选"></div></div>
+      </div>
       <div id="aurora-recommendations" class="aurora-poster-grid"><div class="aurora-empty-state"><span class="aurora-loading-orbit"></span><strong>正在读取 D1 热门榜</strong><small>电影与电视剧每日更新，不使用个人收藏或观看历史</small></div></div>
     </section>
     <footer class="aurora-home-footer">拾光影视 · 热门榜来自 TMDB 每日趋势 · 海报仅作发现用途，播放由个人影视源提供</footer>
@@ -431,6 +433,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.20.2-glass-5aa509713c"></script>
+  <script defer src="js/app.js?v=3.20.2-layout-f22a09ac56e0"></script>
 </body>
 </html>
