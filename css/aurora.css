@@ -3747,3 +3747,68 @@ body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-controls 
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
 }
+
+
+/* 3.20.3 — iPhone Safari: ensure poster captions paint on the first visit.
+   The poster art and its title/footer must occupy separate, stable layers.
+   No poster sizes, filtering, click behavior or network requests are changed. */
+.sg-poster-track > .aurora-poster-card {
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:flex-start !important;
+  align-items:stretch !important;
+}
+.sg-poster-track > .aurora-poster-card > .aurora-poster-art {
+  flex:0 0 auto !important;
+  position:relative !important;
+  z-index:0;
+}
+.sg-poster-track > .aurora-poster-card > .sg-poster-info {
+  position:relative;
+  z-index:2;
+  box-sizing:border-box;
+  display:block !important;
+  flex:0 0 auto !important;
+  width:100%;
+  min-width:0;
+  min-height:54px;
+  padding:8px 9px 9px;
+  background:linear-gradient(180deg,rgba(20,41,67,.97),rgba(17,33,57,.99));
+  color:var(--text-main);
+  /* Prevent WebKit from compositing image contents above the title. */
+  isolation:isolate;
+}
+.sg-poster-track .sg-poster-info .aurora-poster-title {
+  display:block !important;
+  position:relative;
+  margin:0 0 3px !important;
+  padding:0 !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  color:var(--text-main) !important;
+  -webkit-text-fill-color:var(--text-main);
+}
+.sg-poster-track .sg-poster-info .aurora-poster-sub {
+  display:block !important;
+  position:relative;
+  margin:0 !important;
+  padding:0 !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  -webkit-text-fill-color:var(--text-sub);
+}
+/* A post-render style transition forces an independent Safari caption paint
+   without animation, delayed fetches or altering the parent scroll container. */
+#aurora-recommendations.sg-poster-captions-ready .sg-poster-info {
+  -webkit-transform:translate3d(0,0,0);
+  transform:translate3d(0,0,0);
+}
+body.theme-light .sg-poster-track > .aurora-poster-card > .sg-poster-info {
+  background:rgba(255,255,255,.95);
+}
+@media(max-width:600px) {
+  .sg-poster-track > .aurora-poster-card > .sg-poster-info {
+    min-height:49px;
+    padding:7px 7px 8px;
+  }
+}
