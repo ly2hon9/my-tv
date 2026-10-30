@@ -775,17 +775,18 @@
     const favs = await getFavoritesList(true);
 
       if (favs.length === 0) {
-        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
+        container.innerHTML = `<div class="sg-personal-back-row"><button type="button" class="sg-personal-back" onclick="switchSidebarView('normal')">‹ 返回</button></div><div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">⭐ 我的收藏 (0)</span></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无收藏项目<br><span style="font-size:11px;color:var(--text-mute);">播放视频时轻触顶部的 ★ 即可收藏当前源与集数</span></div>`;
         return;
       }
 
       const frag = document.createDocumentFragment();
+      const backBar = document.createElement('div');
+      backBar.className = 'sg-personal-back-row';
+      backBar.innerHTML = '<button type="button" class="sg-personal-back" onclick="switchSidebarView(\'normal\')" aria-label="返回搜索列表">‹ 返回</button>';
+      frag.appendChild(backBar);
       const headerBar = document.createElement('div');
-      headerBar.className = 'top-unified-bar';
-      headerBar.innerHTML = `
-        <span class="sources-header-title">⭐ 我的收藏 (${favs.length})</span>
-        <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
-      `;
+      headerBar.className = 'top-unified-bar sg-personal-titlebar';
+      headerBar.innerHTML = `<span class="sources-header-title">⭐ 我的收藏 (${favs.length})</span>`;
       frag.appendChild(headerBar);
 
       const tvFavs = favs.filter(f => f.type === 'tv');
@@ -817,8 +818,8 @@
           isLiveMode = true;
           currentStreamUrl = item.url;
           currentTitle.textContent = item.title;
-          routeBadge.style.display = 'inline-block';
-          routeBadge.textContent = '直播';
+          routeBadge.style.display = 'none';
+          routeBadge.textContent = '';
           currentPlayingMeta = { title: item.title, epName: '直播', siteName: item.siteName || '直播' };
           updateFavIconState();
           manualPlayOnly(item.url);
@@ -1133,19 +1134,20 @@
       const history = await getHistoryList();
 
       if (history.length === 0) {
-        container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
+        container.innerHTML = `<div class="sg-personal-back-row"><button type="button" class="sg-personal-back" onclick="switchSidebarView('normal')">‹ 返回</button></div><div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">🕒 观看历史 (0)</span><button type="button" class="sg-personal-clear" onclick="clearAllHistory()">清空</button></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
         return;
       }
 
       const frag = document.createDocumentFragment();
+      const backBar = document.createElement('div');
+      backBar.className = 'sg-personal-back-row';
+      backBar.innerHTML = '<button type="button" class="sg-personal-back" onclick="switchSidebarView(\'normal\')" aria-label="返回搜索列表">‹ 返回</button>';
+      frag.appendChild(backBar);
       const headerBar = document.createElement('div');
-      headerBar.className = 'top-unified-bar';
+      headerBar.className = 'top-unified-bar sg-personal-titlebar';
       headerBar.innerHTML = `
-        <span class="sources-header-title">🕒 播放历史 (${history.length})</span>
-        <div>
-          <button class="btn-search" style="padding:2px 8px;font-size:11px;background:#cf222e;margin-right:6px;" onclick="clearAllHistory()">清空</button>
-          <button class="btn-search" style="padding:2px 8px;font-size:11px;" onclick="switchSidebarView('normal')">返回</button>
-        </div>
+        <span class="sources-header-title">🕒 观看历史 (${history.length})</span>
+        <button type="button" class="sg-personal-clear" onclick="clearAllHistory()">清空</button>
       `;
       frag.appendChild(headerBar);
 
@@ -2398,6 +2400,95 @@
     let auroraActiveCategory = '';
     let auroraHeroIndex = 0;
     let auroraHeroTimer = null;
+    // 3.20.2 view-only category discovery: uses the already loaded D1/cached list.
+    // The existing year, rating and order selectors still filter these same items.
+    const sgCategoryFilters = { sub:'all', region:'all' };
+    const sgCategoryPillNames = {
+      '电影':['全部','热门电影','最新电影','高分佳片','冷门佳片'],
+      '电视剧':['全部','热播剧集','最新剧集','高分剧集','经典剧集'],
+      '综艺':['全部','热门综艺','最新综艺','高分综艺','精选综艺'],
+      '动漫':['全部','热门动漫','最新动漫','高分动漫','精选动漫']
+    };
+    const sgRegions = [{id:'all',label:'全部'},{id:'chinese',label:'华语'},{id:'western',label:'欧美'},{id:'korea',label:'韩国'},{id:'japan',label:'日本'}];
+    function sgRegionCode(item) {
+      const raw = Array.isArray(item.originCountry) ? item.originCountry :
+        Array.isArray(item.origin_country) ? item.origin_country : [];
+      return raw.map(x => String(x).toUpperCase());
+    }
+    function sgMatchesRegion(item, region) {
+      if (!region || region === 'all') return true;
+      const codes = sgRegionCode(item);
+      if (!codes.length) return false; // Unknown country is not silently mislabeled.
+      const sets = {
+        chinese:['CN','TW','HK','MO'],
+        western:['US','GB','CA','FR','DE','IT','ES','AU','NZ','IE','BE','SE','NO','DK','NL','AT','CH'],
+        korea:['KR'], japan:['JP']
+      };
+      return codes.some(code => (sets[region] || []).includes(code));
+    }
+    function sgPillSelect(kind, value) {
+      if (!auroraActiveCategory) return;
+      if (kind === 'sub') sgCategoryFilters.sub = value;
+      if (kind === 'region') sgCategoryFilters.region = value;
+      sgSyncCategoryPills();
+      renderAuroraRecommendations();
+    }
+    function sgSyncCategoryPills() {
+      const wrapper = document.getElementById('sg-category-filters');
+      if (!wrapper) return;
+      wrapper.hidden = !auroraActiveCategory;
+      // Keep year/rating/order controls, but place the new capsule filters first.
+      const originalFilters = document.querySelector('.aurora-discovery-filters');
+      const heading = document.querySelector('.aurora-section-head');
+      if (!auroraActiveCategory) {
+        if (originalFilters && heading && originalFilters.parentElement !== heading) heading.appendChild(originalFilters);
+        return;
+      }
+      if (originalFilters && wrapper.nextElementSibling !== originalFilters) wrapper.insertAdjacentElement('afterend',originalFilters);
+      const names = sgCategoryPillNames[auroraActiveCategory] || sgCategoryPillNames['电影'];
+      const makePills = (items, kind, active) => items.map(({id,label}) =>
+        `<button type="button" class="sg-filter-pill ${id === active ? 'active' : ''}" aria-pressed="${id === active}" data-sg-kind="${kind}" data-sg-value="${id}">${escapeHtml(label)}</button>`).join('');
+      const sub = document.getElementById('sg-filter-categories');
+      const region = document.getElementById('sg-filter-regions');
+      if (sub) sub.innerHTML = makePills(names.map((label,i) => ({id:i===0?'all':String(i),label})), 'sub', sgCategoryFilters.sub);
+      if (region) region.innerHTML = makePills(sgRegions, 'region', sgCategoryFilters.region);
+    }
+    // Event delegation, single listener regardless of category navigation.
+    document.getElementById('sg-category-filters')?.addEventListener('click', event => {
+      const button = event.target.closest('button[data-sg-kind]');
+      if (button) sgPillSelect(button.dataset.sgKind, button.dataset.sgValue);
+    });
+    function sgSubCategoryItems(items) {
+      const sub = sgCategoryFilters.sub;
+      if (sub === 'all') return items;
+      const sorted = items.slice();
+      if (sub === '1') return sorted.sort((a,b) => (b.popularity||0) - (a.popularity||0));
+      if (sub === '2') return sorted.sort((a,b) => String(b.releaseDate||b.year||'').localeCompare(String(a.releaseDate||a.year||'')));
+      if (sub === '3') return sorted.filter(x => Number(x.voteAverage||0) >= 7).sort((a,b) => (b.voteAverage||0)-(a.voteAverage||0));
+      // Fourth preset is a curated low-popularity or high-score rail, without new APIs.
+      if (auroraActiveCategory === '电影') {
+        const cutoff = sorted.slice().sort((a,b)=>(a.popularity||0)-(b.popularity||0));
+        return cutoff.filter(x => Number(x.voteAverage||0) >= 6).slice(0,Math.max(6,Math.ceil(sorted.length*.55)));
+      }
+      return sorted.filter(x => Number(x.voteAverage||0) >= 6.5).sort((a,b)=>(b.voteAverage||0)-(a.voteAverage||0));
+    }
+    function sgCategoryRails(items) {
+      if (!auroraActiveCategory) return [];
+      const names = ({
+        '电影':['热门电影','最近上映','高分佳片','小众精选'],
+        '电视剧':['正在热播','最新剧集','口碑剧集','值得重温'],
+        '综艺':['人气综艺','最新上线','高分综艺','精选节目'],
+        '动漫':['人气动漫','最新动漫','高分动漫','精选番剧']
+      })[auroraActiveCategory] || ['热门推荐','最新作品','高分精选','更多作品'];
+      const popular = items.slice().sort((a,b)=>(b.popularity||0)-(a.popularity||0));
+      const newest = items.slice().sort((a,b)=>String(b.releaseDate||b.year||'').localeCompare(String(a.releaseDate||a.year||'')));
+      const rated = items.filter(x=>Number(x.voteAverage||0)>=7).sort((a,b)=>(b.voteAverage||0)-(a.voteAverage||0));
+      const special = items.slice().sort((a,b)=>(a.popularity||0)-(b.popularity||0));
+      const options = [{name:names[0],items:popular},{name:names[1],items:newest},{name:names[2],items:rated},{name:names[3],items:special}];
+      // Do not manufacture filler items for a category with sparse metadata.
+      return options.filter((g,i)=>g.items.length && (i < 2 || g.items.length >= 2) && (i < 2 || items.length >= 5))
+        .map(g => ({name:g.name,items:g.items.slice(0,30)}));
+    }
     function submitAuroraTopSearch(event) {
       if (event) event.preventDefault();
       const input = document.getElementById('aurora-nav-search-input');
@@ -2427,9 +2518,12 @@
         (!year || String(item.year || '') === year) &&
         (!minRating || Number(item.voteAverage || 0) >= minRating)
       );
-      return filtered.sort((a, b) => {
-        if (sort === 'rating') return Number(b.voteAverage || 0) - Number(a.voteAverage || 0) || Number(b.popularity || 0) - Number(a.popularity || 0);
-        if (sort === 'newest') return String(b.releaseDate || b.year || '').localeCompare(String(a.releaseDate || a.year || '')) || Number(b.popularity || 0) - Number(a.popularity || 0);
+      const regionFiltered = auroraActiveCategory ? filtered.filter(item => sgMatchesRegion(item, sgCategoryFilters.region)) : filtered;
+      const presetFiltered = auroraActiveCategory ? sgSubCategoryItems(regionFiltered) : regionFiltered;
+      return presetFiltered.sort((a, b) => {
+        if (sort === 'rating' || (sort === 'popular' && auroraActiveCategory && sgCategoryFilters.sub === '3')) return Number(b.voteAverage || 0) - Number(a.voteAverage || 0) || Number(b.popularity || 0) - Number(a.popularity || 0);
+        if (sort === 'newest' || (sort === 'popular' && auroraActiveCategory && sgCategoryFilters.sub === '2')) return String(b.releaseDate || b.year || '').localeCompare(String(a.releaseDate || a.year || '')) || Number(b.popularity || 0) - Number(a.popularity || 0);
+        if (sort === 'popular' && auroraActiveCategory && sgCategoryFilters.sub === '4') return Number(a.popularity || 0) - Number(b.popularity || 0);
         if (auroraActiveCategory === '电视剧') {
           const aCN = /国产热门电视剧|中国大陆热门|中国地区热门/i.test(String(a.source || '')) ? 1 : 0;
           const bCN = /国产热门电视剧|中国大陆热门|中国地区热门/i.test(String(b.source || '')) ? 1 : 0;
@@ -2492,6 +2586,32 @@
         dots.innerHTML = visible.slice(start, start + groupSize).map((x,i)=>`<button type="button" class="aurora-hero-dot ${start+i===auroraHeroIndex?'active':''}" onclick="selectAuroraHero(${start+i})" aria-label="推荐 ${start+i+1}"></button>`).join('');
       }
     }
+    function sgInitHeroSwipe() {
+      const hero = document.getElementById('aurora-hero');
+      if (!hero || hero.dataset.sgSwipeReady) return;
+      hero.dataset.sgSwipeReady = '1';
+      let drag = null;
+      hero.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || event.target.closest('button,a,input,[role="button"]')) return;
+        drag = {x:event.clientX,y:event.clientY,pointerId:event.pointerId,when:Date.now()};
+        if (event.pointerType === 'mouse') { hero.classList.add('sg-hero-dragging'); hero.setPointerCapture?.(event.pointerId); }
+      });
+      hero.addEventListener('pointerup', event => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const dx = event.clientX - drag.x;
+        const dy = event.clientY - drag.y;
+        drag = null;
+        hero.classList.remove('sg-hero-dragging');
+        if (Math.abs(dx) > 38 && Math.abs(dx) > Math.abs(dy)*1.15) {
+          stepAuroraHero(dx < 0 ? 1 : -1);
+          startAuroraHeroRotation();
+        }
+      });
+      hero.addEventListener('pointercancel', () => { drag=null; hero.classList.remove('sg-hero-dragging'); });
+      hero.addEventListener('lostpointercapture', () => hero.classList.remove('sg-hero-dragging'));
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',sgInitHeroSwipe,{once:true});
+    else sgInitHeroSwipe();
     function startAuroraHeroRotation() {
       if (auroraHeroTimer) clearInterval(auroraHeroTimer);
       auroraHeroTimer = setInterval(() => {
@@ -2503,7 +2623,7 @@
       }, 6500);
     }
     function openAuroraWorkspace() {
-      document.body.classList.remove('aurora-home-view');
+      document.body.classList.remove('aurora-home-view', 'sg-category-view');
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'true');
       if (!sgUiRestoring) window.scrollTo({top:0,behavior:'smooth'});
@@ -2580,7 +2700,11 @@
       stopSitePlaybackOnNavigation();
       auroraActiveCategory = '';
       auroraHeroIndex = 0;
+      sgCategoryFilters.sub = 'all';
+      sgCategoryFilters.region = 'all';
+      document.body.classList.remove('sg-category-view');
       document.body.classList.add('aurora-home-view');
+      sgSyncCategoryPills();
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'false');
       // Homepage uses the movie dock highlight; category buttons keep their original behavior.
@@ -2597,9 +2721,15 @@
     function openAuroraCategory(category) {
       stopSitePlaybackOnNavigation();
       // 不调用 showAuroraHome()：它会清空分类，导致所有分类都回到默认推荐。
+      if (auroraActiveCategory !== category) {
+        sgCategoryFilters.sub = 'all';
+        sgCategoryFilters.region = 'all';
+      }
       auroraActiveCategory = category || '';
       auroraHeroIndex = 0;
+      document.body.classList.toggle('sg-category-view', !!auroraActiveCategory);
       document.body.classList.add('aurora-home-view');
+      sgSyncCategoryPills();
       const home = document.getElementById('aurora-home');
       if (home) home.setAttribute('aria-hidden', 'false');
       const navKey = ({'电影':'movie','电视剧':'series','综艺':'variety','动漫':'anime'}[category] || '');
@@ -2676,7 +2806,7 @@
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
         host._sgPosterRenderKey = null;
-        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '热门榜暂时没有' + escapeHtml(auroraActiveCategory) + '数据' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '正在补充该分类的热门数据；请确认已把新版 my-yuan/_worker.js 与 my-tv 推荐接口上传，随后重新打开分类。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
+        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '当前筛选暂无匹配内容' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '可以切换上方分类、地区、年份或评分；榜单内容取决于 D1 已同步的影视资料。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
         if (heroTitle) { heroTitle.textContent = '你的私人影院'; heroTitle.dataset.title = ''; }
         if (heroDesc) heroDesc.textContent = '连接你自己的影视源后，这里会显示真实影片与海报。';
         if (heroMeta) heroMeta.innerHTML = '<span>个人影视源</span><span>不展示收藏和历史</span>';
@@ -2685,14 +2815,19 @@
       }
       auroraHeroIndex = Math.max(0, Math.min(auroraHeroIndex, visibleItems.length - 1));
       const first = visibleItems[auroraHeroIndex] || visibleItems[0];
-      renderAuroraHero(first);
-      startAuroraHeroRotation();
+      if (!auroraActiveCategory) {
+        renderAuroraHero(first);
+        startAuroraHeroRotation();
+      } else if (auroraHeroTimer) {
+        clearInterval(auroraHeroTimer);
+        auroraHeroTimer = null;
+      }
       if (count) count.textContent = String(visibleItems.length);
       // AURORA 3.18: Preserve existing poster DOM when content is unchanged.
       // This avoids re-decoding/reloading many images after opening settings or returning home.
-      const posterRenderKey = JSON.stringify([auroraActiveCategory, visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source])]);
+      const posterRenderKey = JSON.stringify([auroraActiveCategory, sgCategoryFilters.sub, sgCategoryFilters.region, visibleItems.map(item => [item.title, item.poster, item.type, item.remarks || item.source])]);
       if (host._sgPosterRenderKey !== posterRenderKey ||
-          host.querySelectorAll('.aurora-poster-card').length !== visibleItems.length) {
+          !host.querySelector('.aurora-poster-card')) {
         // UI-only grouping: keep the EXACT original poster buttons, lazy images,
         // click-to-search behavior and filtered data; lay out movie/TV rails.
         const sgPosterCard = (item, index) => {
@@ -2700,7 +2835,7 @@
           return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
         };
         const groupsForDisplay = auroraActiveCategory
-          ? [{ name: `热门${auroraActiveCategory === '电视剧' ? '剧集' : auroraActiveCategory}`, items: visibleItems }]
+          ? sgCategoryRails(visibleItems)
           : [
               { name:'热门电影', items: visibleItems.filter(item => classifyAuroraMedia(item) === '电影') },
               { name:'热播剧集', items: visibleItems.filter(item => classifyAuroraMedia(item) !== '电影') }
@@ -5057,8 +5192,8 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
               document.querySelectorAll('.source-item.active-source').forEach(el => el.classList.remove('active-source'));
               itemEl.classList.add('active-source');
               currentTitle.textContent = chName;
-              routeBadge.style.display = 'inline-block';
-              routeBadge.textContent = `线 ${idx + 1}`;
+              routeBadge.style.display = 'none';
+              routeBadge.textContent = '';
               currentStreamUrl = url;
               currentPlayingMeta = { title: chName, epName: '直播', siteName: `线路 ${idx + 1}` };
               updateFavIconState();
