@@ -3705,3 +3705,45 @@ body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-shade {
       linear-gradient(90deg,rgba(3,11,25,.10),transparent 72%) !important;
   }
 }
+
+
+/* L10 final: expose poster color; keep the text readable without dimming the entire card.
+   Target the home carousel only. No extra DOM, effects, network resources or playback changes. */
+body.aurora-home-view:not(.sg-category-view) #aurora-hero {
+  background:#15283d !important;
+}
+body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-backdrop {
+  opacity:1 !important;
+  filter:brightness(1.12) saturate(1.09) contrast(1.025) !important;
+}
+body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-shade {
+  background:
+    linear-gradient(90deg,rgba(3,11,24,.23) 0%,rgba(3,11,24,.065) 50%,transparent 100%),
+    linear-gradient(0deg,rgba(2,11,26,.28) 0%,rgba(2,11,26,.055) 36%,transparent 67%) !important;
+}
+body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-copy {
+  opacity:1 !important;
+}
+body.aurora-home-view:not(.sg-category-view) #aurora-hero #aurora-hero-title {
+  color:#fff !important;
+  text-shadow:0 2px 4px rgba(0,0,0,.88),0 4px 16px rgba(0,0,0,.48) !important;
+}
+body.aurora-home-view:not(.sg-category-view) #aurora-hero #aurora-hero-desc {
+  color:#f9fcff !important;
+  text-shadow:0 1px 3px rgba(0,0,0,.93),0 3px 9px rgba(0,0,0,.7) !important;
+}
+@media(max-width:600px) {
+  body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-shade {
+    background:
+      linear-gradient(0deg,rgba(2,10,24,.30) 0%,rgba(2,10,24,.065) 48%,transparent 77%),
+      linear-gradient(90deg,rgba(2,10,24,.16) 0%,transparent 88%) !important;
+  }
+}
+
+body.aurora-home-view:not(.sg-category-view) #aurora-hero .aurora-hero-controls {
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
