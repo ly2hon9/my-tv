@@ -3119,3 +3119,8 @@
     #channel-list .sg-live-empty {
       text-align:center; padding:26px 12px; font-size:13px; color:var(--text-sub);
     }
+    /* 个人账户弹窗：手机和电脑均居中显示 */
+    #user-account-modal-mask {
+      align-items: center !important;
+      justify-content: center !important;
+    }
