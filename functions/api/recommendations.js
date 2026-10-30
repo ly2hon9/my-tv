@@ -218,6 +218,122 @@ async function refreshD1FromUpstream(env) {
   return normalized;
 }
 
+// AURORA region shelves: the normal daily D1 shortlist is too small and older
+// cron snapshots omit origin_country. Load a *verified* TMDB regional shelf only
+// when a user selects a country filter. Cache each region/category in D1.
+const REGION_COUNTRIES = Object.freeze({
+  chinese: ['CN', 'HK', 'TW'],
+  western: ['US', 'GB', 'FR'],
+  korea: ['KR'],
+  japan: ['JP']
+});
+const REGION_CATEGORIES = new Set(['电影', '电视剧', '综艺', '动漫']);
+const REGION_CACHE_MS = 23 * 60 * 60 * 1000;
+function regionCacheKey(category, region) {
+  const codes = { '电影':'movie','电视剧':'series','综艺':'variety','动漫':'anime' };
+  return `sg_region_${codes[category]}_${region}_v1`;
+}
+async function fetchRegionalCountry(env, category, country) {
+  const isMovie = category === '电影';
+  const url = new URL(`${TMDB_BASE}/discover/${isMovie ? 'movie' : 'tv'}`);
+  url.searchParams.set('api_key', env.TMDB_API_KEY);
+  url.searchParams.set('language', 'zh-CN');
+  url.searchParams.set('include_adult', 'false');
+  url.searchParams.set('sort_by', 'popularity.desc');
+  url.searchParams.set('page', '1');
+  // This is country of *origin*, not viewing/release 'region'. Both discover
+  // endpoints support with_origin_country, including the movie endpoint.
+  url.searchParams.set('with_origin_country', country);
+  if (!isMovie) {
+    if (category === '电视剧') url.searchParams.set('without_genres', '16,10764,10767');
+    else if (category === '综艺') {
+      url.searchParams.set('with_genres', '10764|10767');
+      url.searchParams.set('without_genres', '16');
+    } else if (category === '动漫') {
+      url.searchParams.set('with_genres', '16');
+      url.searchParams.set('without_genres', '10764,10767');
+    }
+  } else {
+    // Animated films belong to 动漫, not 电影, matching the normal catalog.
+    url.searchParams.set('without_genres', '16');
+  }
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' }, cf: { cacheTtl: 300 }
+  });
+  if (!response.ok) throw new Error(`TMDB 地区查询返回 ${response.status}`);
+  const payload = await response.json();
+  return (Array.isArray(payload.results) ? payload.results : [])
+    .map(raw => normalizeItem({
+      ...raw,
+      // TMDB's movie discover items do not expose country codes, but the
+      // query itself was constrained to this country of origin.
+      originCountry: Array.isArray(raw.origin_country) && raw.origin_country.length ? raw.origin_country : [country],
+      source: 'TMDB 地区榜单'
+    }, category))
+    .filter(item => item && item.type === category && item.poster)
+    .slice(0, 20);
+}
+async function onRegionalRecommendations(request, env, url) {
+  const category = url.searchParams.get('category') || '';
+  const region = url.searchParams.get('region') || '';
+  if (!REGION_CATEGORIES.has(category) || !Object.hasOwn(REGION_COUNTRIES, region)) {
+    return json({ error: '不支持的分类或地区' }, 400);
+  }
+  const key = regionCacheKey(category, region);
+  let cached = null;
+  if (env.DB) {
+    const row = await env.DB.prepare('SELECT value FROM user_data WHERE key = ?').bind(key).first();
+    try {
+      const data = JSON.parse(row?.value || 'null');
+      if (Array.isArray(data?.items) && data.category === category && data.region === region) cached = data;
+    } catch (_) {}
+  }
+  const cacheTime = cached?.updatedAt ? Date.parse(cached.updatedAt) : NaN;
+  if (Number.isFinite(cacheTime) && Date.now() - cacheTime >= 0 && Date.now() - cacheTime < REGION_CACHE_MS) {
+    return json(cached, 200, { 'Cache-Control': 'private, max-age=60' });
+  }
+  if (!env.TMDB_API_KEY) {
+    if (cached) return json({ ...cached, warning: '缺少 TMDB_API_KEY，显示旧地区缓存' });
+    return json({ error: 'Cloudflare Pages 缺少 TMDB_API_KEY，无法按地区读取真实影片' }, 503);
+  }
+  try {
+    // Run at most three TMDB requests, only on the first click per region/day.
+    const results = await Promise.allSettled(REGION_COUNTRIES[region].map(country => fetchRegionalCountry(env, category, country)));
+    const good = results.filter(result => result.status === 'fulfilled');
+    if (!good.length) throw new Error('TMDB 地区查询暂时不可用');
+    const unique = new Map();
+    // Interleave countries first: otherwise very popular US titles would
+    // crowd out all other European countries in the western shelf.
+    const countries = good.map(result => result.value);
+    const max = Math.max(0, ...countries.map(items => items.length));
+    for (let index = 0; index < max; index++) {
+      for (const countryItems of countries) {
+        const item = countryItems[index];
+        if (!item) continue;
+        const id = item.id || `${item.type}:${item.title}`;
+        if (!unique.has(id)) unique.set(id, item);
+        if (unique.size >= 36) break;
+      }
+      if (unique.size >= 36) break;
+    }
+    const result = {
+      category, region, items: [...unique.values()],
+      source: 'TMDB 地区发现', updatedAt: new Date().toISOString()
+    };
+    if (env.DB) {
+      try {
+        await env.DB.prepare(
+          'INSERT INTO user_data (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+        ).bind(key, JSON.stringify(result)).run();
+      } catch (_) { /* A D1 cache write must not break an otherwise successful search. */ }
+    }
+    return json(result, 200, { 'Cache-Control': 'private, max-age=60' });
+  } catch (error) {
+    if (cached) return json({ ...cached, warning: '地区数据更新失败，已显示旧缓存' }, 200);
+    return json({ error: error?.message || '地区数据读取失败，请稍后重试' }, 503);
+  }
+}
+
 function unpackRow(row) {
   if (!row?.value) return null;
   try {
@@ -244,6 +360,9 @@ export async function onRequest({ request, env }) {
     const user = await getUser(request, env);
     if (!user) return json({ error: '请先登录' }, 401);
     const url = new URL(request.url);
+    if (url.searchParams.has('region') || url.searchParams.has('category')) {
+      return await onRegionalRecommendations(request, env, url);
+    }
     const forceRefresh = url.searchParams.get('refresh') === '1';
     let row = null, cached = null;
     if (env.DB) {
