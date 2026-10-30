@@ -3516,3 +3516,128 @@ body.aurora-home-view #aurora-home {
   padding-bottom:calc(130px + env(safe-area-inset-bottom,0px)) !important;
   scroll-padding-bottom:95px;
 }
+
+
+/* 3.20.2 - compact layout pack. No player/search/network changes. */
+/* Hero: close to the video player's landscape proportions. */
+body.aurora-home-view:not(.sg-category-view) .aurora-hero {
+  min-height:0 !important;
+  height:auto !important;
+  aspect-ratio:16/9;
+  max-height:440px !important;
+  overflow:hidden !important;
+  touch-action:pan-y;
+  cursor:grab;
+}
+body.aurora-home-view:not(.sg-category-view) .aurora-hero.sg-hero-dragging { cursor:grabbing; user-select:none; }
+body.aurora-home-view .aurora-hero-controls > button { display:none !important; }
+body.aurora-home-view .aurora-hero-controls { pointer-events:auto; min-height:20px !important; padding:3px 8px !important; bottom:10px !important; }
+body.aurora-home-view .aurora-hero-copy { padding-bottom:54px !important; }
+body.aurora-home-view .aurora-hero-desc { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+/* New category page: the rails belong to the category, not another clone of the home carousel. */
+body.sg-category-view #aurora-hero { display:none !important; }
+body.sg-category-view .aurora-home-section { margin-top:8px !important; }
+body.sg-category-view .aurora-section-head { margin-bottom:6px !important; }
+.sg-category-filters[hidden] { display:none !important; }
+.sg-category-filters {
+  width:100%; padding:16px clamp(12px,2.2vw,22px); margin:12px 0 22px;
+  border:1px solid rgba(153,196,248,.18); border-radius:22px;
+  background:rgba(17,28,48,.66); box-shadow:inset 0 1px rgba(255,255,255,.04);
+}
+.sg-filter-line { display:flex; flex-direction:column; align-items:flex-start; gap:10px; min-width:0; }
+.sg-filter-line + .sg-filter-line { margin-top:17px; }
+.sg-filter-label { font-size:14px; font-weight:750; color:var(--text-sub); }
+.sg-filter-pills { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+.sg-filter-pill {
+  appearance:none; border:1px solid transparent; border-radius:999px;
+  background:rgba(139,160,194,.19); color:var(--text-sub);
+  padding:9px 13px; font:700 13px/1.2 inherit; cursor:pointer;
+  transition:background-color .15s,color .15s,border-color .15s;
+}
+.sg-filter-pill.active { background:rgba(123,151,196,.48); color:var(--text-main); border-color:rgba(213,233,255,.23); }
+.sg-filter-pill:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+body.theme-light .sg-category-filters { background:rgba(248,250,255,.75); border-color:#789ac23e; }
+body.theme-light .sg-filter-pill { background:#dce5f0; }
+body.theme-light .sg-filter-pill.active { background:#b6d0f2; }
+/* Compact floating iOS-like dock, with safe-area and enough clearance. */
+body > .aurora-nav-links {
+  width:min(650px,calc(100% - 36px)) !important;
+  height:64px !important; min-height:64px !important;
+  bottom:max(2px,env(safe-area-inset-bottom,0px)) !important;
+  padding:4px 9px !important;
+  border-radius:24px !important;
+  background:rgba(19,37,64,.64) !important;
+  border-color:rgba(202,230,255,.27) !important;
+  -webkit-backdrop-filter:blur(19px) saturate(155%) !important;
+  backdrop-filter:blur(19px) saturate(155%) !important;
+  box-shadow:0 9px 26px rgba(0,7,28,.29),inset 0 1px 0 rgba(255,255,255,.17) !important;
+}
+body.theme-light > .aurora-nav-links { background:rgba(251,253,255,.68) !important; }
+body > .aurora-nav-links > .aurora-nav-link { border-radius:16px !important; }
+body > .aurora-nav-links .sg-nav-icon { flex-basis:26px; width:27px; height:27px; }
+body > .aurora-nav-links .sg-nav-icon svg { width:24px; height:24px; }
+body.aurora-home-view #aurora-home { padding-bottom:calc(112px + env(safe-area-inset-bottom,0px)) !important; }
+body:not(.aurora-home-view) #channel-list { padding-bottom:calc(103px + env(safe-area-inset-bottom,0px)) !important; }
+/* Favorites/history: back sits OUTSIDE the compact titlebar. */
+#channel-list .sg-personal-back-row { display:flex; margin:8px 0 8px; justify-content:flex-start; }
+#channel-list .sg-personal-back {
+  padding:7px 13px; border:1px solid var(--border-light);
+  border-radius:999px; background:var(--bg-card); color:var(--text-main);
+  font:700 12px/1.3 inherit; cursor:pointer;
+}
+#channel-list > .top-unified-bar.sg-personal-titlebar {
+  display:flex !important; justify-content:space-between !important; align-items:center !important;
+  width:min(100%,740px) !important; min-height:0 !important;
+  padding:10px 14px !important; margin:0 0 12px !important;
+  border-radius:14px !important; box-sizing:border-box;
+}
+#channel-list .sg-personal-titlebar .sources-header-title { font-size:clamp(13px,1.5vw,16px) !important; }
+#channel-list .sg-personal-clear {
+  appearance:none; border:1px solid rgba(255,106,115,.35); border-radius:9px;
+  padding:7px 13px; color:#fff; background:#ba3343; font-weight:700; cursor:pointer;
+}
+@media(max-width:600px) {
+  body.aurora-home-view:not(.sg-category-view) .aurora-hero {
+    min-height:240px !important; aspect-ratio:16/10; border-radius:19px !important;
+  }
+  body.aurora-home-view .aurora-hero-copy { padding:13px 13px 44px !important; }
+  body.aurora-home-view .aurora-hero-kicker { display:none !important; }
+  body.aurora-home-view .aurora-eyebrow { padding:5px 8px !important; font-size:10px !important; }
+  body.aurora-home-view #aurora-hero-title { font-size:clamp(19px,5.8vw,25px) !important; margin:8px 0 !important; }
+  body.aurora-home-view #aurora-hero-desc { font-size:11px !important; line-height:1.4 !important; }
+  body.aurora-home-view .aurora-hero-meta > span { padding:4px 8px !important; font-size:10px !important; }
+  body.aurora-home-view .aurora-play-glass.aurora-hero-play-float { width:40px !important; height:40px !important; min-width:40px !important; min-height:40px !important; right:11px !important; bottom:12px !important; }
+  body.aurora-home-view .aurora-play-glass.aurora-hero-play-float svg { width:32px !important; height:32px !important; padding:8px !important; }
+  body > .aurora-nav-links { width:calc(100% - 34px) !important; height:59px !important; min-height:59px !important; padding:3px 6px !important; bottom:max(2px,env(safe-area-inset-bottom,0px)) !important; border-radius:20px !important; }
+  body > .aurora-nav-links .sg-nav-icon { flex-basis:24px; height:24px; }
+  body > .aurora-nav-links .sg-nav-icon svg { width:22px; height:22px; }
+  body > .aurora-nav-links .sg-nav-label { font-size:10px !important; }
+  .sg-category-filters { padding:12px; border-radius:16px; }
+  .sg-filter-pills { gap:5px; }
+  .sg-filter-pill { font-size:12px; padding:8px 10px; }
+  .sg-filter-line + .sg-filter-line { margin-top:13px; }
+  #channel-list > .top-unified-bar.sg-personal-titlebar { width:100% !important; padding:9px 12px !important; }
+}
+@media(prefers-reduced-motion:reduce) { .sg-filter-pill { transition:none; } }
+
+/* Narrow screens: never let a height constraint force landscape hero wider than its parent. */
+body.aurora-home-view:not(.sg-category-view) .aurora-hero {
+  width:100% !important; max-width:100% !important; margin-inline:auto !important;
+}
+body.sg-category-view .aurora-discovery-filters { width:100%; margin:0 0 15px; justify-content:flex-start !important; }
+@media(max-width:600px) {
+  body.aurora-home-view:not(.sg-category-view) .aurora-hero {
+    width:100% !important; max-width:100% !important; aspect-ratio:auto !important;
+    height:clamp(220px,60vw,250px) !important; min-height:0 !important;
+  }
+  body.aurora-home-view:not(.sg-category-view) .aurora-hero-play-float { right:12px !important; }
+}
+/* Keep the desktop carousel the same compact landscape scale as the player. */
+@media (min-width:601px) {
+  body.aurora-home-view:not(.sg-category-view) .aurora-hero {
+    width:min(100%,780px) !important;
+    max-width:780px !important;
+    margin-inline:auto !important;
+    aspect-ratio:16/9 !important;
+  }
+}
