@@ -2402,6 +2402,34 @@
       '动漫':['全部','热门动漫','最新动漫','高分动漫','精选动漫']
     };
     const sgRegions = [{id:'all',label:'全部'},{id:'chinese',label:'华语'},{id:'western',label:'欧美'},{id:'korea',label:'韩国'},{id:'japan',label:'日本'}];
+    // Lazy region shelves: load verified region/country results only when the
+    // viewer presses a region pill. '全部' stays on the existing D1 shortlist.
+    const sgRegionalCache = new Map();
+    const sgRegionalPending = new Map();
+    const sgRegionalErrors = new Map();
+    function sgRegionalKey(category, region) { return `${category}:${region}`; }
+    function sgEnsureRegionalData(category, region) {
+      if (!category || !region || region === 'all') return;
+      const key = sgRegionalKey(category, region);
+      if (sgRegionalCache.has(key) || sgRegionalPending.has(key)) return;
+      sgRegionalErrors.delete(key);
+      const work = (async () => {
+        const endpoint = `/api/recommendations?category=${encodeURIComponent(category)}&region=${encodeURIComponent(region)}`;
+        const response = await fetch(endpoint, { credentials:'same-origin', headers:{ Accept:'application/json' } });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(String(data.error || `地区查询失败 (${response.status})`));
+        if (!Array.isArray(data.items)) throw new Error('地区数据格式不正确');
+        sgRegionalCache.set(key, data.items.map(normalizeTrendingItem).filter(Boolean)
+          .filter(item => classifyAuroraMedia(item) === category));
+      })();
+      sgRegionalPending.set(key, work);
+      work.catch(error => {
+        sgRegionalErrors.set(key, String(error?.message || '地区数据读取失败').slice(0,140));
+      }).finally(() => {
+        sgRegionalPending.delete(key);
+        if (auroraActiveCategory === category && sgCategoryFilters.region === region) renderAuroraRecommendations();
+      });
+    }
     function sgRegionCode(item) {
       const raw = Array.isArray(item.originCountry) ? item.originCountry :
         Array.isArray(item.origin_country) ? item.origin_country : [];
@@ -2445,6 +2473,7 @@
       if (kind === 'sub') sgCategoryFilters.sub = value;
       if (kind === 'region') sgCategoryFilters.region = value;
       sgSyncCategoryPills();
+      if (sgCategoryFilters.region !== 'all') sgEnsureRegionalData(auroraActiveCategory, sgCategoryFilters.region);
       renderAuroraRecommendations();
     }
     function sgSyncCategoryPills() {
@@ -2522,8 +2551,11 @@
       openAuroraSearch(keyword);
     }
     function auroraCurrentVisibleItems() {
+      const regional = auroraActiveCategory && sgCategoryFilters.region !== 'all'
+        ? sgRegionalCache.get(sgRegionalKey(auroraActiveCategory, sgCategoryFilters.region))
+        : null;
       const visible = auroraActiveCategory
-        ? auroraRecommendationItems.filter(auroraCategoryPredicate)
+        ? (sgCategoryFilters.region !== 'all' ? (regional || []) : auroraRecommendationItems).filter(auroraCategoryPredicate)
         : auroraRecommendationItems.filter(item => ['电影', '电视剧'].includes(classifyAuroraMedia(item)));
       // Only the HOME view uses the year/rating/order selectors.
       // Hidden home filters must never restrict movie/series/variety/anime rails.
@@ -2534,7 +2566,9 @@
         (!year || String(item.year || '') === year) &&
         (!minRating || Number(item.voteAverage || 0) >= minRating)
       );
-      const regionFiltered = auroraActiveCategory ? filtered.filter(item => sgMatchesRegion(item, sgCategoryFilters.region)) : filtered;
+      // Region datasets were fetched with TMDB's country-of-origin filter;
+      // do not reject movies again just because /discover/movie omits country fields.
+      const regionFiltered = filtered;
       const presetFiltered = auroraActiveCategory ? sgSubCategoryItems(regionFiltered) : regionFiltered;
       return presetFiltered.sort((a, b) => {
         if (sort === 'rating' || (sort === 'popular' && auroraActiveCategory && sgCategoryFilters.sub === '3')) return Number(b.voteAverage || 0) - Number(a.voteAverage || 0) || Number(b.popularity || 0) - Number(a.popularity || 0);
@@ -2833,7 +2867,22 @@
       const visibleItems = auroraCurrentVisibleItems();
       if (!visibleItems.length) {
         host._sgPosterRenderKey = null;
-        host.innerHTML = `<div class="aurora-empty-state"><strong>${auroraActiveCategory ? '当前筛选暂无匹配内容' : '热门榜缓存尚未初始化'}</strong><small>${auroraActiveCategory ? '可以切换上方胶囊选项；榜单内容取决于 D1 已同步的影视资料。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。'}</small><button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button></div>`;
+        const regionSelected = auroraActiveCategory && sgCategoryFilters.region !== 'all';
+        const key = regionSelected ? sgRegionalKey(auroraActiveCategory, sgCategoryFilters.region) : '';
+        const regionalError = key ? sgRegionalErrors.get(key) : '';
+        const regionalLoading = regionSelected && !sgRegionalCache.has(key) && !regionalError;
+        const title = regionSelected
+          ? (regionalError ? '地区内容加载失败' : regionalLoading ? '正在读取地区影片…' : '该地区暂无匹配的影视作品')
+          : (auroraActiveCategory ? '当前筛选暂无匹配内容' : '热门榜缓存尚未初始化');
+        const explanation = regionSelected
+          ? (regionalError ? regionalError : regionalLoading ? '首次选择该地区时读取 TMDB，后续优先使用缓存。' : '可以试试其他地区或分类，当前地区可能暂无符合条件的作品。')
+          : (auroraActiveCategory ? '可以切换上方胶囊选项；榜单内容取决于 D1 已同步的影视资料。' : '请确认每日同步 Worker 已部署、TMDB_API_KEY 与 D1 绑定已配置。');
+        host.innerHTML = `<div class="aurora-empty-state"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(explanation)}</small>${regionalLoading ? '' : regionSelected ? (regionalError ? '<button type="button" class="aurora-empty-action" id="sg-region-retry">重试读取地区影片</button>' : '') : '<button type="button" class="aurora-empty-action" onclick="refreshAuroraRecommendations()">重新读取推荐</button>'}</div>`;
+        host.querySelector('#sg-region-retry')?.addEventListener('click', () => {
+          sgRegionalErrors.delete(key);
+          sgEnsureRegionalData(auroraActiveCategory, sgCategoryFilters.region);
+          renderAuroraRecommendations();
+        });
         if (heroTitle) { heroTitle.textContent = '你的私人影院'; heroTitle.dataset.title = ''; }
         if (heroDesc) heroDesc.textContent = '连接你自己的影视源后，这里会显示真实影片与海报。';
         if (heroMeta) heroMeta.innerHTML = '<span>个人影视源</span><span>不展示收藏和历史</span>';
