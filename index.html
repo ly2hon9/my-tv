@@ -11,7 +11,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.20.2-account-center">
+  <link rel="stylesheet" href="css/aurora.css?v=3.20.2-glass-34db8caf6f">
 </head>
 <body class="aurora-home-view shiguang-booting">
 
@@ -60,24 +60,35 @@
       <input id="aurora-nav-search-input" type="search" placeholder="搜索电影、电视剧、片名或频道…" aria-label="搜索影视" autocomplete="off">
       <button type="submit" aria-label="搜索" title="搜索"><svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 5 5"/></svg></button>
     </form>
-    <nav class="aurora-nav-links" aria-label="主导航">
-      <button type="button" class="aurora-nav-link" title="电影" aria-label="电影" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span>▣</span> 电影</button>
-      <button type="button" class="aurora-nav-link" title="剧集" aria-label="剧集" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span>▤</span> 剧集</button>
-      <button type="button" class="aurora-nav-link" title="综艺" aria-label="综艺" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span>✦</span> 综艺</button>
-      <button type="button" class="aurora-nav-link" title="动漫" aria-label="动漫" data-aurora-nav="anime" onclick="openAuroraCategory('动漫')"><span>◇</span> 动漫</button>
-      <button type="button" class="aurora-nav-link" title="直播" aria-label="直播" data-aurora-nav="live" onclick="switchMode('tv')"><span>▤</span> 直播</button>
-      <button type="button" class="aurora-nav-link" title="收藏" aria-label="收藏" data-aurora-nav="favorites" onclick="openAuroraWorkspace();switchSidebarView('fav')"><span>☆</span> 收藏</button>
-      <button type="button" class="aurora-nav-link" title="历史" aria-label="历史" data-aurora-nav="history" onclick="openAuroraWorkspace();switchSidebarView('history')"><span>◷</span> 历史</button>
-      <button type="button" class="aurora-nav-link aurora-nav-settings" title="设置" aria-label="设置" onclick="handleMainSettingsButtonClick()"><span>⚙</span> 设置</button>
-    </nav>
+
+    <details class="sg-account-menu" id="sg-account-menu">
+      <summary class="sg-avatar-trigger" aria-label="打开个人菜单" title="个人菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20v-1.6a6.5 6.5 0 0 1 13 0V20"/></svg>
+        <i class="sg-avatar-dot" aria-hidden="true"></i>
+      </summary>
+      <div class="sg-account-panel" role="group" aria-label="账户快捷菜单">
+        <div class="sg-account-panel-title"><span class="sg-account-panel-brand">拾光影视</span><small>个人中心</small></div>
+        <button type="button" onclick="this.closest('details').open=false;handleMainSettingsButtonClick()" aria-label="打开设置或个人账户"><span aria-hidden="true">⚙</span>设置 / 账户</button>
+        <button type="button" onclick="this.closest('details').open=false;openAuroraWorkspace();switchSidebarView('fav')"><span aria-hidden="true">☆</span>我的收藏</button>
+        <button type="button" onclick="this.closest('details').open=false;openAuroraWorkspace();switchSidebarView('history')"><span aria-hidden="true">◷</span>观看历史</button>
+      </div>
+    </details>
   </header>
+
+      <nav class="aurora-nav-links" aria-label="主导航">
+      <button type="button" class="aurora-nav-link" title="电影" aria-label="电影" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="8" r="1.2"/><circle cx="16" cy="8" r="1.2"/><circle cx="8" cy="16" r="1.2"/><circle cx="16" cy="16" r="1.2"/><path d="M12 12v-1"/></svg></span><span class="sg-nav-label">电影</span></button>
+      <button type="button" class="aurora-nav-link" title="剧集" aria-label="剧集" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="17" height="14" rx="3"/><path d="M8 3.5 12 6l4-2.5M10 11l5 3-5 3z"/></svg></span><span class="sg-nav-label">剧集</span></button>
+      <button type="button" class="aurora-nav-link" title="综艺" aria-label="综艺" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2.5 2.8 5.7 6.3.9-4.55 4.45 1.07 6.3L12 16.85l-5.62 3 1.07-6.3L2.9 9.1l6.3-.9L12 2.5Z"/></svg></span><span class="sg-nav-label">综艺</span></button>
+      <button type="button" class="aurora-nav-link" title="动漫" aria-label="动漫" data-aurora-nav="anime" onclick="openAuroraCategory('动漫')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 9.4 4.4 4l4.7 2.7a9.4 9.4 0 0 1 5.8 0L19.6 4l-.8 5.4c1 1.2 1.6 2.7 1.6 4.5a8.4 8.4 0 0 1-16.8 0c0-1.8.6-3.3 1.6-4.5Z"/><path d="M8.3 13.5h.2m7 0h.2M10 17c1.4 1.2 2.6 1.2 4 0"/></svg></span><span class="sg-nav-label">动漫</span></button>
+      <button type="button" class="aurora-nav-link" title="直播" aria-label="直播" data-aurora-nav="live" onclick="switchMode('tv')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9m9-9a6.4 6.4 0 0 1 0 9M4 4a11.3 11.3 0 0 0 0 16m16-16a11.3 11.3 0 0 1 0 16"/></svg></span><span class="sg-nav-label">直播</span></button>
+    </nav>
 
   <main id="aurora-home" aria-label="拾光影视首页">
     <section class="aurora-hero" id="aurora-hero">
       <div class="aurora-hero-backdrop" id="aurora-hero-backdrop"></div>
       <div class="aurora-hero-shade"></div>
       <div class="aurora-hero-copy">
-        <div class="aurora-eyebrow"><span class="aurora-live-dot"></span> YOUR PRIVATE CINEMA</div>
+        <div class="aurora-eyebrow"><span class="aurora-live-dot"></span> 正在热播</div>
         <div class="aurora-hero-kicker">为你发现下一部好片</div>
         <h1 id="aurora-hero-title">正在读取真实影视资源…</h1>
         <p id="aurora-hero-desc">首页推荐来自你已配置的影视源，不使用虚构影片或假海报。</p>
@@ -407,6 +418,19 @@
     </div>
   </div>
 
-  <script defer src="js/app.js?v=3.20.2-36df06909ab8"></script>
+  <script>
+    // UI-only: close the native profile dropdown when tapping outside / pressing Escape.
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('sg-account-menu');
+      if (menu && menu.open && !menu.contains(event.target)) menu.open = false;
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        const menu = document.getElementById('sg-account-menu');
+        if (menu) menu.open = false;
+      }
+    });
+  </script>
+  <script defer src="js/app.js?v=3.20.2-glass-5aa509713c"></script>
 </body>
 </html>
