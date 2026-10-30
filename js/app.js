@@ -2913,7 +2913,11 @@
         // click-to-search behavior and filtered data; lay out movie/TV rails.
         const sgPosterCard = (item, index) => {
           const art = item.poster && isSafeUrl(item.poster) ? `<img loading="lazy" src="${escapeHtml(item.poster)}" alt="${escapeHtml(item.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
-          return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></button>`;
+          // Keep captions inside their own painted footer. iOS Safari can
+          // temporarily skip text painting when lazy poster images enter a
+          // horizontally scrolling, overflow-clipped button on initial load.
+          // The wrapper makes the caption independent of the image layer.
+          return `<button type="button" class="aurora-poster-card" data-aurora-title="${escapeHtml(item.title)}" aria-label="查找${escapeHtml(item.title)}的真实片源"><span class="aurora-poster-art">${art}<span class="aurora-poster-placeholder" ${item.poster ? 'style="display:none"' : ''}><b>▶</b><small>${escapeHtml(item.title)}</small></span><span class="aurora-poster-tag">${escapeHtml(item.type || (index === 0 ? '热门' : '影视'))}</span></span><span class="sg-poster-info"><span class="aurora-poster-title">${escapeHtml(item.title)}</span><span class="aurora-poster-sub">${escapeHtml(item.remarks || item.type || item.source || '查看可用片源')}</span></span></button>`;
         };
         const groupsForDisplay = auroraActiveCategory
           ? sgCategoryRails(visibleItems)
@@ -2930,6 +2934,15 @@
         `).join('');
         host.querySelectorAll('[data-aurora-title]').forEach(card => card.addEventListener('click', () => openAuroraSearch(card.getAttribute('data-aurora-title') || '')));
         host._sgPosterRenderKey = posterRenderKey;
+        // A one-frame class transition asks Safari to paint newly inserted
+        // poster captions independently of asynchronously loaded images.
+        // Re-check the key so an older render cannot touch a newer page.
+        host.classList.remove('sg-poster-captions-ready');
+        requestAnimationFrame(() => {
+          if (host.isConnected && host._sgPosterRenderKey === posterRenderKey) {
+            host.classList.add('sg-poster-captions-ready');
+          }
+        });
         sgBalancePosterRows();
       }
     }
