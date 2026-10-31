@@ -1344,6 +1344,45 @@
       }
     }
 
+    // 仅影视点播：一次点击即调用 Safari 原生 AirPlay 电视列表。
+    // 不引入第三方接收器说明、DLNA 扫描、投屏 SDK 或额外网络请求。
+    const sgCastTrigger = document.getElementById('sg-cast-trigger');
+    const sgSupportsAirPlay = typeof video.webkitShowPlaybackTargetPicker === 'function';
+
+    function sgIsVodCastReady() {
+      return currentMode !== 'tv' && !isLiveMode && Boolean(currentStreamUrl);
+    }
+    function sgSyncVodCastControl() {
+      const enabled = sgSupportsAirPlay && sgIsVodCastReady();
+      // 直播视频禁用远程输出；未播放点播或不支持 AirPlay 的浏览器隐藏按钮。
+      video.setAttribute('x-webkit-airplay', enabled ? 'allow' : 'deny');
+      if ('disableRemotePlayback' in video) video.disableRemotePlayback = !enabled;
+      if (sgCastTrigger) {
+        sgCastTrigger.hidden = !enabled;
+        sgCastTrigger.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+        if (!enabled) sgCastTrigger.classList.remove('sg-cast-active');
+      }
+    }
+    function sgChooseAirPlay() {
+      // Do not allow livestream/VPS casting, even if invoked outside the UI.
+      if (!sgSupportsAirPlay || !sgIsVodCastReady()) return;
+      if (!video.currentSrc && !video.getAttribute('src')) {
+        alert('请先开始播放影片，再点击投屏。');
+        return;
+      }
+      try {
+        // Must be called synchronously during this click for iOS user activation.
+        video.webkitShowPlaybackTargetPicker();
+      } catch (_) {
+        alert('暂时无法打开电视列表，请确认 iPhone Safari 与电视投屏功能正常。');
+      }
+    }
+    video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
+      const active = sgIsVodCastReady() && Boolean(video.webkitCurrentPlaybackTargetIsWireless);
+      sgCastTrigger?.classList.toggle('sg-cast-active', active);
+    });
+    sgSyncVodCastControl();
+
     function enterPseudoFullscreen() { wrap.classList.toggle('pseudo-fullscreen'); }
 
     function openPlayer(type) {
@@ -2703,6 +2742,7 @@
       video.onerror = null;
       isLiveMode = false;
       currentStreamUrl = '';
+      sgSyncVodCastControl();
       window.currentRawStreamUrl = '';
       currentVodUniqueKey = '';
       currentPlayingMeta = null;
@@ -2738,6 +2778,7 @@
       video.oncanplay = null;
       video.onerror = null;
       currentStreamUrl = '';
+      sgSyncVodCastControl();
       window.currentRawStreamUrl = '';
       currentVodUniqueKey = '';
       currentPlayingMeta = null;
@@ -3119,6 +3160,7 @@
       openAuroraWorkspace();
       currentMode = mode;
       currentView = 'normal';
+      sgSyncVodCastControl();
       // Bottom dock highlights the existing live button in TV mode.
       document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', mode === 'tv' && b.dataset.auroraNav === 'live'));
 
@@ -4787,6 +4829,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         currentStreamUrl = url;
       }
       url = playUrl;
+      sgSyncVodCastControl(); // Only a VOD stream may expose AirPlay.
 
       const generation = ++playbackGeneration;
       const liveSession = isLiveMode;
