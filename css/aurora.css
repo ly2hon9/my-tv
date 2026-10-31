@@ -4004,3 +4004,42 @@ body.theme-light::before {
   z-index: -2;
   pointer-events: none;
 }
+
+
+/* ===== AURORA 3.20.7: Instant Safari Top/Bottom Bar Tint Sync Inside Open Settings Modal =====
+   1. Disable background-color transition on html/body so getComputedStyle(html/body).backgroundColor
+      updates at t=0ms when switching themes (otherwise Safari's PageColorSampler samples the old
+      pre-transition color at t=0ms, leaving white bars in dark mode or black bars in light mode!).
+   2. Ensure html, body, and .glass-modal-mask immediately report #061326 (dark) or #eaf2fd (light). */
+html,
+body {
+  transition: none !important;
+}
+html:not(.theme-light),
+body:not(.theme-light) {
+  background-color: #061326 !important;
+}
+html.theme-light,
+body.theme-light {
+  background-color: #eaf2fd !important;
+}
+body:not(.theme-light)::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -100px;
+  bottom: -160px;
+  background-color: #061326 !important;
+  background: radial-gradient(ellipse at 14% 8%, rgba(17,91,164,.21), transparent 43%), #061326 !important;
+  z-index: -2;
+  pointer-events: none;
+}
+body:not(.theme-light) .glass-modal-mask {
+  background-color: rgba(6, 19, 38, 0.94) !important;
+  background: radial-gradient(ellipse at 50% 15%, rgba(14, 34, 68, 0.90), rgba(6, 19, 38, 0.97)) !important;
+}
+body.theme-light .glass-modal-mask {
+  background-color: rgba(234, 242, 253, 0.94) !important;
+  background: radial-gradient(ellipse at 50% 15%, rgba(241, 247, 255, 0.90), rgba(234, 242, 253, 0.97)) !important;
+}
