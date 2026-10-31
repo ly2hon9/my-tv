@@ -23,8 +23,8 @@ async function getUser(request,env){
  const users=JSON.parse(await read(env,USERS)||'[]');const found=users.find(x=>x.username===token.u);return found&&found.passHash===token.v?{username:found.username,role:'user',groupId:found.groupId||'def',groupName:found.groupName||'默认分组'}:null;
  }catch{return null;}
 }
-function isPersonalKey(key,user){return key===`favs_u_${user.username}`||key===`history_u_${user.username}`;}
-function canRead(key,user){if(!user)return false;if(user.role==='admin')return true;if(key===ADMIN||key===USERS)return false;if(key.startsWith('favs_u_')||key.startsWith('history_u_'))return isPersonalKey(key,user);return true;}
+function isPersonalKey(key,user){return key===`favs_u_${user.username}`||key===`history_u_${user.username}`||key===`theme_u_${user.username}`;}
+function canRead(key,user){if(!user)return false;if(user.role==='admin')return true;if(key===ADMIN||key===USERS)return false;if(key.startsWith('favs_u_')||key.startsWith('history_u_')||key.startsWith('theme_u_'))return isPersonalKey(key,user);return true;}
 function canWrite(key,user){if(!user)return false;if(user.role==='admin')return true;return isPersonalKey(key,user)||key==='sys_theme_appearance_v1';}
 function validKey(key){return typeof key==='string'&&key.length>0&&key.length<=160&&/^[a-zA-Z0-9_-]+$/.test(key);}
 function sameOrigin(request){const origin=request.headers.get('Origin');return !origin||origin===new URL(request.url).origin;}
