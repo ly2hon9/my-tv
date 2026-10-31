@@ -1433,7 +1433,24 @@
       document.body.classList.toggle('theme-light', !isDark);
       document.body.style.backgroundColor = bgHex;
       const themeMeta = document.getElementById('sg-theme-color-meta') || document.querySelector('meta[name="theme-color"]');
-      if (themeMeta) themeMeta.setAttribute('content', bgHex);
+      if (themeMeta) {
+        themeMeta.setAttribute('content', bgHex);
+        // iOS Safari caches <meta name="theme-color"> unless the node is re-inserted
+        if (themeMeta.parentNode) {
+          const freshMeta = themeMeta.cloneNode(true);
+          freshMeta.setAttribute('content', bgHex);
+          themeMeta.parentNode.replaceChild(freshMeta, themeMeta);
+        }
+      }
+      // Force iOS Safari to re-sample top status bar and bottom floating address bar tint immediately
+      document.documentElement.style.background = bgHex;
+      document.body.style.background = bgHex;
+      requestAnimationFrame(() => {
+        document.documentElement.style.backgroundColor = bgHex;
+        document.body.style.backgroundColor = bgHex;
+        window.scrollBy(0, 1);
+        window.scrollBy(0, -1);
+      });
 
       const gateScreen = document.getElementById('auth-gate-screen');
       if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
