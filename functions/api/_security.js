@@ -5,7 +5,7 @@ const GROUPS = 'sys_source_groups_v3';
 const SESSION_COOKIE = 'sg_session';
 const json = (data, status=200, headers={}) => new Response(JSON.stringify(data), {status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 function base64url(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
-function fromBase64url(s) {return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));}
+function fromBase64url(s) {const b64=s.replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from(atob(b64.padEnd(b64.length+(4-b64.length%4)%4,'=')),c=>c.charCodeAt(0));}
 async function mac(secret, data) {
   const k = await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   return base64url(new Uint8Array(await crypto.subtle.sign('HMAC',k,enc.encode(data))));
@@ -33,7 +33,7 @@ async function getUser(request,env){
 }
 function isPersonalKey(key,user){return key===`favs_u_${user.username}`||key===`history_u_${user.username}`||key===`theme_u_${user.username}`;}
 function canRead(key,user){if(!user)return false;if(user.role==='admin')return true;if(key===ADMIN||key===USERS)return false;if(key.startsWith('favs_u_')||key.startsWith('history_u_')||key.startsWith('theme_u_'))return isPersonalKey(key,user);return true;}
-function canWrite(key,user){if(!user)return false;if(user.role==='admin')return true;return isPersonalKey(key,user)||key==='sys_theme_appearance_v1';}
+function canWrite(key,user){if(!user)return false;if(user.role==='admin')return true;return isPersonalKey(key,user);}
 function validKey(key){return typeof key==='string'&&key.length>0&&key.length<=160&&/^[\w\u4e00-\u9fa5.-]+$/.test(key);}
 function sameOrigin(request){const origin=request.headers.get('Origin');return !origin||origin===new URL(request.url).origin;}
 export {ADMIN,USERS,GROUPS,json,read,write,digest,sessionCookie,clearCookie,getUser,resolveUserPermissions,canRead,canWrite,validKey,sameOrigin,secureSecret};
