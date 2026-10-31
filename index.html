@@ -11,7 +11,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.20.3-poster-caption-fix-1">
+  <link rel="stylesheet" href="css/aurora.css?v=3.20.3-oneclick-328ca5e58c">
 </head>
 <body class="aurora-home-view shiguang-booting">
 
@@ -135,7 +135,7 @@
 
     <div id="gesture-tip"></div>
 
-    <video id="video" playsinline webkit-playsinline></video>
+    <video id="video" playsinline webkit-playsinline x-webkit-airplay="deny"></video>
     <div id="player-gesture-surface" aria-label="视频手势区域：双击左侧后退、右侧快进、中间播放或暂停"></div>
     <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true"><div class="aurora-player-empty-mark">▶</div></div>
 
@@ -197,6 +197,10 @@
             </button>
           </div>
 
+          <button class="ctrl-btn sg-cast-trigger" id="sg-cast-trigger" type="button" hidden onclick="sgChooseAirPlay()" aria-label="影视投屏到电视" title="影视点播投屏（AirPlay）">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="m7 21 5-5 5 5z" fill="currentColor" stroke="none"/></svg>
+          </button>
+
           <button class="ctrl-btn pip-btn" onclick="togglePiP()" title="画中画小窗">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="8" height="7" rx="1"/></svg>
           </button>
@@ -208,6 +212,8 @@
       </div>
     </div>
   </div>
+
+  <!-- 影视点播一键 AirPlay：直接打开 Safari 原生电视列表，无中间弹窗。 -->
 
   <div id="sidebar">
     <div id="search-box">
@@ -435,6 +441,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.20.3-poster-caption-fix-1"></script>
+  <script defer src="js/app.js?v=3.20.3-oneclick-3b58bd9572"></script>
 </body>
 </html>
