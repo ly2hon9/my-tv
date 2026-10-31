@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <!-- ShiguangTV AURORA 3.23.2: modern dual-layout system for mobile, tablet and desktop -->
+  <!-- ShiguangTV AURORA 3.23.3: modern dual-layout system for mobile, tablet and desktop -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.23.2">
+  <link rel="stylesheet" href="css/aurora.css?v=3.23.3">
 </head>
 <body class="aurora-home-view shiguang-booting">
   <script>
@@ -360,13 +360,6 @@
       </select>
       <div class="last-sync-time" id="last-sync-time-label">最后更新时间：从未更新</div>
 
-      <label class="input-label" style="margin-top: 12px;">系统主题外观：</label>
-      <input type="hidden" id="sys-theme-select" value="auto">
-      <div class="sg-theme-segment sg-modal-theme-segment" id="sg-modal-theme-segment" role="group" aria-label="系统主题外观切换">
-        <button type="button" class="sg-theme-seg-btn" data-theme-mode="auto" onclick="selectModalTheme('auto')"><span>🌓</span>自动调节</button>
-        <button type="button" class="sg-theme-seg-btn" data-theme-mode="light" onclick="selectModalTheme('light')"><span>☀️</span>白天浅色</button>
-        <button type="button" class="sg-theme-seg-btn" data-theme-mode="dark" onclick="selectModalTheme('dark')"><span>🌙</span>夜间深色</button>
-      </div>
 
       <div class="modal-actions">
         <button class="btn-action btn-cancel" onclick="closeSourceModal()">取消</button>
@@ -556,6 +549,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.23.2"></script>
+  <script defer src="js/app.js?v=3.23.3"></script>
 </body>
 </html>
