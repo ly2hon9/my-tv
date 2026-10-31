@@ -4942,6 +4942,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (Math.abs(now - lastPlaybackTime) > 0.1) {
           lastPlaybackTime = now;
           clearBufferTimers();
+          // Real-time playback detection: if video time advances, playback has succeeded!
+          if (!hasStarted && (now > 0 || (!video.paused && video.readyState >= 2))) {
+            markPlaying();
+          }
           if (hasBufferStatus) {
             hasBufferStatus = false;
             setStatus('', false);
@@ -4980,11 +4984,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         clearBufferTimers();
         manualStartNeeded = false;
         recoveryAttempts = 0;
-        if (hasStarted) return;
-        hasStarted = true;
         clearPlayWatchdog();
         setStatus('', false);
+        if (statusLayer) statusLayer.style.display = 'none';
         updatePlayBtn(true);
+        if (hasStarted) return;
+        hasStarted = true;
         restorePlaybackProgress(generation);
         showControls();
       };
@@ -5022,12 +5027,20 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       video.onloadeddata = () => {
         if (!isCurrent()) return;
         if (typeof sgEnsureVideoAndAudioTracks === 'function') sgEnsureVideoAndAudioTracks(video);
+        if (!hasStarted && !video.paused && (Number(video.currentTime) > 0 || video.readyState >= 2)) {
+          markPlaying();
+        }
       };
       video.onloadedmetadata = () => {
         if (!isCurrent()) return;
         if (typeof sgEnsureVideoAndAudioTracks === 'function') sgEnsureVideoAndAudioTracks(video);
       };
-      video.oncanplay = () => { if (!isCurrent()) return; };
+      video.oncanplay = () => {
+        if (!isCurrent()) return;
+        if (!hasStarted && !video.paused && (Number(video.currentTime) > 0 || video.readyState >= 2)) {
+          markPlaying();
+        }
+      };
       video.onerror = () => {
         if (!isCurrent()) return;
         // HLS.js may handle media errors internally and attempt bounded recovery.
@@ -5044,6 +5057,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       // Late metadata or canplay never cancels this startup watchdog.
       playWatchdogTimer = setTimeout(() => {
         if (isCurrent() && !hasStarted && !manualStartNeeded && !document.hidden) {
+          const curTime = Number(video.currentTime) || 0;
+          if (!video.paused && (curTime > 0.1 || video.readyState >= 3)) {
+            markPlaying();
+            return;
+          }
           fail('当前线路响应超时，请切换线路或使用外部播放器');
         }
       }, liveSession ? 25000 : 20000);
