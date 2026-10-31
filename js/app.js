@@ -200,8 +200,10 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
-    const KEY_SESSION_VOD_STATE = "session_active_vod_state_v3";
-    const KEY_SESSION_PAGE_STATE = 'sg_page_restore_v1';
+    const SG_APP_VERSION = "3.23.8";
+    const KEY_APP_VERSION = "sg_app_version";
+    const KEY_SESSION_VOD_STATE = "session_active_vod_state_v4";
+    const KEY_SESSION_PAGE_STATE = 'sg_page_restore_v2';
     const SG_RESTORE_TTL_MS = 6 * 60 * 60 * 1000; // Same tab, six-hour expiry.
     let sgUiRestoring = false;
     let sgPendingHomeYear = null;
@@ -1631,13 +1633,29 @@
       document.getElementById('sites-modal-mask').style.display = 'none';
     }
 
-    function openAccountsModal() {
+    async function openAccountsModal() {
       if (!currentUser || currentUser.role !== 'admin') {
         alert("仅主管理员有权访问此设置！");
         return;
       }
       renderUsersManagerList();
       document.getElementById('accounts-modal-mask').style.display = 'flex';
+      try {
+        const latest = await getD1BatchData([KEY_USERS_LIST, KEY_SOURCE_GROUPS, KEY_SITES]);
+        if (latest[KEY_USERS_LIST]) {
+          const pu = JSON.parse(latest[KEY_USERS_LIST]);
+          if (Array.isArray(pu)) userList = pu;
+        }
+        if (latest[KEY_SOURCE_GROUPS]) {
+          const pg = JSON.parse(latest[KEY_SOURCE_GROUPS]);
+          if (Array.isArray(pg) && pg.length > 0) sourceGroups = pg;
+        }
+        if (latest[KEY_SITES]) {
+          const ps = JSON.parse(latest[KEY_SITES]);
+          if (Array.isArray(ps) && ps.length > 0) parsedSites = ps;
+        }
+        renderUsersManagerList();
+      } catch (_) {}
     }
     function closeAccountsModal() {
       document.getElementById('accounts-modal-mask').style.display = 'none';
@@ -1780,15 +1798,18 @@
     async function saveGroupPermChanges() {
       if (!currentEditingGroupId) return;
       const group = sourceGroups.find(g => g.id === currentEditingGroupId);
+      if (!group) return;
       const checkboxes = document.querySelectorAll('.site-perm-checkbox');
       const selected = [];
       checkboxes.forEach(cb => {
         if (cb.checked) selected.push(cb.getAttribute('data-sitename'));
       });
-      group.sites = (selected.length === checkboxes.length) ? ['*'] : selected;
+      if (checkboxes.length > 0) {
+        group.sites = (selected.length === checkboxes.length) ? ['*'] : selected;
+      }
 
       clearVodSearchSessionCache();
-      setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
+      await setD1Data(KEY_SOURCE_GROUPS, sourceGroups);
       renderUsersManagerList();
       closeUserPermModal();
       showGestureTip("✓ 源列表已保存");
@@ -2126,10 +2147,10 @@
       tasks.push(setD1Data(KEY_DISABLED_SITES, disabledSites));
       tasks.push(setD1Data(KEY_SOURCE_FAILURES, sourceFailures));
       tasks.push(setD1Data(KEY_FAIL_THRESHOLD, String(failThreshold)));
-      tasks.push(setD1Data(KEY_SITES, parsedSites));
+      if (parsedSites && parsedSites.length > 0) tasks.push(setD1Data(KEY_SITES, parsedSites));
       tasks.push(setD1Data(KEY_AUTH_CONFIG, authConfig));
-      tasks.push(setD1Data(KEY_USERS_LIST, userList));
-      tasks.push(setD1Data(KEY_SOURCE_GROUPS, sourceGroups));
+      if (userList && userList.length > 0) tasks.push(setD1Data(KEY_USERS_LIST, userList));
+      if (sourceGroups && sourceGroups.length > 0) tasks.push(setD1Data(KEY_SOURCE_GROUPS, sourceGroups));
       tasks.push(setD1Data(KEY_THEME_PREF, currentThemeSetting));
       if (adminAccount) tasks.push(setD1Data(KEY_ADMIN_INFO, adminAccount));
 
@@ -2162,7 +2183,7 @@
           }
           if (sites.length > 0) {
             parsedSites = sites;
-            setD1Data(KEY_SITES, parsedSites);
+            await setD1Data(KEY_SITES, parsedSites);
             msg.push(`影视源已更新: ${sites.length} 个`);
             renderSitesManagerList();
           } else msg.push(`影视源解析为空`);
@@ -2906,19 +2927,113 @@
       document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', b.dataset.auroraNav === (term === '电影' ? 'movie' : term === '电视剧' ? 'series' : term === '综艺' ? 'variety' : term === '动漫' ? 'anime' : '')));
       window.scrollTo({top:0,behavior:'smooth'});
     }
-    function auroraAllowedSites() {
-      let sites = (parsedSites || []).filter(s => s && s.api && !disabledSites.includes(s.name));
-      if (currentUser && currentUser.role !== 'admin') {
-        const group = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
-        if (group && group.sites && group.sites[0] !== '*') {
-          const allowedNames = new Set((group.sites || []).map(x => String(x || '').trim()));
-          sites = sites.filter(s => {
-            const name = String(s.name || '').trim();
-            return allowedNames.has(name) || group.sites.includes(s.name);
-          });
-        }
+    function getMatchedUserSourceGroup() {
+      if (!currentUser || currentUser.role === 'admin') return null;
+      const list = Array.isArray(sourceGroups) && sourceGroups.length > 0 ? sourceGroups : [];
+      if (!list.length) return null;
+      return (
+        (currentUser.groupId && list.find(g => g && g.id === currentUser.groupId)) ||
+        (currentUser.groupName && list.find(g => g && g.name === currentUser.groupName)) ||
+        list.find(g => g && g.isDefault) ||
+        list[0] ||
+        null
+      );
+    }
+
+    function filterSitesByUserPermission(sitesList) {
+      const baseSites = (Array.isArray(sitesList) ? sitesList : []).filter(
+        s => s && s.api && !disabledSites.includes(s.name)
+      );
+      if (!currentUser || currentUser.role === 'admin') {
+        return baseSites;
       }
-      return sites;
+      const userGroup = getMatchedUserSourceGroup();
+      let allowed = null;
+      const hasExactCloudGroup = userGroup && (
+        (currentUser.groupId && userGroup.id === currentUser.groupId) ||
+        (currentUser.groupName && userGroup.name === currentUser.groupName)
+      );
+      if (hasExactCloudGroup && Array.isArray(userGroup.sites)) {
+        allowed = userGroup.sites;
+      } else if (Array.isArray(currentUser.allowedSites)) {
+        allowed = currentUser.allowedSites;
+      } else if (userGroup && Array.isArray(userGroup.sites)) {
+        allowed = userGroup.sites;
+      } else {
+        allowed = ['*'];
+      }
+      if (allowed[0] === '*') {
+        return baseSites;
+      }
+      if (allowed.length === 0) {
+        return [];
+      }
+      const allowedExact = new Set(allowed.map(x => String(x || '').trim()).filter(Boolean));
+      const allowedClean = new Set(allowed.map(x => cleanSiteName(x)).filter(Boolean));
+      return baseSites.filter(s => {
+        const rawName = String(s.name || '').trim();
+        const cleaned = cleanSiteName(rawName);
+        return allowedExact.has(rawName) || allowedClean.has(cleaned);
+      });
+    }
+
+    async function ensureVodSitesAndGroupsLoaded() {
+      if (window._d1BootPromise) {
+        try { await window._d1BootPromise; } catch (_) {}
+      }
+      if (!parsedSites || !parsedSites.length) {
+        try {
+          const cached = localStorage.getItem(KEY_SITES);
+          if (cached) {
+            const p = JSON.parse(cached);
+            if (Array.isArray(p) && p.length > 0) parsedSites = p;
+          }
+        } catch (_) {}
+      }
+      const needSites = !parsedSites || !parsedSites.length;
+      const needGroups = currentUser && currentUser.role !== 'admin' && (!sourceGroups || !sourceGroups.length);
+      if (needSites || needGroups) {
+        try {
+          const cloudData = await getD1BatchData([KEY_SITES, KEY_SOURCE_GROUPS, KEY_DISABLED_SITES, KEY_SUB]);
+          if (cloudData[KEY_SITES]) {
+            const ps = JSON.parse(cloudData[KEY_SITES]);
+            if (Array.isArray(ps) && ps.length > 0) parsedSites = ps;
+          }
+          if (cloudData[KEY_SOURCE_GROUPS]) {
+            const pg = JSON.parse(cloudData[KEY_SOURCE_GROUPS]);
+            if (Array.isArray(pg) && pg.length > 0) sourceGroups = pg;
+          }
+          if (cloudData[KEY_DISABLED_SITES]) {
+            const pd = JSON.parse(cloudData[KEY_DISABLED_SITES]);
+            if (Array.isArray(pd)) disabledSites = pd;
+          }
+        } catch (_) {}
+      }
+      // 若云端 cached_parsed_sites 仍为空但已配置订阅地址 KEY_SUB，参考主账户逻辑自动拉取解析订阅源
+      if (!parsedSites || !parsedSites.length) {
+        try {
+          const subUrl = (localStorage.getItem(KEY_SUB) || await getD1Data(KEY_SUB, '') || '').trim();
+          if (subUrl) {
+            let text = await fetchWithSmartProxy(subUrl, 5000);
+            let sites = parseSubscriptionPayload(text);
+            if (sites.length === 0 && subUrl.includes('format=2')) {
+              text = await fetchWithSmartProxy(subUrl.replace('format=2', 'format=1'), 5000);
+              sites = parseSubscriptionPayload(text);
+            }
+            if (Array.isArray(sites) && sites.length > 0) {
+              parsedSites = sites;
+              localStorage.setItem(KEY_SITES, JSON.stringify(parsedSites));
+              if (currentUser && currentUser.role === 'admin') {
+                setD1Data(KEY_SITES, parsedSites);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    function auroraAllowedSites() {
+      return filterSitesByUserPermission(parsedSites);
     }
     /* AURORA 3.12: real category posters instead of invisible empty grid slots.
        Keep original poster dimensions and gently center incomplete filtered rows. */
@@ -3685,7 +3800,9 @@
 
       const container = document.getElementById('channel-list');
 
-      const userGroupId = currentUser?.groupId || 'def';
+      await ensureVodSitesAndGroupsLoaded();
+      const matchedGroup = getMatchedUserSourceGroup();
+      const userGroupId = currentUser?.role === 'admin' ? 'admin' : (matchedGroup?.id || currentUser?.groupId || 'def');
       const cachedResults = VodSearchCache.get(keyword, userGroupId);
       if (cachedResults && cachedResults.length > 0) {
         groupedVodList = cachedResults;
@@ -3705,31 +3822,7 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
-      // 初次加载若 D1 批量数据异步请求进行中，等待拉取完成以获取最新源列表
-      if ((!parsedSites || !parsedSites.length) && window._d1BootPromise) {
-        try { await window._d1BootPromise; } catch (_) {}
-      }
-      if (!parsedSites || !parsedSites.length) {
-        try {
-          const cached = localStorage.getItem(KEY_SITES);
-          if (cached) {
-            const p = JSON.parse(cached);
-            if (Array.isArray(p) && p.length > 0) parsedSites = p;
-          }
-        } catch (_) {}
-      }
-
-      let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
-      if (currentUser && currentUser.role !== 'admin') {
-        const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
-        if (userGroup && userGroup.sites && userGroup.sites[0] !== '*') {
-          const allowedNames = new Set((userGroup.sites || []).map(x => String(x || '').trim()));
-          availableSites = availableSites.filter(s => {
-            const name = String(s.name || '').trim();
-            return allowedNames.has(name) || userGroup.sites.includes(s.name);
-          });
-        }
-      }
+      let availableSites = filterSitesByUserPermission(parsedSites);
 
       if (availableSites.length === 0) {
         isSearchingActive = false;
@@ -5790,10 +5883,16 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       renderGateEyeIcon(false);
 
       try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const k = sessionStorage.key(i);
-          if (k && k.startsWith('vod_cache_')) {
-            sessionStorage.removeItem(k);
+        const prevVer = localStorage.getItem(KEY_APP_VERSION);
+        if (prevVer !== SG_APP_VERSION) {
+          sessionStorage.clear();
+          localStorage.setItem(KEY_APP_VERSION, SG_APP_VERSION);
+        } else {
+          for (let i = sessionStorage.length - 1; i >= 0; i--) {
+            const k = sessionStorage.key(i);
+            if (k && k.startsWith('vod_cache_')) {
+              sessionStorage.removeItem(k);
+            }
           }
         }
       } catch (_) {}
