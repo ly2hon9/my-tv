@@ -3812,3 +3812,195 @@ body.theme-light .sg-poster-track > .aurora-poster-card > .sg-poster-info {
     padding:7px 7px 8px;
   }
 }
+
+
+/* ===== AURORA 3.20.5: VOD Screen Casting (投屏) & Smooth Anti-Audio-Only Layer =====
+   Live TV mode (.is-live-mode) strictly hides the cast button.
+   Hardware layer promotion keeps the video decoder frame buffer active during wireless cast. */
+#player-wrap.is-live-mode #cast-btn,
+#player-wrap #cast-btn[hidden] {
+  display: none !important;
+}
+body:not(.aurora-home-view) #player-wrap > video {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+body:not(.aurora-home-view) #player-wrap.is-casting > video {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+body:not(.aurora-home-view) #player-wrap .controls-inner .cast-btn {
+  position: relative;
+  transition: color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+body:not(.aurora-home-view) #player-wrap .controls-inner .cast-btn.cast-active {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.48);
+}
+body:not(.aurora-home-view) #player-wrap .controls-inner .cast-btn.cast-active svg {
+  stroke: #38bdf8 !important;
+}
+@container sg-player (max-width:390px) {
+  .controls-inner .external-group { --sg-ext-btn:20px; --sg-ext-gap:2px; }
+}
+@media (max-width:360px) {
+  body:not(.aurora-home-view) #player-wrap .controls-inner .external-group {
+    --sg-ext-btn:19px; --sg-ext-gap:2px;
+  }
+}
+
+/* Cast Modal Glass Card */
+.sg-cast-modal-card {
+  max-width: 400px !important;
+  text-align: left;
+}
+.sg-cast-status-box {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+}
+.sg-cast-now-playing {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-cast-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+.sg-cast-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.sg-cast-badge.sg-cast-badge-ok {
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.32);
+}
+.sg-cast-badge.sg-cast-badge-warn {
+  background: rgba(250, 204, 21, 0.14);
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.35);
+}
+.sg-cast-diag-tip {
+  margin-top: 7px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-sub);
+}
+.sg-cast-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+.sg-cast-primary-btn,
+.sg-cast-secondary-btn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .14s ease, border-color .18s ease, background .18s ease;
+}
+.sg-cast-primary-btn {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.28), rgba(37, 99, 235, 0.25));
+  border: 1px solid rgba(56, 189, 248, 0.48);
+  color: var(--text-main);
+}
+.sg-cast-primary-btn:hover {
+  border-color: rgba(56, 189, 248, 0.82);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.36), rgba(37, 99, 235, 0.34));
+}
+.sg-cast-secondary-btn {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
+}
+.sg-cast-secondary-btn:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+.sg-cast-secondary-btn.is-active-mode {
+  border-color: rgba(74, 222, 128, 0.55);
+  background: rgba(34, 197, 94, 0.11);
+}
+.sg-cast-btn-icon {
+  font-size: 19px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sg-cast-btn-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.sg-cast-btn-copy strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.sg-cast-btn-copy small {
+  font-size: 11px;
+  color: var(--text-sub);
+  line-height: 1.38;
+}
+
+
+/* ===== AURORA 3.20.6: iPhone Safari Light Theme Bottom Black Bar Fix =====
+   Root cause: html (:root) retained dark --bg-workspace (#071324) while body was
+   capped at 100dvh, exposing the dark <html> canvas behind iOS Safari's floating
+   bottom address bar on initial load/refresh until a button triggered scrollTo. */
+html.theme-light,
+html:has(body.theme-light) {
+  --bg-base: #eaf2fd !important;
+  --bg-workspace: #eaf2fd !important;
+  color-scheme: light !important;
+  background-color: #eaf2fd !important;
+  background: radial-gradient(ellipse at 20% 5%, rgba(136,195,246,.20), transparent 50%), #eaf2fd !important;
+}
+html:not(.theme-light):not(:has(body.theme-light)) {
+  --bg-base: #061326;
+  --bg-workspace: #061326;
+  color-scheme: dark;
+  background-color: #061326;
+}
+body.theme-light {
+  background-color: #eaf2fd !important;
+  min-height: 100dvh !important;
+}
+/* Full-bleed viewport backdrop extending beneath iOS Safari's floating bottom bar (100lvh) */
+body.theme-light::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -100px;
+  bottom: -160px;
+  background: radial-gradient(ellipse at 20% 5%, rgba(136,195,246,.20), transparent 50%), #eaf2fd !important;
+  z-index: -2;
+  pointer-events: none;
+}
