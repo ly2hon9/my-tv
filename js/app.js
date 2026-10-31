@@ -260,6 +260,18 @@
     let sgPlaybackMonitorCleanup = null;
     let gestureTipTimer = null;
     let controlsTimer = null;
+    var sgCastState = {
+      active: false,
+      directModeActive: false,
+      preferAvc: true,
+      lastRawUrl: '',
+      resolvedUrl: '',
+      streamInfo: null,
+      inspectPromise: null,
+      castSdkPromise: null,
+      switchingH264: false
+    };
+    var sgCastManifestCache = new Map();
 
     // 电视直播数据
     let groups = {};
@@ -741,6 +753,7 @@
       if (view !== currentView || view !== 'normal') stopSitePlaybackOnNavigation();
       openAuroraWorkspace();
       currentView = view;
+      if (typeof syncCastUiState === 'function') syncCastUiState();
       document.getElementById('btn-show-fav').classList.toggle('active', view === 'fav');
       document.getElementById('btn-show-history').classList.toggle('active', view === 'history');
 
@@ -1343,45 +1356,6 @@
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
       }
     }
-
-    // 仅影视点播：一次点击即调用 Safari 原生 AirPlay 电视列表。
-    // 不引入第三方接收器说明、DLNA 扫描、投屏 SDK 或额外网络请求。
-    const sgCastTrigger = document.getElementById('sg-cast-trigger');
-    const sgSupportsAirPlay = typeof video.webkitShowPlaybackTargetPicker === 'function';
-
-    function sgIsVodCastReady() {
-      return currentMode !== 'tv' && !isLiveMode && Boolean(currentStreamUrl);
-    }
-    function sgSyncVodCastControl() {
-      const enabled = sgSupportsAirPlay && sgIsVodCastReady();
-      // 直播视频禁用远程输出；未播放点播或不支持 AirPlay 的浏览器隐藏按钮。
-      video.setAttribute('x-webkit-airplay', enabled ? 'allow' : 'deny');
-      if ('disableRemotePlayback' in video) video.disableRemotePlayback = !enabled;
-      if (sgCastTrigger) {
-        sgCastTrigger.hidden = !enabled;
-        sgCastTrigger.setAttribute('aria-hidden', enabled ? 'false' : 'true');
-        if (!enabled) sgCastTrigger.classList.remove('sg-cast-active');
-      }
-    }
-    function sgChooseAirPlay() {
-      // Do not allow livestream/VPS casting, even if invoked outside the UI.
-      if (!sgSupportsAirPlay || !sgIsVodCastReady()) return;
-      if (!video.currentSrc && !video.getAttribute('src')) {
-        alert('请先开始播放影片，再点击投屏。');
-        return;
-      }
-      try {
-        // Must be called synchronously during this click for iOS user activation.
-        video.webkitShowPlaybackTargetPicker();
-      } catch (_) {
-        alert('暂时无法打开电视列表，请确认 iPhone Safari 与电视投屏功能正常。');
-      }
-    }
-    video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
-      const active = sgIsVodCastReady() && Boolean(video.webkitCurrentPlaybackTargetIsWireless);
-      sgCastTrigger?.classList.toggle('sg-cast-active', active);
-    });
-    sgSyncVodCastControl();
 
     function enterPseudoFullscreen() { wrap.classList.toggle('pseudo-fullscreen'); }
 
@@ -2741,8 +2715,9 @@
       video.oncanplay = null;
       video.onerror = null;
       isLiveMode = false;
+      if (typeof syncCastUiState === 'function') syncCastUiState();
+      if (typeof sgResetCastSessionOnStop === 'function') sgResetCastSessionOnStop();
       currentStreamUrl = '';
-      sgSyncVodCastControl();
       window.currentRawStreamUrl = '';
       currentVodUniqueKey = '';
       currentPlayingMeta = null;
@@ -2778,7 +2753,6 @@
       video.oncanplay = null;
       video.onerror = null;
       currentStreamUrl = '';
-      sgSyncVodCastControl();
       window.currentRawStreamUrl = '';
       currentVodUniqueKey = '';
       currentPlayingMeta = null;
@@ -3160,7 +3134,7 @@
       openAuroraWorkspace();
       currentMode = mode;
       currentView = 'normal';
-      sgSyncVodCastControl();
+      if (typeof syncCastUiState === 'function') syncCastUiState();
       // Bottom dock highlights the existing live button in TV mode.
       document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', mode === 'tv' && b.dataset.auroraNav === 'live'));
 
@@ -4502,6 +4476,7 @@ function findMatchingEpisodeIndex(targetEpisodes, currentEpName, fallbackIndex =
 function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
   if (!item?.vod) return;
   isLiveMode = false;
+  if (typeof syncCastUiState === 'function') syncCastUiState();
 
   const episodes = getEpisodesList(item);
   let targetEpIdx = -1;
@@ -4812,6 +4787,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
     async function manualPlayOnly(url) {
       if (!url) return;
+      if (typeof syncCastUiState === 'function') syncCastUiState();
       let playUrl = url;
 
       if (isLiveMode) {
@@ -4829,7 +4805,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         currentStreamUrl = url;
       }
       url = playUrl;
-      sgSyncVodCastControl(); // Only a VOD stream may expose AirPlay.
 
       const generation = ++playbackGeneration;
       const liveSession = isLiveMode;
@@ -4982,9 +4957,18 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       };
 
       // The first frame/metadata is not proof of actual playback.
-      video.onplaying = markPlaying;
-      video.onloadeddata = () => { if (!isCurrent()) return; };
-      video.onloadedmetadata = () => { if (!isCurrent()) return; };
+      video.onplaying = () => {
+        if (typeof sgEnsureVideoAndAudioTracks === 'function') sgEnsureVideoAndAudioTracks(video);
+        markPlaying();
+      };
+      video.onloadeddata = () => {
+        if (!isCurrent()) return;
+        if (typeof sgEnsureVideoAndAudioTracks === 'function') sgEnsureVideoAndAudioTracks(video);
+      };
+      video.onloadedmetadata = () => {
+        if (!isCurrent()) return;
+        if (typeof sgEnsureVideoAndAudioTracks === 'function') sgEnsureVideoAndAudioTracks(video);
+      };
       video.oncanplay = () => { if (!isCurrent()) return; };
       video.onerror = () => {
         if (!isCurrent()) return;
@@ -5014,9 +4998,21 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         return;
       }
 
+      // If VOD wireless cast or Direct AV Cast Mode is active, resolve H.264 video+audio stream
+      // and bind directly (or sync Google Cast session) so third-party TVs never receive a blob: audio-only stream.
+      if (!liveSession && typeof sgHandleActiveCastDuringPlay === 'function') {
+        const handledByCast = await sgHandleActiveCastDuringPlay(url, isCurrent, attemptPlay);
+        if (!isCurrent()) return;
+        if (handledByCast) return;
+      }
+
       // Native Safari/iPadOS HLS; do not download an unnecessary decoder.
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
+        if (!liveSession && typeof sgAttachNativeSourceWithMime === 'function') {
+          sgAttachNativeSourceWithMime(video, url, kind);
+        } else {
+          video.src = url;
+        }
         try { video.load(); } catch (_) {}
         attemptPlay();
         return;
@@ -5053,7 +5049,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       player.loadSource(url);
       player.attachMedia(video);
       player.on(HlsEngine.Events.MANIFEST_PARSED, () => {
-        if (isCurrent() && player === hls) attemptPlay();
+        if (isCurrent() && player === hls) {
+          if (!liveSession && typeof sgSelectBestAvHlsLevel === 'function') {
+            sgSelectBestAvHlsLevel(player);
+          }
+          attemptPlay();
+        }
       });
       player.on(HlsEngine.Events.ERROR, (_, data) => {
         if (!isCurrent() || player !== hls || !data?.fatal) return;
@@ -5878,3 +5879,971 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }, { passive: false });
     })();
 
+
+
+    /* ===================================================================
+       AURORA 3.20.4: 影视音画同步投屏引擎 (仅看电视/电影支持投屏，直播自动隐藏)
+       解决第三方电视/投屏设备“只有声音没有画面”的五大核心机制：
+       1. 直播与影视严格分流：直播模式 (isLiveMode / currentMode === 'tv') 隐藏投屏并禁用远端播放。
+       2. 主播放列表 (Master M3U8) 音画轨道解析：自动剥离纯音频流 (Audio-Only)，优先锁定带分辨率的 H.264 (avc1) + AAC (mp4a) 绝对路径子流。
+       3. 绕过 MSE (blob:) 内存流：AirPlay / RemotePlayback / 手机浏览器嗅探投屏时自动切换为真实 HTTP(S) 视频流并附带显式 MIME 类型，杜绝 blob 导致的有声无画。
+       4. Chromecast / Google Cast 显式 TS 视频封装声明：强制指定 HlsSegmentFormat.TS 与 HlsVideoSegmentFormat.MPEG2_TS，防止接收端丢弃 TS 视频流。
+       5. H.265 (HEVC) / 0帧画面自动检测与一键切换 H.264 兼容源：检测到当前源无画面或为纯 HEVC 时，可自动或一键切换同剧集 H.264 片源并保留播放进度。
+       =================================================================== */
+    var sgCastState = window.sgCastState || {
+      active: false,
+      directModeActive: false,
+      preferAvc: true,
+      lastRawUrl: '',
+      resolvedUrl: '',
+      streamInfo: null,
+      inspectPromise: null,
+      castSdkPromise: null,
+      switchingH264: false
+    };
+    var sgCastManifestCache = window.sgCastManifestCache || new Map();
+
+    function shouldShowVodCastBtn() {
+      if (isLiveMode) return false;
+      if (currentMode === 'tv' && currentView === 'normal') return false;
+      if (currentMode === 'tv' && !currentPlayingMeta) return false;
+      return true;
+    }
+
+    function syncCastUiState() {
+      const showCast = shouldShowVodCastBtn();
+      const castBtn = document.getElementById('cast-btn');
+      if (wrap) {
+        wrap.classList.toggle('is-live-mode', !showCast);
+        wrap.classList.toggle('is-vod-mode', showCast);
+        wrap.classList.toggle('is-casting', Boolean(showCast && (sgCastState.active || sgCastState.directModeActive)));
+      }
+      if (castBtn) {
+        castBtn.hidden = !showCast;
+        castBtn.style.display = showCast ? '' : 'none';
+        castBtn.setAttribute('aria-hidden', String(!showCast));
+        castBtn.classList.toggle('cast-active', Boolean(showCast && (sgCastState.active || sgCastState.directModeActive)));
+      }
+      if (video) {
+        if (!showCast) {
+          try { video.disableRemotePlayback = true; } catch (_) {}
+          video.setAttribute('disableremoteplayback', '');
+          video.setAttribute('x-webkit-airplay', 'deny');
+          video.setAttribute('airplay', 'deny');
+          closeCastModal();
+        } else {
+          try { video.disableRemotePlayback = false; } catch (_) {}
+          video.removeAttribute('disableremoteplayback');
+          video.setAttribute('x-webkit-airplay', 'allow');
+          video.setAttribute('airplay', 'allow');
+        }
+      }
+    }
+
+    function sgResetCastSessionOnStop() {
+      sgCastState.active = false;
+      sgCastState.directModeActive = false;
+      sgCastState.lastRawUrl = '';
+      sgCastState.resolvedUrl = '';
+      sgCastState.streamInfo = null;
+      syncCastUiState();
+    }
+
+    // 确保 <video> 的视频轨 (videoTracks) 和音频轨 (audioTracks) 均处于激活状态，防止浏览器挂起视频解码层导致只有声音没有画面
+    function sgEnsureVideoAndAudioTracks(v) {
+      if (!v) return;
+      try {
+        if (v.videoTracks && v.videoTracks.length > 0) {
+          let hasSelected = false;
+          for (let i = 0; i < v.videoTracks.length; i++) {
+            if (v.videoTracks[i].selected) { hasSelected = true; break; }
+          }
+          if (!hasSelected) v.videoTracks[0].selected = true;
+        }
+        if (v.audioTracks && v.audioTracks.length > 0) {
+          let hasEnabled = false;
+          for (let i = 0; i < v.audioTracks.length; i++) {
+            if (v.audioTracks[i].enabled) { hasEnabled = true; break; }
+          }
+          if (!hasEnabled) v.audioTracks[0].enabled = true;
+        }
+      } catch (_) {}
+    }
+
+    // 在 HLS.js 中过滤纯音频轨，并优先锁定 H.264 (avc1) + 音频层级，避免自动落入纯音频流或第三方电视不支持的 HEVC 轨
+    function sgSelectBestAvHlsLevel(hlsPlayer) {
+      if (!hlsPlayer || !Array.isArray(hlsPlayer.levels) || hlsPlayer.levels.length <= 1) return;
+      try {
+        const levels = hlsPlayer.levels;
+        const videoLevels = [];
+        const avcLevels = [];
+        levels.forEach((lv, idx) => {
+          const vCodec = String(lv.videoCodec || lv.attrs?.CODECS || '').toLowerCase();
+          const aCodec = String(lv.audioCodec || lv.attrs?.CODECS || '').toLowerCase();
+          const hasResolution = (Number(lv.width) > 0 && Number(lv.height) > 0);
+          const isAudioOnly = !hasResolution && !vCodec.includes('avc1') && !vCodec.includes('hev1') && !vCodec.includes('hvc1') && !vCodec.includes('vp09') && !vCodec.includes('av01') && (aCodec.includes('mp4a') || aCodec.includes('ac-3') || aCodec.includes('ec-3'));
+          if (isAudioOnly) return;
+          if (hasResolution || vCodec) {
+            videoLevels.push({ idx, lv, score: (Number(lv.width) || 640) * (Number(lv.height) || 360) });
+            const isHevc = /hev1|hvc1|hevc|dvh1|dvhe/i.test(vCodec);
+            if (!isHevc) {
+              avcLevels.push({ idx, lv, score: (Number(lv.width) || 640) * (Number(lv.height) || 360) });
+            }
+          }
+        });
+        const candidates = avcLevels.length > 0 ? avcLevels : videoLevels;
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => b.score - a.score);
+          // 优先选择 1080p 及以下最高清的 H.264 层级，确保第三方电视 100% 硬件解码画面
+          const preferred = candidates.find(c => (Number(c.lv.height) || 0) <= 1080) || candidates[0];
+          const curLv = levels[hlsPlayer.currentLevel];
+          const curCodec = String(curLv?.videoCodec || curLv?.attrs?.CODECS || '').toLowerCase();
+          const curIsHevcOrAudioOnly = !curLv || (/hev1|hvc1|hevc/i.test(curCodec) && avcLevels.length > 0) || (!curLv.width && !curLv.videoCodec);
+          if (curIsHevcOrAudioOnly || sgCastState.active || sgCastState.directModeActive) {
+            hlsPlayer.currentLevel = preferred.idx;
+          }
+        }
+      } catch (_) {}
+    }
+
+    function sgMimeTypeForStream(url, kindHint) {
+      const kind = kindHint || sgPlaybackMediaKind(url, false);
+      if (kind === 'direct') {
+        const lower = String(url || '').toLowerCase();
+        if (lower.includes('.webm')) return 'video/webm';
+        if (lower.includes('.mov')) return 'video/quicktime';
+        return 'video/mp4';
+      }
+      return 'application/vnd.apple.mpegurl';
+    }
+
+    // 为原生 <video> 同时绑定 src 与带 MIME 的 <source> 节点，确保 AirPlay / RemotePlayback / 手机浏览器嗅探识别为完整视频流而非音频流
+    function sgAttachNativeSourceWithMime(videoEl, streamUrl, kindHint) {
+      if (!videoEl || !streamUrl) return;
+      const mime = sgMimeTypeForStream(streamUrl, kindHint);
+      try {
+        videoEl.querySelectorAll('source').forEach(s => s.remove());
+        const srcNode = document.createElement('source');
+        srcNode.src = streamUrl;
+        srcNode.type = mime;
+        videoEl.appendChild(srcNode);
+      } catch (_) {}
+      videoEl.src = streamUrl;
+    }
+
+    // 解析 M3U8 清单：提取包含视频+音频的最佳 H.264 (avc1) 子播放列表绝对地址，识别 HEVC 与 FMP4/TS 封装格式
+    async function sgResolveCastStreamInfo(rawUrl) {
+      if (!rawUrl || !isSafeUrl(rawUrl)) {
+        return { rawUrl: rawUrl || '', playableUrl: rawUrl || '', kind: 'unknown', isHevcOnly: false, isAudioOnly: false, isFmp4: false, codecLabel: '未知编码' };
+      }
+      let normalizedUrl = rawUrl.trim();
+      if (window.location.protocol === 'https:' && normalizedUrl.startsWith('http://')) {
+        normalizedUrl = normalizedUrl.replace(/^http:\/\//i, 'https://');
+      }
+      if (sgCastManifestCache.has(normalizedUrl)) {
+        return sgCastManifestCache.get(normalizedUrl);
+      }
+
+      const kind = sgPlaybackMediaKind(normalizedUrl, false);
+      const info = {
+        rawUrl: normalizedUrl,
+        playableUrl: normalizedUrl,
+        kind,
+        isHevcOnly: false,
+        isAudioOnly: false,
+        isFmp4: false,
+        codecLabel: kind === 'direct' ? 'MP4 音画直连' : 'H.264 / AAC 音画流'
+      };
+
+      if (kind === 'direct') {
+        sgCastManifestCache.set(normalizedUrl, info);
+        return info;
+      }
+
+      const fetchManifestText = async (targetUrl) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2800);
+        try {
+          const res = await fetch(targetUrl, { signal: controller.signal, credentials: 'omit' });
+          clearTimeout(timer);
+          if (res.ok) {
+            const text = await res.text();
+            return { text, finalUrl: res.url || targetUrl };
+          }
+        } catch (_) {
+          clearTimeout(timer);
+        }
+        try {
+          const text = await fetchWithSmartProxy(targetUrl, 2800);
+          return { text, finalUrl: targetUrl };
+        } catch (_) {
+          return null;
+        }
+      };
+
+      const firstHop = await fetchManifestText(normalizedUrl);
+      if (!firstHop || !firstHop.text || !firstHop.text.includes('#EXTM3U')) {
+        sgCastManifestCache.set(normalizedUrl, info);
+        return info;
+      }
+
+      let manifestText = firstHop.text;
+      let baseManifestUrl = firstHop.finalUrl || normalizedUrl;
+      info.playableUrl = baseManifestUrl;
+
+      // 如果是 Master Playlist (#EXT-X-STREAM-INF)，解析所有变体并剔除纯音频轨，优先选择 H.264 (avc1) 视频轨
+      if (manifestText.includes('#EXT-X-STREAM-INF')) {
+        const lines = manifestText.split(/\r?\n/);
+        const variants = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
+          const attrStr = line.slice('#EXT-X-STREAM-INF:'.length);
+          let uri = '';
+          for (let j = i + 1; j < lines.length; j++) {
+            const candidate = lines[j].trim();
+            if (!candidate) continue;
+            if (!candidate.startsWith('#')) { uri = candidate; i = j; }
+            break;
+          }
+          if (!uri) continue;
+          let resolvedUri = uri;
+          try { resolvedUri = new URL(uri, baseManifestUrl).href; } catch (_) {}
+          if (window.location.protocol === 'https:' && resolvedUri.startsWith('http://')) {
+            resolvedUri = resolvedUri.replace(/^http:\/\//i, 'https://');
+          }
+
+          const bwMatch = attrStr.match(/BANDWIDTH=(\d+)/i);
+          const resMatch = attrStr.match(/RESOLUTION=(\d+)x(\d+)/i);
+          const codecsMatch = attrStr.match(/CODECS="([^"]+)"/i);
+          const bandwidth = bwMatch ? parseInt(bwMatch[1], 10) : 0;
+          const width = resMatch ? parseInt(resMatch[1], 10) : 0;
+          const height = resMatch ? parseInt(resMatch[2], 10) : 0;
+          const codecs = codecsMatch ? codecsMatch[1].toLowerCase() : '';
+
+          const hasVideoCodec = /avc1|hev1|hvc1|vp09|vp9|av01/i.test(codecs);
+          const hasAudioOnlyCodec = !hasVideoCodec && width === 0 && height === 0 && /mp4a|ac-3|ec-3|opus/i.test(codecs);
+          const isHevc = /hev1|hvc1|hevc|dvh1|dvhe/i.test(codecs);
+          const isAvc = /avc1/i.test(codecs) || (!isHevc && !hasAudioOnlyCodec);
+
+          variants.push({
+            url: resolvedUri,
+            bandwidth,
+            width,
+            height,
+            codecs,
+            isAudioOnly: hasAudioOnlyCodec,
+            isHevc,
+            isAvc,
+            pixels: (width || 1280) * (height || 720)
+          });
+        }
+
+        const videoVariants = variants.filter(v => !v.isAudioOnly);
+        if (videoVariants.length > 0) {
+          const avcVariants = videoVariants.filter(v => v.isAvc && !v.isHevc);
+          const pool = avcVariants.length > 0 ? avcVariants : videoVariants;
+          pool.sort((a, b) => (b.pixels - a.pixels) || (b.bandwidth - a.bandwidth));
+          const chosen = pool.find(v => !v.height || v.height <= 1080) || pool[0];
+          info.playableUrl = chosen.url;
+          info.isHevcOnly = (avcVariants.length === 0 && videoVariants.every(v => v.isHevc));
+          info.codecLabel = info.isHevcOnly ? 'H.265 (HEVC)' : 'H.264 (AVC) + AAC';
+
+          const subHop = await fetchManifestText(chosen.url);
+          if (subHop && subHop.text && subHop.text.includes('#EXTM3U')) {
+            manifestText = subHop.text;
+            if (subHop.finalUrl) info.playableUrl = subHop.finalUrl;
+          }
+        } else if (variants.length > 0) {
+          info.isAudioOnly = true;
+          info.codecLabel = '⚠️ 仅音频轨';
+        }
+      }
+
+      if (/#EXT-X-MAP:/i.test(manifestText)) {
+        info.isFmp4 = true;
+      }
+      if (/CODECS="[^"]*(?:hev1|hvc1|hevc)/i.test(manifestText) && !/CODECS="[^"]*avc1/i.test(manifestText)) {
+        info.isHevcOnly = true;
+        info.codecLabel = 'H.265 (HEVC)';
+      }
+
+      sgCastManifestCache.set(normalizedUrl, info);
+      return info;
+    }
+
+    // 检查当前 Hls.js 或 <video> 实例是否存在“有声无画”特征（如 videoWidth === 0 或纯 HEVC 编码）
+    function sgDetectRuntimeAvHealth() {
+      let isHevc = false;
+      let isAudioOnly = false;
+      let width = Number(video?.videoWidth) || 0;
+      let height = Number(video?.videoHeight) || 0;
+
+      if (hls && Array.isArray(hls.levels) && hls.levels.length > 0) {
+        const curLv = hls.levels[hls.currentLevel] || hls.levels[0];
+        const vCodec = String(curLv?.videoCodec || curLv?.attrs?.CODECS || '');
+        if (/hev1|hvc1|hevc/i.test(vCodec)) isHevc = true;
+        if (!width && curLv?.width) width = Number(curLv.width) || 0;
+        if (!height && curLv?.height) height = Number(curLv.height) || 0;
+      }
+      if (sgCastState.streamInfo?.isHevcOnly) isHevc = true;
+      if (sgCastState.streamInfo?.isAudioOnly) isAudioOnly = true;
+
+      // 如果已经正常播放超过 1.2 秒但 videoWidth 依然为 0，说明当前片源视频轨解码失败或只有音频轨
+      if (video && video.readyState >= 2 && video.currentTime > 1.2 && video.videoWidth === 0) {
+        isAudioOnly = true;
+      }
+
+      return { width, height, isHevc, isAudioOnly };
+    }
+
+    // 同步准备 <video> 节点，必须保持在用户点击手势 (User Gesture) 同步栈内执行以支持 Safari AirPlay / RemotePlayback
+    function sgPrepareVideoElementForCast() {
+      if (!video) return;
+      // 1. 退出画中画：防止 iOS / Android 将视频解码表面锁定在本地小窗导致电视端只有声音没有画面
+      exitPictureInPictureMode();
+      try {
+        if (video.webkitPresentationMode === 'picture-in-picture' && typeof video.webkitSetPresentationMode === 'function') {
+          video.webkitSetPresentationMode('inline');
+        }
+      } catch (_) {}
+
+      // 2. 开启远端无线播放与 AirPlay 音画支持
+      try { video.disableRemotePlayback = false; } catch (_) {}
+      video.removeAttribute('disableremoteplayback');
+      video.setAttribute('x-webkit-airplay', 'allow');
+      video.setAttribute('airplay', 'allow');
+
+      // 3. 强制激活视频轨与音频轨
+      sgEnsureVideoAndAudioTracks(video);
+      if (video.muted && video.volume === 0) {
+        changeVolume(1);
+        if (volSlider) volSlider.value = 1;
+      }
+
+      // 4. 若 HLS.js 正在运行，立即优选 H.264 视频+音频轨
+      if (hls) {
+        sgSelectBestAvHlsLevel(hls);
+      }
+
+      // 5. 若在支持原生 HLS 的设备上且当前已解析出直连 H.264 子流，确保 <source> MIME 标记完备
+      const targetUrl = sgCastState.resolvedUrl || currentStreamUrl;
+      if (!hls && targetUrl && isSafeUrl(targetUrl)) {
+        const curSrc = video.currentSrc || video.getAttribute('src') || '';
+        if (!curSrc || curSrc.startsWith('blob:')) {
+          const savedTime = Number(video.currentTime) || 0;
+          sgAttachNativeSourceWithMime(video, targetUrl);
+          try {
+            video.load();
+            if (savedTime > 2) video.currentTime = savedTime;
+            video.play().catch(() => {});
+          } catch (_) {}
+        }
+      }
+    }
+
+    // 切换/启用“音画直连兼容模式”：将 <video> 从 MSE blob: 切换为解析后的真实 H.264 视频直链，
+    // 供 AirPlay、RemotePlayback 及夸克/UC/系统自带 DLNA 嗅探器直接抓取完整音画流；若桌面浏览器本地不支持原生 m3u8 则自动无感回退 HLS.js
+    async function sgBindDirectAvStreamToVideo(targetUrl, resumeTime = null, keepDirectFlag = true) {
+      if (!video || !targetUrl || isLiveMode) return false;
+      const info = await sgResolveCastStreamInfo(targetUrl);
+      const finalUrl = info.playableUrl || targetUrl;
+      sgCastState.resolvedUrl = finalUrl;
+      sgCastState.streamInfo = info;
+
+      const savedTime = resumeTime !== null ? resumeTime : (Number(video.currentTime) || 0);
+      const wasPaused = video.paused;
+      const kind = sgPlaybackMediaKind(finalUrl, false);
+
+      // 若本地浏览器不支持原生 HLS 且未处于无线连接状态（例如桌面 Chrome 本地直接播放 m3u8），
+      // 保留 HLS.js 本地解码但写入 data-cast-src 与 <source> 供投屏扩展/协议读取，避免桌面端本地黑屏
+      const canPlayNativeHls = Boolean(video.canPlayType('application/vnd.apple.mpegurl') || video.canPlayType('application/x-mpegURL'));
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isRemoteConnected = Boolean(
+        video.webkitCurrentPlaybackTargetIsWireless ||
+        (video.remote && (video.remote.state === 'connecting' || video.remote.state === 'connected'))
+      );
+
+      video.setAttribute('data-cast-av-url', finalUrl);
+      if (kind !== 'direct' && !canPlayNativeHls && !isAndroid && !isRemoteConnected) {
+        if (hls) sgSelectBestAvHlsLevel(hls);
+        sgCastState.directModeActive = keepDirectFlag;
+        syncCastUiState();
+        sgUpdateCastModalStatusUI();
+        return true;
+      }
+
+      const gen = ++playbackGeneration;
+      clearPlayWatchdog();
+      destroyHlsInstance();
+
+      sgCastState.directModeActive = keepDirectFlag;
+      syncCastUiState();
+
+      return new Promise(resolve => {
+        let settled = false;
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+          resolve(ok);
+        };
+
+        video.onloadedmetadata = () => {
+          if (gen !== playbackGeneration) { finish(false); return; }
+          sgEnsureVideoAndAudioTracks(video);
+          if (savedTime > 2 && (!video.duration || savedTime < video.duration - 5)) {
+            try { video.currentTime = savedTime; } catch (_) {}
+          }
+        };
+        video.onplaying = () => {
+          if (gen !== playbackGeneration) { finish(false); return; }
+          sgEnsureVideoAndAudioTracks(video);
+          setStatus('', false);
+          updatePlayBtn(true);
+          sgUpdateCastModalStatusUI();
+          finish(true);
+        };
+        video.onerror = () => {
+          if (gen !== playbackGeneration) { finish(false); return; }
+          // 如果本地浏览器直连 m3u8 解码失败，立即无感恢复标准 HLS.js 播放并保留进度
+          sgCastState.directModeActive = false;
+          syncCastUiState();
+          manualPlayOnly(currentStreamUrl).then(() => {
+            if (savedTime > 2) {
+              setTimeout(() => { try { video.currentTime = savedTime; } catch (_) {} }, 400);
+            }
+          });
+          finish(false);
+        };
+
+        sgAttachNativeSourceWithMime(video, finalUrl, kind);
+        try { video.load(); } catch (_) {}
+        if (!wasPaused || isRemoteConnected) {
+          const p = video.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch(() => finish(true));
+          }
+        } else {
+          finish(true);
+        }
+        setTimeout(() => finish(true), 2500);
+      });
+    }
+
+    // 在连播下一集或换集时，若正在无线投屏或处于直连投屏模式，自动保持音画直连或同步至 Google Cast
+    async function sgHandleActiveCastDuringPlay(url, isCurrent, attemptPlay) {
+      if (isLiveMode || (!sgCastState.active && !sgCastState.directModeActive)) return false;
+      const info = await sgResolveCastStreamInfo(url);
+      if (!isCurrent()) return true;
+      sgCastState.lastRawUrl = url;
+      sgCastState.resolvedUrl = info.playableUrl || url;
+      sgCastState.streamInfo = info;
+
+      // 若已建立 Google Cast 会话，同步推送新剧集的 H.264 + MPEG2-TS 媒体流
+      if (window.cast?.framework?.CastContext) {
+        try {
+          const session = cast.framework.CastContext.getInstance().getCurrentSession();
+          if (session) {
+            await sgLoadMediaIntoGoogleCastSession(session, sgCastState.resolvedUrl, info, 0);
+          }
+        } catch (_) {}
+      }
+
+      const canPlayNativeHls = Boolean(video.canPlayType('application/vnd.apple.mpegurl') || video.canPlayType('application/x-mpegURL'));
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isRemoteConnected = Boolean(
+        video.webkitCurrentPlaybackTargetIsWireless ||
+        (video.remote && (video.remote.state === 'connecting' || video.remote.state === 'connected'))
+      );
+
+      if (info.kind === 'direct' || canPlayNativeHls || isAndroid || isRemoteConnected) {
+        sgAttachNativeSourceWithMime(video, sgCastState.resolvedUrl, info.kind);
+        try { video.load(); } catch (_) {}
+        attemptPlay();
+        return true;
+      }
+      return false;
+    }
+
+    // 按需加载 Google Cast Sender SDK 并配置 MPEG2-TS / H.264 视频切片格式，彻底解决 Chromecast 只有声音没有画面
+    function sgEnsureGoogleCastSdk() {
+      if (window.cast?.framework?.CastContext && window.chrome?.cast?.media) {
+        return Promise.resolve(true);
+      }
+      if (!window.chrome) return Promise.resolve(false);
+      if (sgCastState.castSdkPromise) return sgCastState.castSdkPromise;
+
+      sgCastState.castSdkPromise = new Promise(resolve => {
+        let done = false;
+        const finish = (ok) => {
+          if (done) return;
+          done = true;
+          if (!ok) sgCastState.castSdkPromise = null;
+          resolve(ok);
+        };
+        const prevCallback = window.__onGCastApiAvailable;
+        window.__onGCastApiAvailable = function(isAvailable) {
+          if (typeof prevCallback === 'function') {
+            try { prevCallback(isAvailable); } catch (_) {}
+          }
+          if (isAvailable && window.cast?.framework?.CastContext) {
+            try {
+              const ctx = cast.framework.CastContext.getInstance();
+              ctx.setOptions({
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+              });
+            } catch (_) {}
+            finish(true);
+          } else {
+            finish(false);
+          }
+        };
+        const script = document.createElement('script');
+        script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+        script.async = true;
+        script.onerror = () => finish(false);
+        setTimeout(() => finish(Boolean(window.cast?.framework?.CastContext)), 4500);
+        document.head.appendChild(script);
+      });
+      return sgCastState.castSdkPromise;
+    }
+
+    async function sgLoadMediaIntoGoogleCastSession(session, playableUrl, streamInfo, startTimeSec = 0) {
+      if (!session || !window.chrome?.cast?.media) return false;
+      const isDirect = streamInfo?.kind === 'direct';
+      const contentType = isDirect ? sgMimeTypeForStream(playableUrl, 'direct') : 'application/x-mpegurl';
+      const mediaInfo = new chrome.cast.media.MediaInfo(playableUrl, contentType);
+      mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
+
+      // 关键修复：针对 M3U8 TS 切片流，显式声明 TS 容器与 MPEG2_TS 视频格式，防止 Chromecast 默认按纯音频 AAC 或 FMP4 解封装导致只有声音没有画面
+      if (!isDirect) {
+        if (chrome.cast.media.HlsSegmentFormat) {
+          mediaInfo.hlsSegmentFormat = streamInfo?.isFmp4
+            ? chrome.cast.media.HlsSegmentFormat.FMP4
+            : chrome.cast.media.HlsSegmentFormat.TS;
+        }
+        if (chrome.cast.media.HlsVideoSegmentFormat) {
+          mediaInfo.hlsVideoSegmentFormat = streamInfo?.isFmp4
+            ? chrome.cast.media.HlsVideoSegmentFormat.FMP4
+            : chrome.cast.media.HlsVideoSegmentFormat.MPEG2_TS;
+        }
+      }
+
+      const metadata = new chrome.cast.media.GenericMediaMetadata();
+      metadata.title = currentTitle?.textContent || currentPlayingMeta?.title || '拾光影视';
+      metadata.subtitle = currentPlayingMeta?.siteName ? `片源: ${currentPlayingMeta.siteName}` : '音画同步投屏';
+      if (currentPlayingMeta?.thumb && isSafeUrl(currentPlayingMeta.thumb)) {
+        metadata.images = [new chrome.cast.Image(currentPlayingMeta.thumb)];
+      }
+      mediaInfo.metadata = metadata;
+
+      const request = new chrome.cast.media.LoadRequest(mediaInfo);
+      request.autoplay = true;
+      if (startTimeSec > 2) request.currentTime = Math.floor(startTimeSec);
+
+      await session.loadMedia(request);
+      sgCastState.active = true;
+      syncCastUiState();
+      sgUpdateCastModalStatusUI();
+      showGestureTip('📺 已连接电视并同步发送视频+音频轨');
+      return true;
+    }
+
+    // 智能扫描并切换到同一部剧集的 H.264 (avc1) 音画兼容源，彻底解决因采集源为 H.265 (HEVC) 导致第三方电视只有声音没有画面的问题
+    async function sgSwitchToCompatibleH264Source(silentAuto = false) {
+      if (isLiveMode || !currentPlayingMeta) {
+        if (!silentAuto) showGestureTip('🎬 请先播放一部电影或剧集');
+        return false;
+      }
+      if (sgCastState.switchingH264) return false;
+
+      const normCurTitle = normalizeCleanKey(parseTitleAndVersion(currentPlayingMeta.title).canonical) || normalizeCleanKey(currentPlayingMeta.title);
+      const group = (groupedVodList || []).find(g => normalizeCleanKey(g.title) === normCurTitle);
+      const currentSiteNorm = normalizeCleanKey(currentPlayingMeta.siteName);
+      const targetEpName = currentPlayingMeta.epName || '';
+      const targetEpIdx = (currentPlayingMeta.epIdx !== undefined && currentPlayingMeta.epIdx >= 0) ? currentPlayingMeta.epIdx : currentActiveEp;
+      const savedTime = Number(video?.currentTime) || 0;
+
+      const candidateItems = [];
+      if (group && Array.isArray(group.items)) {
+        group.items.forEach(it => {
+          if (normalizeCleanKey(it.siteName) !== currentSiteNorm) candidateItems.push(it);
+        });
+      }
+
+      const subLabel = document.getElementById('cast-switch-h264-sub');
+      if (candidateItems.length === 0) {
+        if (!silentAuto) {
+          showGestureTip('ℹ️ 当前影片仅有一个可用片源，已启用音画直连修复');
+          if (subLabel) subLabel.textContent = '当前影片仅有单一片源，已为您锁定最佳视频轨并开启直连模式';
+        }
+        await sgBindDirectAvStreamToVideo(currentStreamUrl, savedTime, true);
+        return false;
+      }
+
+      sgCastState.switchingH264 = true;
+      if (subLabel) subLabel.textContent = `⏳ 正在从 ${candidateItems.length} 个备选源中检测 H.264 音画兼容线路…`;
+      if (!silentAuto) showGestureTip('⚡ 正在优选 H.264 音画兼容片源...');
+
+      try {
+        let bestCandidate = null;
+        let bestInfo = null;
+
+        for (const item of candidateItems) {
+          const eps = getEpisodesList(item);
+          const epIdx = findMatchingEpisodeIndex(eps, targetEpName, targetEpIdx);
+          if (epIdx < 0 || !eps[epIdx]?.url) continue;
+          const epUrl = eps[epIdx].url;
+          const info = await sgResolveCastStreamInfo(epUrl);
+          if (!info.isAudioOnly && !info.isHevcOnly) {
+            bestCandidate = { item, epIdx, epUrl };
+            bestInfo = info;
+            break;
+          }
+          if (!bestCandidate && !info.isAudioOnly) {
+            bestCandidate = { item, epIdx, epUrl };
+            bestInfo = info;
+          }
+        }
+
+        if (!bestCandidate) {
+          if (!silentAuto) showGestureTip('⚠️ 其他片源暂未更新该集，已保持当前源并开启直连模式');
+          if (subLabel) subLabel.textContent = '其他片源暂未更新当前集数，已对当前源开启直连音画保护';
+          return false;
+        }
+
+        activeSubItemId = bestCandidate.item.id || activeSubItemId;
+        sgCastState.resolvedUrl = bestInfo.playableUrl || bestCandidate.epUrl;
+        sgCastState.streamInfo = bestInfo;
+
+        playCurrentVodSource(bestCandidate.item, bestCandidate.epIdx, true);
+        if (savedTime > 3) {
+          const restoreOnce = () => {
+            video.removeEventListener('playing', restoreOnce);
+            try {
+              if (!video.duration || savedTime < video.duration - 8) {
+                video.currentTime = savedTime;
+              }
+            } catch (_) {}
+          };
+          video.addEventListener('playing', restoreOnce, { once: true });
+        }
+
+        const cleanName = cleanSiteName(bestCandidate.item.siteName);
+        if (subLabel) subLabel.textContent = `✓ 已切换至【${cleanName}】(${bestInfo.codecLabel}) 并保留播放进度`;
+        showGestureTip(`✓ 已切换至 H.264 音画兼容源：${cleanName}`);
+        sgUpdateCastModalStatusUI();
+        return true;
+      } finally {
+        sgCastState.switchingH264 = false;
+      }
+    }
+
+    function sgUpdateCastModalStatusUI() {
+      const titleEl = document.getElementById('cast-now-playing-title');
+      const avBadge = document.getElementById('cast-av-status-badge');
+      const codecBadge = document.getElementById('cast-codec-badge');
+      const diagTip = document.getElementById('cast-diag-tip');
+      const directBtn = document.getElementById('btn-cast-direct-mode');
+      const directLabel = document.getElementById('cast-direct-mode-label');
+
+      if (titleEl) {
+        titleEl.textContent = currentTitle?.textContent || currentPlayingMeta?.title || '当前未选择影视剧集';
+      }
+
+      const health = sgDetectRuntimeAvHealth();
+      const info = sgCastState.streamInfo;
+      const resText = (health.width > 0 && health.height > 0) ? ` · ${health.width}×${health.height}` : '';
+
+      if (avBadge) {
+        if (health.isAudioOnly) {
+          avBadge.className = 'sg-cast-badge sg-cast-badge-warn';
+          avBadge.textContent = '⚠️ 检测到当前源无视频画面';
+        } else if (sgCastState.active) {
+          avBadge.className = 'sg-cast-badge sg-cast-badge-ok';
+          avBadge.textContent = '📡 正在音画同步投屏' + resText;
+        } else {
+          avBadge.className = 'sg-cast-badge sg-cast-badge-ok';
+          avBadge.textContent = '✓ 视频轨+音频轨已锁定' + resText;
+        }
+      }
+
+      if (codecBadge) {
+        if (health.isHevc) {
+          codecBadge.className = 'sg-cast-badge sg-cast-badge-warn';
+          codecBadge.textContent = 'H.265 (HEVC) · 部分电视需换源';
+        } else {
+          codecBadge.className = 'sg-cast-badge';
+          codecBadge.textContent = info?.codecLabel || 'H.264 (AVC) + AAC 兼容';
+        }
+      }
+
+      if (diagTip) {
+        if (health.isAudioOnly) {
+          diagTip.textContent = '检测到当前片源缺失视频画面帧，请点击下方“智能切换 H.264 音画兼容源”一键修复。';
+        } else if (health.isHevc) {
+          diagTip.textContent = '当前片源为 H.265 编码，若第三方电视投屏后只有声音没有画面，请点击下方“智能切换 H.264 音画兼容源”。';
+        } else {
+          diagTip.textContent = '已自动解析真实音画直连流并激活视频轨道，确保第三方设备画面与声音同步输出。';
+        }
+      }
+
+      if (directBtn && directLabel) {
+        const isDirectOn = Boolean(sgCastState.directModeActive || video?.canPlayType('application/vnd.apple.mpegurl'));
+        directBtn.classList.toggle('is-active-mode', isDirectOn);
+        directLabel.textContent = isDirectOn
+          ? '音画直连兼容模式：已开启 (防有声无画)'
+          : '开启音画直连兼容模式 (解决第三方设备只有声音没有画面)';
+      }
+    }
+
+    function openCastModal() {
+      if (!shouldShowVodCastBtn()) return;
+      const mask = document.getElementById('cast-modal-mask');
+      if (!mask) return;
+      sgUpdateCastModalStatusUI();
+      mask.style.display = 'flex';
+    }
+
+    function closeCastModal() {
+      const mask = document.getElementById('cast-modal-mask');
+      if (mask) mask.style.display = 'none';
+    }
+
+    // 点击播放器右下角“投屏”按钮的主入口
+    async function triggerScreenCast(event) {
+      if (event) event.stopPropagation();
+      if (!shouldShowVodCastBtn()) {
+        syncCastUiState();
+        showGestureTip('📺 直播模式不支持投屏');
+        return;
+      }
+      if (!currentStreamUrl || !isSafeUrl(currentStreamUrl)) {
+        showGestureTip('🎬 请先选择一部电影或电视剧播放后再投屏');
+        return;
+      }
+
+      // 1. 必须在用户点击手势中同步预处理 <video>（退出画中画、开启 AirPlay 与 RemotePlayback、激活视频轨与 H.264 层级）
+      sgPrepareVideoElementForCast();
+
+      // 2. 若在 Safari / iOS / macOS 上支持原生 AirPlay 选择器，在同步手势内直接呼出系统投屏菜单
+      let nativePickerShown = false;
+      if (video && typeof video.webkitShowPlaybackTargetPicker === 'function') {
+        try {
+          video.webkitShowPlaybackTargetPicker();
+          nativePickerShown = true;
+        } catch (_) {}
+      }
+
+      // 3. 打开音画同步投屏控制台（提供系统投屏、H.264 自动换源、音画直连模式及第三方电视直投）
+      openCastModal();
+
+      // 4. 后台异步解析当前 M3U8 的最佳 H.264 音画子流，并检测是否存在“有声无画 / HEVC”风险
+      const targetStream = currentStreamUrl;
+      sgResolveCastStreamInfo(targetStream).then(async info => {
+        if (currentStreamUrl !== targetStream || isLiveMode) return;
+        sgCastState.lastRawUrl = targetStream;
+        sgCastState.resolvedUrl = info.playableUrl || targetStream;
+        sgCastState.streamInfo = info;
+        video?.setAttribute('data-cast-av-url', sgCastState.resolvedUrl);
+        sgUpdateCastModalStatusUI();
+
+        // 若检测到当前源本身无画面 (videoWidth === 0 且已播放) 或为纯音频流，自动为用户切换到有画面的 H.264 源
+        const health = sgDetectRuntimeAvHealth();
+        if (health.isAudioOnly) {
+          await sgSwitchToCompatibleH264Source(true);
+        } else if (nativePickerShown && info.playableUrl && info.playableUrl !== targetStream && video.canPlayType('application/vnd.apple.mpegurl')) {
+          // 若 Master M3U8 解析出了更纯净的 H.264 子流，在原生 HLS 下平滑挂载子流地址
+          const savedTime = Number(video.currentTime) || 0;
+          sgAttachNativeSourceWithMime(video, info.playableUrl, info.kind);
+          if (savedTime > 2) {
+            try { video.currentTime = savedTime; } catch (_) {}
+          }
+        }
+      });
+    }
+
+    // 在投屏弹窗中点击“呼叫系统无线投屏设备”
+    async function sgTriggerSystemWirelessCastFromModal(event) {
+      if (event) event.stopPropagation();
+      if (!shouldShowVodCastBtn() || !currentStreamUrl) {
+        showGestureTip('🎬 请先播放一部影视作品');
+        return;
+      }
+
+      sgPrepareVideoElementForCast();
+
+      // 1. Apple AirPlay (iOS / iPadOS / macOS Safari)
+      if (video && typeof video.webkitShowPlaybackTargetPicker === 'function') {
+        try {
+          video.webkitShowPlaybackTargetPicker();
+          showGestureTip('📡 已呼出 AirPlay 投屏设备列表');
+          return;
+        } catch (_) {}
+      }
+
+      // 2. W3C Remote Playback API (Chrome / Edge / Android)
+      // 先将解析后的 H.264 视频+音频直链挂载到原生或 Android <video>，防止将 blob: 内存流发给电视导致只有声音没有画面
+      if (video && video.remote && typeof video.remote.prompt === 'function') {
+        const savedTime = Number(video.currentTime) || 0;
+        const canNativeOrAndroid = Boolean(video.canPlayType('application/vnd.apple.mpegurl') || /Android/i.test(navigator.userAgent));
+        if (canNativeOrAndroid && hls) {
+          await sgBindDirectAvStreamToVideo(sgCastState.resolvedUrl || currentStreamUrl, savedTime, true);
+        }
+        try {
+          await video.remote.prompt();
+          sgCastState.active = true;
+          syncCastUiState();
+          sgUpdateCastModalStatusUI();
+          showGestureTip('📺 已呼出无线投屏设备选择器');
+          return;
+        } catch (err) {
+          // 若浏览器因 MediaSource 不支持直接 remote.prompt，继续尝试 Google Cast SDK
+          if (err?.name === 'NotFoundError') {
+            showGestureTip('📡 未发现附近的系统无线投屏接收端，可尝试下方第三方投屏或切换 H.264 源');
+            return;
+          }
+        }
+      }
+
+      // 3. Google Cast CAF SDK (Chromecast / Android TV / 索尼/小米/TCL 等内置 Cast 的电视)
+      const castReady = await sgEnsureGoogleCastSdk();
+      if (castReady && window.cast?.framework?.CastContext) {
+        try {
+          const ctx = cast.framework.CastContext.getInstance();
+          await ctx.requestSession();
+          const session = ctx.getCurrentSession();
+          if (session) {
+            const info = sgCastState.streamInfo || await sgResolveCastStreamInfo(currentStreamUrl);
+            const targetUrl = info.playableUrl || currentStreamUrl;
+            await sgLoadMediaIntoGoogleCastSession(session, targetUrl, info, Number(video?.currentTime) || 0);
+            return;
+          }
+        } catch (_) {}
+      }
+
+      // 4. 兜底：开启音画直连兼容模式并提示使用浏览器或系统自带无线投屏
+      await sgBindDirectAvStreamToVideo(sgCastState.resolvedUrl || currentStreamUrl, Number(video?.currentTime) || 0, true);
+      showGestureTip('🛡️ 已开启音画直连流，可使用浏览器菜单或手机控制中心“无线投屏”连接电视');
+    }
+
+    async function sgToggleDirectAvCastMode() {
+      if (!shouldShowVodCastBtn() || !currentStreamUrl) {
+        showGestureTip('🎬 请先选择要播放的影视作品');
+        return;
+      }
+      const savedTime = Number(video?.currentTime) || 0;
+      if (sgCastState.directModeActive) {
+        sgCastState.directModeActive = false;
+        syncCastUiState();
+        sgUpdateCastModalStatusUI();
+        showGestureTip('已恢复标准播放器模式');
+      } else {
+        await sgBindDirectAvStreamToVideo(sgCastState.resolvedUrl || currentStreamUrl, savedTime, true);
+        sgUpdateCastModalStatusUI();
+        showGestureTip('🛡️ 已开启音画直连兼容模式（防止第三方投屏只有声音没有画面）');
+      }
+    }
+
+    async function sgCopyCastAvUrl() {
+      if (!currentStreamUrl || !isSafeUrl(currentStreamUrl)) {
+        alert('请先选择有效影视播放线路！');
+        return;
+      }
+      const info = sgCastState.streamInfo || await sgResolveCastStreamInfo(currentStreamUrl);
+      const castUrl = (info && info.playableUrl) ? info.playableUrl : currentStreamUrl;
+      navigator.clipboard.writeText(castUrl)
+        .then(() => showGestureTip('✓ 已复制 H.264 音画同步投屏直链'))
+        .catch(() => prompt('请复制音画同步投屏直链：', castUrl));
+    }
+
+    async function sgOpenThirdPartyCastApp(appType) {
+      if (!currentStreamUrl || !isSafeUrl(currentStreamUrl)) {
+        alert('请先选择有效影视播放线路！');
+        return;
+      }
+      const info = sgCastState.streamInfo || await sgResolveCastStreamInfo(currentStreamUrl);
+      const castUrl = (info && info.playableUrl) ? info.playableUrl.trim() : currentStreamUrl.trim();
+      const title = encodeURIComponent(currentTitle?.textContent || currentPlayingMeta?.title || '拾光影视');
+      if (appType === 'wvc') {
+        window.location.href = `wvc-x-callback://open?url=${encodeURIComponent(castUrl)}&title=${title}`;
+        return;
+      }
+      const prevStream = currentStreamUrl;
+      currentStreamUrl = castUrl;
+      try {
+        openPlayer(appType);
+      } finally {
+        currentStreamUrl = prevStream;
+      }
+    }
+
+    // 绑定原生 AirPlay 与 W3C RemotePlayback 状态监听：连接投屏时自动移交真实音画直链，断开时自动恢复本地播放
+    (function sgBindNativeWirelessCastListeners() {
+      if (!video) return;
+
+      video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', async () => {
+        const isWireless = Boolean(video.webkitCurrentPlaybackTargetIsWireless);
+        if (isWireless && !shouldShowVodCastBtn()) {
+          try { video.pause(); } catch (_) {}
+          return;
+        }
+        sgCastState.active = isWireless;
+        syncCastUiState();
+        if (isWireless && currentStreamUrl && !isLiveMode) {
+          sgEnsureVideoAndAudioTracks(video);
+          const info = sgCastState.streamInfo || await sgResolveCastStreamInfo(currentStreamUrl);
+          const targetUrl = info?.playableUrl || currentStreamUrl;
+          const curSrc = video.currentSrc || video.getAttribute('src') || '';
+          if (curSrc.startsWith('blob:') || (targetUrl && curSrc !== targetUrl)) {
+            await sgBindDirectAvStreamToVideo(targetUrl, Number(video.currentTime) || 0, true);
+          }
+          showGestureTip('📺 AirPlay 音画同步投屏已连接');
+        }
+        sgUpdateCastModalStatusUI();
+      });
+
+      if (video.remote && typeof video.remote.addEventListener === 'function') {
+        const onRemoteStateChange = async () => {
+          const state = video.remote.state;
+          const connected = (state === 'connecting' || state === 'connected');
+          if (connected && !shouldShowVodCastBtn()) return;
+          sgCastState.active = connected;
+          syncCastUiState();
+          if (connected && currentStreamUrl && !isLiveMode) {
+            sgEnsureVideoAndAudioTracks(video);
+            const info = sgCastState.streamInfo || await sgResolveCastStreamInfo(currentStreamUrl);
+            const targetUrl = info?.playableUrl || currentStreamUrl;
+            const curSrc = video.currentSrc || video.getAttribute('src') || '';
+            if (curSrc.startsWith('blob:')) {
+              await sgBindDirectAvStreamToVideo(targetUrl, Number(video.currentTime) || 0, true);
+            }
+          } else if (state === 'disconnected' && !isLiveMode && currentStreamUrl) {
+            sgCastState.directModeActive = false;
+            syncCastUiState();
+            const canNative = Boolean(video.canPlayType('application/vnd.apple.mpegurl'));
+            if (!canNative && !hls) {
+              const resumeAt = Number(video.currentTime) || 0;
+              manualPlayOnly(currentStreamUrl).then(() => {
+                if (resumeAt > 2) setTimeout(() => { try { video.currentTime = resumeAt; } catch (_) {} }, 350);
+              });
+            }
+          }
+          sgUpdateCastModalStatusUI();
+        };
+        video.remote.addEventListener('connecting', onRemoteStateChange);
+        video.remote.addEventListener('connect', onRemoteStateChange);
+        video.remote.addEventListener('disconnect', onRemoteStateChange);
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        syncCastUiState();
+        const castMask = document.getElementById('cast-modal-mask');
+        if (castMask) {
+          castMask.addEventListener('click', (e) => {
+            if (e.target === castMask) closeCastModal();
+          });
+        }
+      }, { once: true });
+    })();
