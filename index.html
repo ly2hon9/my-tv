@@ -11,7 +11,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.20.4-vod-cast-av-1">
+  <link rel="stylesheet" href="css/aurora.css?v=3.20.5-vod-cast-smooth-1">
 </head>
 <body class="aurora-home-view shiguang-booting">
 
@@ -197,7 +197,7 @@
             </button>
           </div>
 
-          <button class="ctrl-btn cast-btn" id="cast-btn" type="button" onclick="triggerScreenCast(event)" title="投屏播放 (影视音画同步)" aria-label="投屏播放">
+          <button class="ctrl-btn cast-btn" id="cast-btn" type="button" onclick="triggerScreenCast(event)" title="电视投屏 (仅限影视剧场)" aria-label="电视投屏">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
           </button>
 
@@ -426,57 +426,47 @@
     </div>
   </div>
 
-  <!-- 📡 影视音画同步投屏弹窗 (仅限看电视/电影，直播自动隐藏) -->
+  <!-- 📺 电视投屏弹窗 (仅限看电视/电影，直播自动隐藏) -->
   <div id="cast-modal-mask" class="glass-modal-mask" role="dialog" aria-modal="true" aria-labelledby="cast-modal-title">
     <div class="custom-modal-content glass-modal-card sg-cast-modal-card">
       <h3>
-        <span id="cast-modal-title">📡 影视音画同步投屏</span>
+        <span id="cast-modal-title">📺 电视投屏</span>
         <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeCastModal()" title="关闭">✕</span>
       </h3>
 
       <div class="sg-cast-status-box">
         <div class="sg-cast-now-playing" id="cast-now-playing-title">正在准备投屏片源…</div>
         <div class="sg-cast-badges-row">
-          <span class="sg-cast-badge sg-cast-badge-ok" id="cast-av-status-badge">音画双轨保护已开启</span>
-          <span class="sg-cast-badge" id="cast-codec-badge">H.264 / AAC 兼容</span>
+          <span class="sg-cast-badge sg-cast-badge-ok" id="cast-av-status-badge">音画同步已就绪</span>
+          <span class="sg-cast-badge" id="cast-codec-badge">自适应流畅传输</span>
         </div>
-        <div class="sg-cast-diag-tip" id="cast-diag-tip">已自动剥离本地缓存流并锁定视频轨与音频轨，防止电视端只有声音没有画面。</div>
+        <div class="sg-cast-diag-tip" id="cast-diag-tip">请确认手机/电脑与电视连接在同一个 Wi-Fi 下。</div>
       </div>
 
       <div class="sg-cast-actions-stack">
         <button type="button" class="sg-cast-primary-btn" id="btn-cast-system-picker" onclick="sgTriggerSystemWirelessCastFromModal(event)">
           <span class="sg-cast-btn-icon">📺</span>
           <span class="sg-cast-btn-copy">
-            <strong>呼叫系统无线投屏设备</strong>
-            <small>支持 AirPlay / Chromecast / Android TV / 无线显示器</small>
+            <strong id="cast-picker-label">1. 连接电视设备投屏</strong>
+            <small id="cast-picker-sub">弹出设备列表，选择家里的电视、盒子或投影仪</small>
           </span>
         </button>
 
-        <button type="button" class="sg-cast-secondary-btn" id="btn-cast-direct-mode" onclick="sgToggleDirectAvCastMode()">
-          <span class="sg-cast-btn-icon">🛡️</span>
+        <button type="button" class="sg-cast-secondary-btn" id="btn-cast-smooth-boost" onclick="sgBoostCastSmoothness()">
+          <span class="sg-cast-btn-icon">🚀</span>
           <span class="sg-cast-btn-copy">
-            <strong id="cast-direct-mode-label">音画直连兼容模式：已就绪</strong>
-            <small>绕过 MSE 内存流，向第三方电视直接输出 H.264 视频+音频流</small>
+            <strong id="cast-smooth-label">2. 电视卡顿加速（换最快线路）</strong>
+            <small id="cast-smooth-sub">电视播放一卡一卡时点此，自动测速换最快源并保留进度</small>
           </span>
         </button>
 
-        <button type="button" class="sg-cast-secondary-btn" id="btn-cast-switch-h264" onclick="sgSwitchToCompatibleH264Source(false)">
-          <span class="sg-cast-btn-icon">⚡</span>
+        <button type="button" class="sg-cast-secondary-btn" id="btn-cast-fix-black" onclick="sgFixCastBlackScreen()">
+          <span class="sg-cast-btn-icon">🔧</span>
           <span class="sg-cast-btn-copy">
-            <strong>智能切换 H.264 音画兼容源</strong>
-            <small id="cast-switch-h264-sub">若电视黑屏或只有声音（常见于 H.265 片源），点此一键换源并保留进度</small>
+            <strong id="cast-fix-black-label">3. 电视黑屏修复（有声音没画面点此）</strong>
+            <small id="cast-switch-h264-sub">电视只有声音没有画面时点此，自动切换兼容画面格式</small>
           </span>
         </button>
-      </div>
-
-      <div class="sg-cast-ext-section">
-        <div class="sg-cast-ext-title">第三方投屏器 / 电视盒子音画直投</div>
-        <div class="sg-cast-ext-grid">
-          <button type="button" class="sg-cast-chip-btn" onclick="sgOpenThirdPartyCastApp('wvc')">🌐 WebVideoCaster</button>
-          <button type="button" class="sg-cast-chip-btn" onclick="sgOpenThirdPartyCastApp('vlc')">🔶 VLC 投屏</button>
-          <button type="button" class="sg-cast-chip-btn" onclick="sgOpenThirdPartyCastApp('nplayer')">🔷 nPlayer 投屏</button>
-          <button type="button" class="sg-cast-chip-btn" onclick="sgCopyCastAvUrl()">🔗 复制音画投屏直链</button>
-        </div>
       </div>
 
       <div class="modal-actions" style="margin-top:14px;">
@@ -498,6 +488,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.20.4-vod-cast-av-1"></script>
+  <script defer src="js/app.js?v=3.20.5-vod-cast-smooth-1"></script>
 </body>
 </html>
