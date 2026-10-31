@@ -15,13 +15,13 @@ export async function onRequest({request,env}) {
   const admin=JSON.parse(await read(env,ADMIN)||'null');
   if(action==='bootstrap') {
     if(admin)return json({error:'管理员已存在'},403);
-    await write(env,ADMIN,{username,passHash});user={username,role:'admin',allowedSites:['*']};
+    await write(env,ADMIN,{username,passHash});await write(env,`theme_u_${username}`,'auto');user={username,role:'admin',allowedSites:['*']};
   } else if(action==='register') {
     if(!admin)return json({error:'请先初始化管理员'},403);
     const users=JSON.parse(await read(env,USERS)||'[]');
     if(username===admin.username||users.some(u=>u.username===username))return json({error:'账号已存在'},409);
     const groups=JSON.parse(await read(env,'sys_source_groups_v3')||'[]');const group=groups.find(g=>g.isDefault)||groups[0]||{id:'def',name:'默认分组'};
-    users.push({username,passHash,groupId:group.id,groupName:group.name});await write(env,USERS,users);
+    users.push({username,passHash,groupId:group.id,groupName:group.name});await write(env,USERS,users);await write(env,`theme_u_${username}`,'auto');
     user={username,role:'user',groupId:group.id,groupName:group.name};
   } else {
     if(admin?.username===username&&admin.passHash===passHash)user={username,role:'admin',allowedSites:['*']};
