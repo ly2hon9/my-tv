@@ -4035,11 +4035,25 @@ body:not(.theme-light)::before {
   z-index: -2;
   pointer-events: none;
 }
+.glass-modal-mask {
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+}
 body:not(.theme-light) .glass-modal-mask {
-  background-color: rgba(6, 19, 38, 0.94) !important;
-  background: radial-gradient(ellipse at 50% 15%, rgba(14, 34, 68, 0.90), rgba(6, 19, 38, 0.97)) !important;
+  background: #061326 !important;
+  background-color: #061326 !important;
+  background-image: none !important;
 }
 body.theme-light .glass-modal-mask {
-  background-color: rgba(234, 242, 253, 0.94) !important;
-  background: radial-gradient(ellipse at 50% 15%, rgba(241, 247, 255, 0.90), rgba(234, 242, 253, 0.97)) !important;
+  background: #eaf2fd !important;
+  background-color: #eaf2fd !important;
+  background-image: none !important;
+}
+body:not(.theme-light) #aurora-topnav {
+  background-color: #061326 !important;
+}
+body.theme-light #aurora-topnav {
+  background-color: #eaf2fd !important;
 }
