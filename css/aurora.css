@@ -4094,23 +4094,176 @@ body.theme-light .sg-cast-airplayer-tag {
 
 
 /* =====================================================================
-   AURORA RESPONSIVE DESKTOP & TABLET ADAPTATION SYSTEM (NON-DESTRUCTIVE)
-   Preserves mobile experience verbatim while giving PC/Tablet native desktop layout.
+   AURORA 3.22.2: THREE-DEVICE UNIFIED VISUAL & LAYOUT SYSTEM
+   Fixes viewport jump between Home/Categories and Live TV across Mobile, Tablet, and Desktop.
    ===================================================================== */
 
-/* Mobile safeguard: strictly hide desktop topnav links and display mobile floating dock */
+/* --- 0. Global Theme & Palette Synchronization (Eliminate Yellow/Green Legacy Vars) --- */
+body.theme-light {
+  --bg-base: #eaf2fd !important;
+  --bg-workspace: #eaf2fd !important;
+  --bg-sidebar: rgba(248, 250, 255, 0.85) !important;
+  --bg-search-box: rgba(248, 250, 255, 0.78) !important;
+  --bg-input: #ffffff !important;
+  --bg-card: rgba(255, 255, 255, 0.92) !important;
+  --bg-card-hover: #f1f7ff !important;
+  --bg-tag: #dce5f0 !important;
+  --bg-sub-panel: #f4f8ff !important;
+  --border-color: rgba(120, 154, 194, 0.24) !important;
+  --border-light: rgba(134, 183, 251, 0.38) !important;
+  --text-main: #1c304b !important;
+  --text-sub: #596d88 !important;
+  --text-mute: #8396af !important;
+  --accent: #147dac !important;
+  --accent-soft: rgba(20, 125, 172, 0.12) !important;
+  --card-shadow: 0 8px 22px rgba(31, 74, 130, 0.08) !important;
+}
+
+body:not(.theme-light) {
+  --bg-sidebar: rgba(17, 28, 48, 0.72) !important;
+  --bg-search-box: rgba(17, 28, 48, 0.66) !important;
+  --bg-card: rgba(20, 39, 66, 0.82) !important;
+  --bg-card-hover: rgba(28, 52, 86, 0.92) !important;
+  --border-color: rgba(153, 196, 248, 0.18) !important;
+  --border-light: rgba(134, 183, 251, 0.32) !important;
+}
+
+/* --- 1. Zero-Jump Header & Viewport Alignment Across All Modes --- */
+/* On Mobile & Tablet (< 900px), body must NEVER switch padding between home-view and live/player view! */
+@media (max-width: 899px) {
+  body,
+  body.aurora-home-view,
+  body:not(.aurora-home-view) {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Header stays 100% full-bleed edge-to-edge in BOTH movie/category and live TV views */
+  #aurora-topnav,
+  body.aurora-home-view #aurora-topnav,
+  body:not(.aurora-home-view) #aurora-topnav {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-top: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Player and Sidebar get consistent horizontal margin matching #aurora-home */
+  body:not(.aurora-home-view) #player-wrap {
+    width: calc(100% - 20px) !important;
+    margin: 10px auto 8px !important;
+    border-radius: 19px !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--card-shadow) !important;
+  }
+
+  body:not(.aurora-home-view) #sidebar {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.aurora-home-view) #channel-list {
+    padding: 2px 0 calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* --- 2. Live TV Category Tabs: Identical Aesthetic to Movie Category Pills --- */
+#channel-list > .sg-live-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 10px 12px !important;
+  margin: 4px 0 12px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(153, 196, 248, 0.18) !important;
+  background: rgba(17, 28, 48, 0.66) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+body.theme-light #channel-list > .sg-live-tabs {
+  background: rgba(248, 250, 255, 0.78) !important;
+  border-color: rgba(120, 154, 194, 0.24) !important;
+  box-shadow: 0 4px 16px rgba(31, 74, 130, 0.05) !important;
+}
+
+#channel-list > .sg-live-tabs > .sg-live-tab {
+  appearance: none !important;
+  min-height: 36px !important;
+  padding: 8px 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid transparent !important;
+  background: rgba(139, 160, 194, 0.19) !important;
+  color: var(--text-sub) !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  line-height: 1.2 !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+body.theme-light #channel-list > .sg-live-tabs > .sg-live-tab {
+  background: #dce5f0 !important;
+  color: #596d88 !important;
+}
+
+#channel-list > .sg-live-tabs > .sg-live-tab.active {
+  background: rgba(123, 151, 196, 0.48) !important;
+  color: var(--text-main) !important;
+  border-color: rgba(213, 233, 255, 0.28) !important;
+  box-shadow: 0 2px 10px rgba(0, 12, 32, 0.18) !important;
+}
+body.theme-light #channel-list > .sg-live-tabs > .sg-live-tab.active {
+  background: #b6d0f2 !important;
+  color: #1c304b !important;
+  border-color: rgba(104, 161, 217, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(31, 74, 130, 0.10) !important;
+}
+
+/* --- 3. Live Channel Rows: Clean Glass Cards Matching Movie Cards --- */
+#channel-list .channel-row {
+  margin: 0 0 8px !important;
+  border-radius: 15px !important;
+  border: 1px solid rgba(122, 170, 231, 0.26) !important;
+  background: linear-gradient(180deg, rgba(20, 41, 67, 0.73), rgba(17, 33, 57, 0.89)) !important;
+  box-shadow: 0 6px 18px rgba(0, 8, 24, 0.14) !important;
+  overflow: hidden !important;
+}
+body.theme-light #channel-list .channel-row {
+  background: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(120, 154, 194, 0.25) !important;
+  box-shadow: 0 6px 18px rgba(31, 74, 130, 0.07) !important;
+}
+#channel-list .channel-main {
+  padding: 13px 16px !important;
+}
+#channel-list .channel-row.playing {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 20px rgba(20, 125, 172, 0.16) !important;
+}
+
+/* --- 4. Mobile vs Tablet/Desktop Navigation Routing --- */
 @media (max-width: 767px) {
   #aurora-topnav .aurora-desktop-nav {
     display: none !important;
   }
-  .aurora-mobile-dock {
+  body > .aurora-nav-links.aurora-mobile-dock {
     display: grid !important;
   }
 }
 
-/* Tablet & Desktop (>= 768px): clean topbar navigation + no bottom obstruction */
 @media (min-width: 768px) {
-  /* 1. Eliminate mobile floating dock and remove bottom dead padding */
+  /* Hide floating bottom dock on Tablet & Desktop so it never blocks controls or cards */
   body > .aurora-nav-links.aurora-mobile-dock,
   .aurora-mobile-dock {
     display: none !important;
@@ -4119,29 +4272,37 @@ body.theme-light .sg-cast-airplayer-tag {
     padding-bottom: 0 !important;
   }
   body.aurora-home-view #aurora-home {
-    padding-bottom: 48px !important;
+    padding-bottom: 44px !important;
   }
   body:not(.aurora-home-view) #channel-list {
     padding-bottom: 24px !important;
   }
 
-  /* 2. Top navigation: integrated desktop channel links */
-  #aurora-topnav {
+  /* Unified Topbar with Brand + 5 Channel Links + Search + Avatar */
+  #aurora-topnav,
+  body.aurora-home-view #aurora-topnav,
+  body:not(.aurora-home-view) #aurora-topnav {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    gap: clamp(12px, 1.8vw, 28px) !important;
+    gap: clamp(12px, 1.8vw, 26px) !important;
     min-height: 72px !important;
-    padding: 10px clamp(16px, 3.5vw, 48px) !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 10px clamp(16px, 3vw, 42px) !important;
+    border-radius: 0 !important;
+    border-top: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    box-sizing: border-box !important;
   }
   #aurora-topnav .aurora-brand {
     flex: 0 0 auto !important;
-    margin-right: 4px !important;
   }
   #aurora-topnav .aurora-desktop-nav {
     display: flex !important;
     align-items: center !important;
-    gap: clamp(4px, 0.8vw, 10px) !important;
+    gap: clamp(4px, 0.7vw, 8px) !important;
     flex: 0 1 auto !important;
     margin: 0 !important;
   }
@@ -4150,37 +4311,35 @@ body.theme-light .sg-cast-airplayer-tag {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 8px clamp(10px, 1.1vw, 16px) !important;
-    border-radius: 12px !important;
+    padding: 8px clamp(12px, 1.2vw, 18px) !important;
+    border-radius: 999px !important;
     font-size: 14px !important;
-    font-weight: 700 !important;
+    font-weight: 750 !important;
     line-height: 1.2 !important;
     color: var(--text-sub) !important;
     background: transparent !important;
     border: 1px solid transparent !important;
     cursor: pointer !important;
     white-space: nowrap !important;
-    transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease !important;
+    transition: all 0.16s ease !important;
   }
   #aurora-topnav .aurora-desktop-nav .aurora-nav-link:hover {
     color: var(--text-main) !important;
-    background: var(--accent-soft) !important;
+    background: rgba(139, 160, 194, 0.16) !important;
+  }
+  body.theme-light #aurora-topnav .aurora-desktop-nav .aurora-nav-link:hover {
+    background: #dce5f0 !important;
+    color: #1c304b !important;
   }
   #aurora-topnav .aurora-desktop-nav .aurora-nav-link.active {
-    color: var(--accent) !important;
-    font-weight: 850 !important;
-    background: rgba(56, 189, 248, 0.12) !important;
+    background: rgba(123, 151, 196, 0.44) !important;
+    color: #5deeff !important;
+    border-color: rgba(213, 233, 255, 0.25) !important;
   }
-  #aurora-topnav .aurora-desktop-nav .aurora-nav-link.active::after {
-    content: "" !important;
-    position: absolute !important;
-    bottom: 0 !important;
-    left: 18% !important;
-    right: 18% !important;
-    height: 3px !important;
-    border-radius: 99px !important;
-    background: var(--accent) !important;
-    box-shadow: 0 0 10px var(--accent) !important;
+  body.theme-light #aurora-topnav .aurora-desktop-nav .aurora-nav-link.active {
+    background: #b6d0f2 !important;
+    color: #1c304b !important;
+    border-color: rgba(104, 161, 217, 0.4) !important;
   }
   #aurora-topnav .aurora-desktop-nav .sg-nav-label {
     display: inline-block !important;
@@ -4196,278 +4355,98 @@ body.theme-light .sg-cast-airplayer-tag {
     margin-left: 0 !important;
   }
 
-  /* 3. Hero Carousel Banner: remove 780px constraint for cinematic wide aspect */
+  /* Wide Cinematic Hero on Tablet & Desktop */
   body.aurora-home-view:not(.sg-category-view) .aurora-hero {
     width: 100% !important;
-    max-width: 1480px !important;
+    max-width: 1440px !important;
     height: auto !important;
-    min-height: clamp(380px, 32vw, 490px) !important;
+    min-height: clamp(340px, 30vw, 470px) !important;
     aspect-ratio: auto !important;
     margin-inline: auto !important;
     border-radius: 24px !important;
-    position: relative !important;
-    overflow: hidden !important;
   }
   body.aurora-home-view:not(.sg-category-view) .aurora-hero-copy {
-    width: min(650px, 58%) !important;
-    padding: clamp(28px, 4vw, 54px) !important;
-    z-index: 3 !important;
-  }
-  body.aurora-home-view:not(.sg-category-view) #aurora-hero-title {
-    font-size: clamp(30px, 3.6vw, 50px) !important;
-    line-height: 1.15 !important;
-    margin-bottom: 12px !important;
-  }
-  body.aurora-home-view:not(.sg-category-view) #aurora-hero-desc {
-    font-size: 14px !important;
-    line-height: 1.7 !important;
-    max-width: 520px !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 3 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
-  }
-  body.aurora-home-view:not(.sg-category-view) .aurora-hero-controls {
-    left: auto !important;
-    right: 28px !important;
-    bottom: 24px !important;
-    transform: none !important;
+    width: min(640px, 60%) !important;
+    padding: clamp(24px, 3.6vw, 50px) !important;
   }
   body.aurora-home-view:not(.sg-category-view) .aurora-play-glass.aurora-hero-play-float {
-    left: auto !important;
     right: 28px !important;
-    bottom: 74px !important;
-    transform: none !important;
-    width: 58px !important;
-    height: 58px !important;
+    bottom: 28px !important;
   }
 }
 
-/* Large desktop (>= 1100px) grid density */
-@media (min-width: 1100px) {
-  body.aurora-home-view #aurora-home {
-    max-width: 1480px !important;
-    margin-inline: auto !important;
-    padding: 24px clamp(16px, 3.5vw, 48px) 48px !important;
+/* --- 5. Tablet Portrait (768px ~ 899px) Layout Alignment --- */
+@media (min-width: 768px) and (max-width: 899px) {
+  body:not(.aurora-home-view) #player-wrap {
+    width: calc(100% - 36px) !important;
+    margin: 14px auto 10px !important;
+    border-radius: 22px !important;
   }
-  .aurora-poster-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-    gap: 18px !important;
-  }
-}
-
-/* Tablet (768px ~ 1099px) grid density */
-@media (min-width: 768px) and (max-width: 1099px) {
-  body.aurora-home-view #aurora-home {
-    max-width: 100% !important;
-    padding: 18px 24px 40px !important;
-  }
-  .aurora-poster-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 14px !important;
+  body:not(.aurora-home-view) #sidebar {
+    padding: 0 18px !important;
   }
 }
 
-/* Dual-column cinema layout for Live TV and VOD (>= 900px) */
+/* --- 6. Desktop & Tablet Landscape (>= 900px) Dual-Column Cinema Mode --- */
 @media (min-width: 900px) {
+  /* Keep topnav edge-to-edge in both home and player views so header never jumps! */
+  body,
+  body.aurora-home-view,
+  body:not(.aurora-home-view) {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
   body:not(.aurora-home-view) {
     display: grid !important;
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr) !important;
+    grid-template-columns: minmax(0, 1.68fr) minmax(340px, 1fr) !important;
     grid-template-rows: auto minmax(0, 1fr) !important;
-    grid-template-areas: "header header" "player sidebar" !important;
+    grid-template-areas:
+      "header header"
+      "player sidebar" !important;
     height: 100dvh !important;
     min-height: 580px !important;
     overflow: hidden !important;
-    padding: 12px clamp(14px, 2.5vw, 36px) !important;
-    gap: 14px !important;
+    column-gap: 18px !important;
+    row-gap: 0 !important;
     align-items: stretch !important;
   }
+
   body:not(.aurora-home-view) #player-wrap {
     grid-area: player !important;
-    position: relative !important;
-    border-radius: 20px !important;
+    margin: 16px 0 18px clamp(16px, 3vw, 42px) !important;
+    border-radius: 22px !important;
     border: 1px solid var(--border-color) !important;
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28) !important;
+    box-shadow: 0 14px 38px rgba(0, 8, 28, 0.22) !important;
     overflow: hidden !important;
-    align-self: stretch !important;
   }
-  body:not(.aurora-home-view) #player-wrap #custom-controls {
-    position: absolute !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    z-index: 15 !important;
-    height: 56px !important;
-    background: linear-gradient(to top, rgba(2, 6, 15, 0.94) 0%, rgba(2, 6, 15, 0.42) 60%, transparent 100%) !important;
-  }
+
   body:not(.aurora-home-view) #sidebar {
     grid-area: sidebar !important;
+    margin: 16px clamp(16px, 3vw, 42px) 18px 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    border-radius: 20px !important;
+    border-radius: 22px !important;
     border: 1px solid var(--border-color) !important;
     background: var(--bg-sidebar) !important;
     box-shadow: var(--card-shadow) !important;
     overflow: hidden !important;
-    align-self: stretch !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
+
   body:not(.aurora-home-view) #channel-list {
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
-    padding: 12px 14px 20px !important;
-    scroll-padding-bottom: 20px !important;
+    padding: 14px 16px 24px !important;
   }
-  body:not(.aurora-home-view) #channel-list .sg-live-tabs {
+
+  body:not(.aurora-home-view) #channel-list > .sg-live-tabs {
     position: sticky !important;
     top: 0 !important;
     z-index: 10 !important;
-    margin-bottom: 12px !important;
-  }
-}
-
-
-
-/* Light theme fine-tuning for desktop navigation */
-body.theme-light #aurora-topnav .aurora-desktop-nav .aurora-nav-link {
-  color: #4b6485 !important;
-}
-body.theme-light #aurora-topnav .aurora-desktop-nav .aurora-nav-link:hover {
-  color: #143254 !important;
-  background: rgba(43, 127, 214, 0.12) !important;
-}
-body.theme-light #aurora-topnav .aurora-desktop-nav .aurora-nav-link.active {
-  color: #0b72e7 !important;
-  background: rgba(11, 114, 231, 0.1) !important;
-}
-body.theme-light #aurora-topnav .aurora-desktop-nav .aurora-nav-link.active::after {
-  background: #0b72e7 !important;
-  box-shadow: 0 0 8px rgba(11, 114, 231, 0.45) !important;
-}
-
-
-
-/* =====================================================================
-   AURORA 3.22.0: LIVE TV & WORKSPACE MODERN VISUAL UNIFICATION
-   Eliminates retro parchment-yellow cards, harsh borders, and green outline tabs.
-   Unifies with the clean ice-blue frosted design system of the homepage.
-   ===================================================================== */
-
-/* 1. Global Light Theme Palette: authoritative cold-blue glass theme override */
-body.theme-light {
-  --bg-base: #eaf2fd !important;
-  --bg-workspace: #eaf2fd !important;
-  --bg-sidebar: #f8fafc !important;
-  --bg-search-box: #ffffff !important;
-  --bg-input: #ffffff !important;
-  --bg-card: #ffffff !important;
-  --bg-card-hover: #f0f6ff !important;
-  --bg-tag: #e2eaf5 !important;
-  --bg-sub-panel: #f8fbff !important;
-  --border-color: rgba(147, 197, 253, 0.35) !important;
-  --border-light: rgba(191, 219, 254, 0.6) !important;
-  --text-main: #0f172a !important;
-  --text-sub: #475569 !important;
-  --text-mute: #94a3b8 !important;
-  --accent: #0284c7 !important;
-  --accent-soft: rgba(2, 132, 199, 0.12) !important;
-  --card-shadow: 0 4px 14px rgba(37, 99, 235, 0.06) !important;
-}
-
-/* 2. Live Channel Category Tabs: clean frosted capsule styling */
-#channel-list > .sg-live-tabs {
-  background: rgba(255, 255, 255, 0.85) !important;
-  border: 1px solid rgba(147, 197, 253, 0.38) !important;
-  border-radius: 16px !important;
-  padding: 6px !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.05) !important;
-}
-body:not(.theme-light) #channel-list > .sg-live-tabs {
-  background: rgba(16, 26, 44, 0.82) !important;
-  border-color: rgba(255, 255, 255, 0.09) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28) !important;
-}
-
-#channel-list > .sg-live-tabs > .sg-live-tab {
-  min-height: 38px !important;
-  border-radius: 11px !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  border: 1px solid transparent !important;
-  background: transparent !important;
-  color: var(--text-sub) !important;
-  transition: all 0.2s ease !important;
-}
-body.theme-light #channel-list > .sg-live-tabs > .sg-live-tab:hover {
-  background: rgba(2, 132, 199, 0.07) !important;
-  color: var(--text-main) !important;
-}
-
-/* Eliminate green outline; adopt luminous sky-blue active capsule */
-#channel-list > .sg-live-tabs > .sg-live-tab.active {
-  background: #ffffff !important;
-  color: #0284c7 !important;
-  border: 1px solid rgba(2, 132, 199, 0.35) !important;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.14) !important;
-}
-body:not(.theme-light) #channel-list > .sg-live-tabs > .sg-live-tab.active {
-  background: rgba(2, 132, 199, 0.25) !important;
-  color: #38bdf8 !important;
-  border-color: rgba(56, 189, 248, 0.45) !important;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.22) !important;
-}
-
-/* 3. Channel Row Cards: replace yellowish tint with pristine card aesthetic */
-#channel-list .channel-row {
-  margin: 7px 0 !important;
-  border-radius: 14px !important;
-  border: 1px solid rgba(147, 197, 253, 0.32) !important;
-  background: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.04) !important;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease !important;
-}
-body:not(.theme-light) #channel-list .channel-row {
-  background: rgba(17, 28, 48, 0.88) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
-}
-#channel-list .channel-row:hover {
-  border-color: #38bdf8 !important;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.12) !important;
-}
-#channel-list .channel-main {
-  padding: 13px 15px !important;
-}
-#channel-list .channel-row.playing {
-  border-color: #0284c7 !important;
-  background: rgba(2, 132, 199, 0.06) !important;
-}
-body:not(.theme-light) #channel-list .channel-row.playing {
-  background: rgba(2, 132, 199, 0.18) !important;
-  border-color: #38bdf8 !important;
-}
-
-/* 4. Mobile screen padding & layout breathing room */
-@media (max-width: 600px) {
-  body:not(.aurora-home-view) {
-    padding: 8px 10px 0 !important;
-    gap: 8px !important;
-  }
-  body:not(.aurora-home-view) #player-wrap {
-    border-radius: 16px !important;
-    border: 1px solid rgba(147, 197, 253, 0.35) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
-  }
-  /* Remove heavy nested outer border on mobile sidebar */
-  body:not(.aurora-home-view) #sidebar {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-  body:not(.aurora-home-view) #channel-list {
-    padding: 2px 2px 100px !important; /* 100px clearance prevents bottom dock overlap */
+    margin: 0 0 12px !important;
   }
 }
 
