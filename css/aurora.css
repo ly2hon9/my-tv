@@ -4451,7 +4451,7 @@ body.theme-light #channel-list .channel-row {
 }
 
 /* =====================================================================
-   AURORA 3.23.5: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
+   AURORA 3.23.6: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
    ===================================================================== */
 .sg-account-theme-section {
   margin-top: 10px;
@@ -4550,7 +4550,7 @@ body.theme-light .sg-theme-seg-btn.active {
 }
 
 /* =====================================================================
-   AURORA 3.23.5: LOGIN GATE INPUT BOX CLEANUP (NO INNER BOX / OUTLINE)
+   AURORA 3.23.6: LOGIN GATE INPUT BOX CLEANUP (NO INNER BOX / OUTLINE)
    Eliminates nested focus outline, inner border, and autofill box inside .gate-input-box
    ===================================================================== */
 #auth-gate-screen .gate-input-box input,
