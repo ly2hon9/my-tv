@@ -2045,15 +2045,35 @@
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
-    function closeSourceModal() { document.getElementById('modal-mask').style.display = 'none'; }
+    function closeSourceModal() {
+      const sel = document.getElementById('sys-theme-select');
+      if (sel) sel.value = currentThemeSetting;
+      const authToggle = document.getElementById('auth-require-toggle');
+      if (authToggle) authToggle.checked = !!authConfig.requireLogin;
+      document.getElementById('modal-mask').style.display = 'none';
+    }
 
     async function saveToD1() {
       if (!currentUser || currentUser.role !== 'admin') return;
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
       const interval = document.getElementById('auto-sync-interval').value;
+      const selectedTheme = document.getElementById('sys-theme-select')?.value || currentThemeSetting;
+      const requireLoginChecked = document.getElementById('auth-require-toggle')
+        ? document.getElementById('auth-require-toggle').checked
+        : !!authConfig.requireLogin;
 
-      closeSourceModal();
+      authConfig.requireLogin = requireLoginChecked;
+      localStorage.setItem(KEY_AUTH_CONFIG, JSON.stringify(authConfig));
+      localStorage.setItem(KEY_SYNC_INTERVAL, interval);
+      if (subUrl) localStorage.setItem(KEY_SUB, subUrl);
+      if (m3uUrl) localStorage.setItem(KEY_M3U, m3uUrl);
+
+      document.getElementById('modal-mask').style.display = 'none';
+      if (selectedTheme) {
+        applyGlobalTheme(selectedTheme);
+        localStorage.setItem(KEY_THEME_PREF, selectedTheme);
+      }
       showGestureTip("✓ 设置已保存");
 
       const tasks = [];
