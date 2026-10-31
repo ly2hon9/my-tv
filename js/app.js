@@ -1427,13 +1427,42 @@
       }
 
       const bgHex = isDark ? '#061326' : '#eaf2fd';
-      document.documentElement.classList.toggle('theme-light', !isDark);
-      document.documentElement.style.backgroundColor = bgHex;
-      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-      document.body.classList.toggle('theme-light', !isDark);
-      document.body.style.backgroundColor = bgHex;
-      const themeMeta = document.getElementById('sg-theme-color-meta') || document.querySelector('meta[name="theme-color"]');
-      if (themeMeta) themeMeta.setAttribute('content', bgHex);
+      const syncSafariViewportTint = (flushModalLayer = false) => {
+        document.documentElement.classList.toggle('theme-light', !isDark);
+        document.documentElement.style.backgroundColor = bgHex;
+        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+        document.body.classList.toggle('theme-light', !isDark);
+        document.body.style.backgroundColor = bgHex;
+
+        // Re-mount <meta name="theme-color"> in <head> so WebKit immediately fires themeColorChanged()
+        const oldMeta = document.getElementById('sg-theme-color-meta') || document.querySelector('meta[name="theme-color"]');
+        if (oldMeta) {
+          oldMeta.setAttribute('content', bgHex);
+          if (flushModalLayer && oldMeta.parentNode) {
+            const freshMeta = oldMeta.cloneNode(true);
+            freshMeta.setAttribute('content', bgHex);
+            oldMeta.parentNode.replaceChild(freshMeta, oldMeta);
+          }
+        }
+
+        // If the settings modal (#modal-mask) is currently open, flush its fixed backdrop-filter
+        // compositing layer so iOS Safari re-samples the top and bottom bars without waiting for "保存配置"
+        if (flushModalLayer) {
+          const openMask = document.getElementById('modal-mask');
+          if (openMask && openMask.style.display === 'flex') {
+            openMask.style.animation = 'none';
+            openMask.style.backgroundColor = bgHex;
+            openMask.style.display = 'none';
+            void openMask.offsetHeight;
+            openMask.style.display = 'flex';
+          }
+          window.scrollBy(0, 0);
+        }
+      };
+
+      syncSafariViewportTint(true);
+      setTimeout(() => syncSafariViewportTint(true), 80);
+      setTimeout(() => syncSafariViewportTint(true), 260);
 
       const gateScreen = document.getElementById('auth-gate-screen');
       if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
@@ -1458,6 +1487,10 @@
     }
 
     function changeSystemTheme(val) {
+      const sel = document.getElementById('sys-theme-select');
+      if (sel && typeof sel.blur === 'function') {
+        try { sel.blur(); } catch (_) {}
+      }
       applyGlobalTheme(val);
       localStorage.setItem(KEY_THEME_PREF, val);
       setD1Data(KEY_THEME_PREF, val);
