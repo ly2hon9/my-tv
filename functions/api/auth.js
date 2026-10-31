@@ -1,4 +1,4 @@
-import {ADMIN,USERS,json,read,write,digest,sessionCookie,clearCookie,getUser,sameOrigin,secureSecret} from './_security.js';
+import {ADMIN,USERS,GROUPS,json,read,write,digest,sessionCookie,clearCookie,getUser,resolveUserPermissions,sameOrigin,secureSecret} from './_security.js';
 export async function onRequest({request,env}) {
  try {
   if(!env.DB)return json({error:'D1 数据库未绑定'},503);
@@ -20,12 +20,13 @@ export async function onRequest({request,env}) {
     if(!admin)return json({error:'请先初始化管理员'},403);
     const users=JSON.parse(await read(env,USERS)||'[]');
     if(username===admin.username||users.some(u=>u.username===username))return json({error:'账号已存在'},409);
-    const groups=JSON.parse(await read(env,'sys_source_groups_v3')||'[]');const group=groups.find(g=>g.isDefault)||groups[0]||{id:'def',name:'默认分组'};
-    users.push({username,passHash,groupId:group.id,groupName:group.name});await write(env,USERS,users);await write(env,`theme_u_${username}`,'auto');
-    user={username,role:'user',groupId:group.id,groupName:group.name};
+    const groups=JSON.parse(await read(env,GROUPS)||'[]');const group=(Array.isArray(groups)&&(groups.find(g=>g&&g.isDefault)||groups[0]))||{id:'def',name:'默认分组',sites:['*']};
+    const newUser={username,passHash,groupId:group.id,groupName:group.name};
+    users.push(newUser);await write(env,USERS,users);await write(env,`theme_u_${username}`,'auto');
+    user=await resolveUserPermissions(env,newUser);
   } else {
     if(admin?.username===username&&admin.passHash===passHash)user={username,role:'admin',allowedSites:['*']};
-    else {const users=JSON.parse(await read(env,USERS)||'[]');const found=users.find(u=>u.username===username&&u.passHash===passHash);if(found)user={username,role:'user',groupId:found.groupId||'def',groupName:found.groupName||'默认分组'};}
+    else {const users=JSON.parse(await read(env,USERS)||'[]');const found=users.find(u=>u.username===username&&u.passHash===passHash);if(found)user=await resolveUserPermissions(env,found);}
     if(!user)return json({error:'账号或密码错误'},401);
   }
   return json({success:true,user},200,{'Set-Cookie':await sessionCookie(env,user)});

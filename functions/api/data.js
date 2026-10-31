@@ -27,8 +27,9 @@ export async function onRequest({request,env}) {
       const rawKeys=url.searchParams.get('keys');if(!rawKeys)return json({error:'缺少 keys 参数'},400);
       const requested=rawKeys.split(',').map(k=>k.trim()).filter(Boolean);
       if(requested.length>48)return json({error:'批量读取的键数量超出限制'},400);
-      if(requested.some(k=>!validKey(k)))return json({error:'无效的键'},400);
-      const keys=[...new Set(requested)];
+      const validRequested=requested.filter(k=>validKey(k));
+      if(!validRequested.length)return json({error:'无效的键'},400);
+      const keys=[...new Set(validRequested)];
       const readableKeys=keys.filter(k=>canRead(k,user));
       if(!readableKeys.length)return json({});
       const placeholders=readableKeys.map(()=>'?').join(',');
