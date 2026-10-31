@@ -538,6 +538,9 @@
     function getCurrentFavKey() {
       return currentUser ? `favs_u_${currentUser.username}` : KEY_FAVS;
     }
+    function getCurrentThemeKey() {
+      return currentUser ? `theme_u_${currentUser.username}` : KEY_THEME_PREF;
+    }
     function getCurrentHistoryKey() {
       return currentUser ? `history_u_${currentUser.username}` : KEY_HISTORY;
     }
@@ -1446,7 +1449,56 @@
 
       const sel = document.getElementById('sys-theme-select');
       if (sel) sel.value = themeMode;
+      try { syncThemeSegmentsUI(themeMode); } catch (_) {}
     }
+
+    function syncThemeSegmentsUI(currentMode) {
+      const mode = currentMode || currentThemeSetting || 'auto';
+      // 1. 同步个人中心快捷菜单
+      const quickBtns = document.querySelectorAll('#sg-quick-theme-segment .sg-theme-seg-btn');
+      quickBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.themeMode === mode);
+      });
+      const hint = document.getElementById('sg-quick-theme-hint');
+      if (hint) {
+        hint.textContent = mode === 'light' ? '白天浅色' : mode === 'dark' ? '夜间深色' : '跟随系统';
+      }
+
+      // 2. 同步主设置弹窗内的隐藏字段和胶囊按钮
+      const hiddenInput = document.getElementById('sys-theme-select');
+      if (hiddenInput) hiddenInput.value = mode;
+      const modalBtns = document.querySelectorAll('#sg-modal-theme-segment .sg-theme-seg-btn');
+      modalBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.themeMode === mode);
+      });
+    }
+
+    async function handleQuickThemeChange(mode) {
+      if (mode === currentThemeSetting) return;
+      currentThemeSetting = mode;
+      const themeKey = getCurrentThemeKey();
+      localStorage.setItem(themeKey, mode);
+      localStorage.setItem(KEY_THEME_PREF, mode);
+      syncThemeSegmentsUI(mode);
+      showGestureTip(mode === 'light' ? "☀️ 已切至白天浅色主题" : mode === 'dark' ? "🌙 已切至夜间深色主题" : "🌓 已切至自动跟随系统");
+      try {
+        setD1Data(themeKey, mode);
+        if (typeof sgSavePageState === 'function') sgSavePageState();
+      } catch (_) {}
+      setTimeout(() => {
+        window.location.reload();
+      }, 180);
+    }
+
+    function selectModalTheme(mode) {
+      const hiddenInput = document.getElementById('sys-theme-select');
+      if (hiddenInput) hiddenInput.value = mode;
+      const modalBtns = document.querySelectorAll('#sg-modal-theme-segment .sg-theme-seg-btn');
+      modalBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.themeMode === mode);
+      });
+    }
+
 
     function toggleGlobalThemeClick() {
       const isCurrentlyDark = !document.body.classList.contains('theme-light');
@@ -1812,9 +1864,11 @@
 
       const favKey = `favs_u_${uName}`;
       const histKey = `history_u_${uName}`;
+      const themeKey = `theme_u_${uName}`;
       
       purgeD1Key(favKey);
       purgeD1Key(histKey);
+      purgeD1Key(themeKey);
       setD1Data(KEY_USERS_LIST, userList);
 
       renderUsersManagerList();
@@ -2027,7 +2081,7 @@
       document.getElementById('source-m3u-input').value = localStorage.getItem(KEY_M3U) || '';
       document.getElementById('auto-sync-interval').value = localStorage.getItem(KEY_SYNC_INTERVAL) || '0';
       document.getElementById('auth-require-toggle').checked = !!authConfig.requireLogin;
-      document.getElementById('sys-theme-select').value = currentThemeSetting;
+      document.getElementById('sys-theme-select').value = currentThemeSetting; try { syncThemeSegmentsUI(currentThemeSetting); } catch (_) {}
 
       getD1Data(KEY_SUB, '').then(val => {
         if (val) document.getElementById('sub-url-input').value = val;
@@ -2047,7 +2101,7 @@
 
     function closeSourceModal() {
       const sel = document.getElementById('sys-theme-select');
-      if (sel) sel.value = currentThemeSetting;
+      if (sel) sel.value = currentThemeSetting; try { syncThemeSegmentsUI(currentThemeSetting); } catch (_) {}
       const authToggle = document.getElementById('auth-require-toggle');
       if (authToggle) authToggle.checked = !!authConfig.requireLogin;
       document.getElementById('modal-mask').style.display = 'none';
@@ -5724,7 +5778,9 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (localFails) sourceFailures = JSON.parse(localFails);
         const localThreshold = localStorage.getItem(KEY_FAIL_THRESHOLD);
         if (localThreshold) failThreshold = parseInt(localThreshold, 10) || 5;
-        const localTheme = localStorage.getItem(KEY_THEME_PREF);
+        const userThemeKey = currentUser ? `theme_u_${currentUser.username}` : null;
+        const localUserTheme = userThemeKey ? localStorage.getItem(userThemeKey) : null;
+        const localTheme = localUserTheme || localStorage.getItem(KEY_THEME_PREF);
         if (localTheme) currentThemeSetting = localTheme;
 
         // 本地立即提取持久化电视频道，避免刷新白屏
@@ -5775,11 +5831,13 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         gateScreen.style.display = 'none';
       }
 
+      const userThemeKey = currentUser ? `theme_u_${currentUser.username}` : null;
       const bootKeys = [
         KEY_SITES, KEY_DISABLED_SITES, KEY_SOURCE_FAILURES, KEY_FAIL_THRESHOLD,
         KEY_AUTH_CONFIG, KEY_ADMIN_INFO, KEY_USERS_LIST, KEY_SOURCE_GROUPS,
         KEY_THEME_PREF, KEY_SUB, KEY_M3U, KEY_TV_CHANNELS
       ];
+      if (userThemeKey) bootKeys.push(userThemeKey);
 
       getD1BatchData(bootKeys).then(data => {
         if (data[KEY_SITES]) {
@@ -5826,7 +5884,11 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (data[KEY_SOURCE_GROUPS]) {
           try { const p = JSON.parse(data[KEY_SOURCE_GROUPS]); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
         }
-        if (data[KEY_THEME_PREF]) {
+        if (userThemeKey && data[userThemeKey]) {
+          currentThemeSetting = data[userThemeKey];
+          localStorage.setItem(getCurrentThemeKey(), currentThemeSetting);
+          applyGlobalTheme(currentThemeSetting);
+        } else if (data[KEY_THEME_PREF]) {
           currentThemeSetting = data[KEY_THEME_PREF];
           applyGlobalTheme(currentThemeSetting);
         }
