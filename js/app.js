@@ -237,7 +237,7 @@
     let sourceFailures = {};
     let failThreshold = 5;
     // Frosted Cinema theme defaults to dark; explicitly saved light/auto settings stay respected.
-    let currentThemeSetting = 'dark';
+    let currentThemeSetting = 'auto';
     let gateAuthMode = 'login';
     let currentEditingGroupId = null;
     let userAssigningIdx = -1;
@@ -1469,16 +1469,20 @@
       currentThemeSetting = mode;
       const themeKey = getCurrentThemeKey();
       localStorage.setItem(themeKey, mode);
-      localStorage.setItem(KEY_THEME_PREF, mode);
+      if (!currentUser || currentUser.role === 'admin') {
+        localStorage.setItem(KEY_THEME_PREF, mode);
+      }
       syncThemeSegmentsUI(mode);
       showGestureTip(mode === 'light' ? "☀️ 已切至白天浅色主题" : mode === 'dark' ? "🌙 已切至夜间深色主题" : "🌓 已切至自动跟随系统");
       try {
-        setD1Data(themeKey, mode);
         if (typeof sgSavePageState === 'function') sgSavePageState();
+        const saves = [setD1Data(themeKey, mode)];
+        if (currentUser && currentUser.role === 'admin') {
+          saves.push(setD1Data(KEY_THEME_PREF, mode));
+        }
+        await Promise.allSettled(saves);
       } catch (_) {}
-      setTimeout(() => {
-        window.location.reload();
-      }, 180);
+      window.location.reload();
     }
 
 
@@ -1535,7 +1539,12 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || '登录失败');
         localStorage.removeItem(KEY_SAVED_CREDS);
-        localStorage.removeItem(KEY_CURRENT_USER);
+        if (result && result.user && result.user.username) {
+          localStorage.setItem(KEY_CURRENT_USER, JSON.stringify({ username: result.user.username, role: result.user.role }));
+          if (action === 'register' || action === 'bootstrap') {
+            localStorage.setItem(`theme_u_${result.user.username}`, 'auto');
+          }
+        }
         document.getElementById('gate-password').value = '';
         location.reload();
       } catch (e) { showGateError(e.message || '请求失败'); }
@@ -1832,6 +1841,7 @@
       const defaultGroup = sourceGroups.find(g => g.isDefault) || sourceGroups[0];
       userList.push({ username: u, passHash: passHash, groupId: defaultGroup.id, groupName: defaultGroup.name });
       setD1Data(KEY_USERS_LIST, userList);
+      setD1Data(`theme_u_${u}`, 'auto');
       document.getElementById('new-user-name').value = '';
       document.getElementById('new-user-pass').value = '';
       renderUsersManagerList();
@@ -5795,7 +5805,6 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       // 服务端是唯一可信的登录状态来源，忽略旧版本保存在本地的角色和密码摘要。
       localStorage.removeItem(KEY_SAVED_CREDS);
-      localStorage.removeItem(KEY_CURRENT_USER);
       localStorage.removeItem(KEY_ADMIN_INFO);
       localStorage.removeItem(KEY_USERS_LIST);
       let serverAuth = null;
@@ -5803,7 +5812,15 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         const res = await fetch('/api/auth', {cache:'no-store'});
         if (res.ok) serverAuth = await res.json();
       } catch (_) {}
-      if (serverAuth && serverAuth.user) currentUser = serverAuth.user;
+      if (serverAuth && serverAuth.user) {
+        currentUser = serverAuth.user;
+        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify({ username: currentUser.username, role: currentUser.role }));
+        const savedUserTheme = localStorage.getItem(`theme_u_${currentUser.username}`);
+        currentThemeSetting = savedUserTheme || 'auto';
+        applyGlobalTheme(currentThemeSetting);
+      } else {
+        localStorage.removeItem(KEY_CURRENT_USER);
+      }
       if (serverAuth && serverAuth.adminExists === false) {
         gateAuthMode = 'init_admin';
         const subTip = document.getElementById('gate-sub-tip');
@@ -5873,13 +5890,23 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (data[KEY_SOURCE_GROUPS]) {
           try { const p = JSON.parse(data[KEY_SOURCE_GROUPS]); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
         }
-        if (userThemeKey && data[userThemeKey]) {
-          currentThemeSetting = data[userThemeKey];
-          localStorage.setItem(getCurrentThemeKey(), currentThemeSetting);
+        const wasLightBeforeD1 = document.body.classList.contains('theme-light');
+        if (userThemeKey) {
+          const cloudUserTheme = data[userThemeKey] || 'auto';
+          currentThemeSetting = cloudUserTheme;
+          localStorage.setItem(userThemeKey, cloudUserTheme);
+          if (!data[userThemeKey]) {
+            setD1Data(userThemeKey, 'auto');
+          }
           applyGlobalTheme(currentThemeSetting);
         } else if (data[KEY_THEME_PREF]) {
           currentThemeSetting = data[KEY_THEME_PREF];
           applyGlobalTheme(currentThemeSetting);
+        }
+        const isLightAfterD1 = document.body.classList.contains('theme-light');
+        if (wasLightBeforeD1 !== isLightAfterD1) {
+          window.location.reload();
+          return;
         }
         if (data[KEY_SUB]) {
           localStorage.setItem(KEY_SUB, data[KEY_SUB]);
