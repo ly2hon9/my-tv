@@ -3812,3 +3812,15 @@ body.theme-light .sg-poster-track > .aurora-poster-card > .sg-poster-info {
     padding:7px 7px 8px;
   }
 }
+
+/* 影视点播 AirPlay：只有一个原生设备选择按钮，无弹层或额外 SDK。 */
+#player-wrap .sg-cast-trigger { color:#8eeaf7 !important; }
+#player-wrap .sg-cast-trigger.sg-cast-active { color:#35f7ba !important; filter:drop-shadow(0 0 5px rgba(48,226,200,.65)); }
+@media(max-width:380px) {
+  body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-right { gap:1px !important; }
+  body:not(.aurora-home-view) #player-wrap .controls-inner > .ctrl-left { gap:1px !important; }
+}
+
+/* VOD-only AirPlay: hidden in television/live states and before a VOD stream is chosen.
+   Some existing control selectors use display:flex!important; override only this one control. */
+#player-wrap #sg-cast-trigger[hidden] { display:none !important; }
