@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <!-- ShiguangTV AURORA 3.8: compact responsive layout + strict TMDB categories -->
+  <!-- ShiguangTV AURORA 3.22.0: modern dual-layout system for mobile, tablet and desktop -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,7 +32,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.21.0">
+  <link rel="stylesheet" href="css/aurora.css?v=3.22.0">
 </head>
 <body class="aurora-home-view shiguang-booting">
   <script>
@@ -86,6 +86,13 @@
       <span class="aurora-brand-mark">▶</span>
       <span class="aurora-brand-copy"><strong>拾光影视</strong><small>YOUR PERSONAL CINEMA</small></span>
     </button>
+    <nav class="aurora-nav-links aurora-desktop-nav" aria-label="桌面主导航">
+      <button type="button" class="aurora-nav-link" title="电影" aria-label="电影" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span class="sg-nav-label">电影</span></button>
+      <button type="button" class="aurora-nav-link" title="剧集" aria-label="剧集" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span class="sg-nav-label">剧集</span></button>
+      <button type="button" class="aurora-nav-link" title="综艺" aria-label="综艺" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span class="sg-nav-label">综艺</span></button>
+      <button type="button" class="aurora-nav-link" title="动漫" aria-label="动漫" data-aurora-nav="anime" onclick="openAuroraCategory('动漫')"><span class="sg-nav-label">动漫</span></button>
+      <button type="button" class="aurora-nav-link" title="直播" aria-label="直播" data-aurora-nav="live" onclick="switchMode('tv')"><span class="sg-nav-label">直播</span></button>
+    </nav>
     <form class="aurora-nav-search" id="aurora-nav-search" role="search" onsubmit="submitAuroraTopSearch(event)">
       <input id="aurora-nav-search-input" type="search" placeholder="搜索电影、电视剧、片名或频道…" aria-label="搜索影视" autocomplete="off">
       <button type="submit" aria-label="搜索" title="搜索"><svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 5 5"/></svg></button>
@@ -105,7 +112,7 @@
     </details>
   </header>
 
-      <nav class="aurora-nav-links" aria-label="主导航">
+      <nav class="aurora-nav-links aurora-mobile-dock" aria-label="主导航">
       <button type="button" class="aurora-nav-link" title="电影" aria-label="电影" data-aurora-nav="movie" onclick="openAuroraCategory('电影')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="8" r="1.2"/><circle cx="16" cy="8" r="1.2"/><circle cx="8" cy="16" r="1.2"/><circle cx="16" cy="16" r="1.2"/><path d="M12 12v-1"/></svg></span><span class="sg-nav-label">电影</span></button>
       <button type="button" class="aurora-nav-link" title="剧集" aria-label="剧集" data-aurora-nav="series" onclick="openAuroraCategory('电视剧')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="17" height="14" rx="3"/><path d="M8 3.5 12 6l4-2.5M10 11l5 3-5 3z"/></svg></span><span class="sg-nav-label">剧集</span></button>
       <button type="button" class="aurora-nav-link" title="综艺" aria-label="综艺" data-aurora-nav="variety" onclick="openAuroraCategory('综艺')"><span class="sg-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2.5 2.8 5.7 6.3.9-4.55 4.45 1.07 6.3L12 16.85l-5.62 3 1.07-6.3L2.9 9.1l6.3-.9L12 2.5Z"/></svg></span><span class="sg-nav-label">综艺</span></button>
@@ -531,6 +538,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.21.0"></script>
+  <script defer src="js/app.js?v=3.22.0"></script>
 </body>
 </html>
