@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <!-- ShiguangTV AURORA 3.23.4: modern dual-layout system for mobile, tablet and desktop -->
+  <!-- ShiguangTV AURORA 3.23.5: modern dual-layout system for mobile, tablet and desktop -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
           if (uRaw) user = JSON.parse(uRaw);
         } catch (_) {}
         var userKey = user && user.username ? ('theme_u_' + user.username) : null;
-        var mode = (userKey && localStorage.getItem(userKey)) || localStorage.getItem('sys_theme_appearance_v1') || 'dark';
+        var mode = (userKey ? localStorage.getItem(userKey) : localStorage.getItem('sys_theme_appearance_v1')) || 'auto';
         var isDark = true;
         if (mode === 'light') isDark = false;
         else if (mode === 'auto') {
@@ -38,7 +38,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.23.4">
+  <link rel="stylesheet" href="css/aurora.css?v=3.23.5">
 </head>
 <body class="aurora-home-view shiguang-booting">
   <script>
@@ -549,6 +549,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.23.4"></script>
+  <script defer src="js/app.js?v=3.23.5"></script>
 </body>
 </html>
