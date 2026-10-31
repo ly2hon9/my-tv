@@ -4449,30 +4449,3 @@ body.theme-light #channel-list .channel-row {
     margin: 0 0 12px !important;
   }
 }
-
-/* --- 7. iOS Safari Top Status Bar & Bottom Floating Bar Dynamic Theme Sync --- */
-html.theme-light,
-html:has(body.theme-light),
-body.theme-light {
-  background-color: #eaf2fd !important;
-  color-scheme: light !important;
-}
-html:not(.theme-light):not(:has(body.theme-light)),
-body:not(.theme-light) {
-  background-color: #061326 !important;
-  color-scheme: dark !important;
-}
-body:not(.theme-light)::before {
-  content: "";
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: -120px;
-  bottom: -180px;
-  background: radial-gradient(ellipse at 14% 8%, rgba(17, 91, 164, 0.21), transparent 43%),
-              radial-gradient(ellipse at 84% 50%, rgba(34, 106, 147, 0.15), transparent 52%),
-              #061326 !important;
-  z-index: -2;
-  pointer-events: none;
-}
-
