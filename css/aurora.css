@@ -4451,7 +4451,7 @@ body.theme-light #channel-list .channel-row {
 }
 
 /* =====================================================================
-   AURORA 3.23.4: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
+   AURORA 3.23.5: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
    ===================================================================== */
 .sg-account-theme-section {
   margin-top: 10px;
@@ -4549,4 +4549,56 @@ body.theme-light .sg-theme-seg-btn.active {
   font-weight: 850 !important;
 }
 
+/* =====================================================================
+   AURORA 3.23.5: LOGIN GATE INPUT BOX CLEANUP (NO INNER BOX / OUTLINE)
+   Eliminates nested focus outline, inner border, and autofill box inside .gate-input-box
+   ===================================================================== */
+#auth-gate-screen .gate-input-box input,
+#auth-gate-screen.dark-theme .gate-input-box input,
+body.theme-light #auth-gate-screen .gate-input-box input,
+body.theme-light #auth-gate-screen.dark-theme .gate-input-box input,
+#auth-gate-screen .gate-input-box input:focus,
+#auth-gate-screen .gate-input-box input:focus-visible {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 0 !important;
+  outline: none !important;
+  outline-width: 0 !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#auth-gate-screen .gate-input-box input:-webkit-autofill,
+#auth-gate-screen .gate-input-box input:-webkit-autofill:hover,
+#auth-gate-screen .gate-input-box input:-webkit-autofill:focus,
+#auth-gate-screen .gate-input-box input:-webkit-autofill:active {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: #eef8f8 !important;
+  transition: background-color 99999s ease-in-out 0s !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  outline: none !important;
+}
+
+body.theme-light #auth-gate-screen .gate-input-box input:-webkit-autofill,
+body.theme-light #auth-gate-screen .gate-input-box input:-webkit-autofill:hover,
+body.theme-light #auth-gate-screen .gate-input-box input:-webkit-autofill:focus,
+body.theme-light #auth-gate-screen .gate-input-box input:-webkit-autofill:active {
+  -webkit-text-fill-color: #263d37 !important;
+}
+
+#auth-gate-screen .gate-eye-btn,
+#auth-gate-screen .gate-eye-btn:focus,
+#auth-gate-screen .gate-eye-btn:focus-visible {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
 
