@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <!-- ShiguangTV AURORA 3.23.8: modern dual-layout system for mobile, tablet and desktop -->
+  <!-- ShiguangTV AURORA 3.24.0: modern dual-layout system for mobile, tablet and desktop -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.23.8">
+  <link rel="stylesheet" href="css/aurora.css?v=3.24.0">
 </head>
 <body class="aurora-home-view shiguang-booting">
   <script>
@@ -327,7 +327,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-main);">
           <span style="font-weight: 500;">门禁</span>
-          <input type="checkbox" id="auth-require-toggle" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent);">
+          <input type="checkbox" id="auth-require-toggle" onchange="toggleRequireLoginSwitch(this.checked)" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent);">
         </div>
         <button type="button" class="btn-action btn-cancel" style="padding: 4px 10px; font-size: 11px;" onclick="logoutCurrentUser()">退出登录</button>
       </div>
@@ -549,6 +549,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.23.8"></script>
+  <script defer src="js/app.js?v=3.24.0"></script>
 </body>
 </html>
