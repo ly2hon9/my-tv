@@ -7,13 +7,43 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#080b14">
+  <meta name="theme-color" id="sg-theme-color-meta" content="#080b14">
+  <script>
+    (function() {
+      try {
+        var mode = localStorage.getItem('sys_theme_appearance_v1') || 'dark';
+        var isDark = true;
+        if (mode === 'light') isDark = false;
+        else if (mode === 'auto') {
+          var h = new Date().getHours();
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          isDark = prefersDark || (h >= 19 || h < 6);
+        }
+        var bg = isDark ? '#061326' : '#eaf2fd';
+        var root = document.documentElement;
+        root.classList.toggle('theme-light', !isDark);
+        root.style.backgroundColor = bg;
+        root.style.colorScheme = isDark ? 'dark' : 'light';
+        var meta = document.getElementById('sg-theme-color-meta');
+        if (meta) meta.setAttribute('content', bg);
+      } catch (_) {}
+    })();
+  </script>
   <title>拾光影视</title>
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="css/aurora.css?v=3.20.3-poster-caption-fix-1">
+  <link rel="stylesheet" href="css/aurora.css?v=3.20.6-light-bottom-fix-1">
 </head>
 <body class="aurora-home-view shiguang-booting">
+  <script>
+    (function() {
+      try {
+        if (document.documentElement.classList.contains('theme-light')) {
+          document.body.classList.add('theme-light');
+        }
+      } catch (_) {}
+    })();
+  </script>
 
   <!-- 全屏门禁系统 -->
   <div id="auth-gate-screen">
@@ -135,7 +165,7 @@
 
     <div id="gesture-tip"></div>
 
-    <video id="video" playsinline webkit-playsinline></video>
+    <video id="video" playsinline webkit-playsinline x-webkit-airplay="allow" airplay="allow" preload="metadata"></video>
     <div id="player-gesture-surface" aria-label="视频手势区域：双击左侧后退、右侧快进、中间播放或暂停"></div>
     <div id="aurora-player-empty" class="aurora-player-empty" aria-hidden="true"><div class="aurora-player-empty-mark">▶</div></div>
 
@@ -196,6 +226,10 @@
               <svg viewBox="0 0 24 24"><rect width="20" height="20" x="2" y="2" rx="4" fill="#000"/><polygon points="8,6 16,12 8,18" fill="#30D158"/></svg>
             </button>
           </div>
+
+          <button class="ctrl-btn cast-btn" id="cast-btn" type="button" onclick="triggerScreenCast(event)" title="电视投屏 (仅限影视剧场)" aria-label="电视投屏">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
+          </button>
 
           <button class="ctrl-btn pip-btn" onclick="togglePiP()" title="画中画小窗">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="8" height="7" rx="1"/></svg>
@@ -422,6 +456,55 @@
     </div>
   </div>
 
+  <!-- 📺 电视投屏弹窗 (仅限看电视/电影，直播自动隐藏) -->
+  <div id="cast-modal-mask" class="glass-modal-mask" role="dialog" aria-modal="true" aria-labelledby="cast-modal-title">
+    <div class="custom-modal-content glass-modal-card sg-cast-modal-card">
+      <h3>
+        <span id="cast-modal-title">📺 电视投屏</span>
+        <span style="font-size:16px;color:var(--text-sub);cursor:pointer;" onclick="closeCastModal()" title="关闭">✕</span>
+      </h3>
+
+      <div class="sg-cast-status-box">
+        <div class="sg-cast-now-playing" id="cast-now-playing-title">正在准备投屏片源…</div>
+        <div class="sg-cast-badges-row">
+          <span class="sg-cast-badge sg-cast-badge-ok" id="cast-av-status-badge">音画同步已就绪</span>
+          <span class="sg-cast-badge" id="cast-codec-badge">自适应流畅传输</span>
+        </div>
+        <div class="sg-cast-diag-tip" id="cast-diag-tip">请确认手机/电脑与电视连接在同一个 Wi-Fi 下。</div>
+      </div>
+
+      <div class="sg-cast-actions-stack">
+        <button type="button" class="sg-cast-primary-btn" id="btn-cast-system-picker" onclick="sgTriggerSystemWirelessCastFromModal(event)">
+          <span class="sg-cast-btn-icon">📺</span>
+          <span class="sg-cast-btn-copy">
+            <strong id="cast-picker-label">1. 连接电视设备投屏</strong>
+            <small id="cast-picker-sub">弹出设备列表，选择家里的电视、盒子或投影仪</small>
+          </span>
+        </button>
+
+        <button type="button" class="sg-cast-secondary-btn" id="btn-cast-smooth-boost" onclick="sgBoostCastSmoothness()">
+          <span class="sg-cast-btn-icon">🚀</span>
+          <span class="sg-cast-btn-copy">
+            <strong id="cast-smooth-label">2. 电视卡顿加速（换最快线路）</strong>
+            <small id="cast-smooth-sub">电视播放一卡一卡时点此，自动测速换最快源并保留进度</small>
+          </span>
+        </button>
+
+        <button type="button" class="sg-cast-secondary-btn" id="btn-cast-fix-black" onclick="sgFixCastBlackScreen()">
+          <span class="sg-cast-btn-icon">🔧</span>
+          <span class="sg-cast-btn-copy">
+            <strong id="cast-fix-black-label">3. 电视黑屏修复（有声音没画面点此）</strong>
+            <small id="cast-switch-h264-sub">电视只有声音没有画面时点此，自动切换兼容画面格式</small>
+          </span>
+        </button>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px;">
+        <button type="button" class="btn-action btn-cancel" onclick="closeCastModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // UI-only: close the native profile dropdown when tapping outside / pressing Escape.
     document.addEventListener('click', function(event) {
@@ -435,6 +518,6 @@
       }
     });
   </script>
-  <script defer src="js/app.js?v=3.20.3-poster-caption-fix-1"></script>
+  <script defer src="js/app.js?v=3.20.6-light-bottom-fix-1"></script>
 </body>
 </html>
