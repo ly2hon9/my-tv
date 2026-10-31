@@ -4004,3 +4004,90 @@ body.theme-light::before {
   z-index: -2;
   pointer-events: none;
 }
+
+
+/* ===== AURORA 3.21.0: AirPlayer Open-Source TV Receiver Download Card ===== */
+.sg-cast-airplayer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(14, 165, 233, 0.12));
+  border: 1px solid rgba(52, 211, 153, 0.42);
+  box-sizing: border-box;
+}
+.sg-cast-airplayer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.sg-cast-airplayer-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.sg-cast-airplayer-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.22);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.45);
+}
+.sg-cast-airplayer-desc {
+  font-size: 11px;
+  color: var(--text-sub);
+  line-height: 1.38;
+}
+.sg-cast-airplayer-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.28);
+  transition: transform .14s ease, filter .18s ease;
+  white-space: nowrap;
+}
+.sg-cast-airplayer-dl-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+body.theme-light .sg-cast-status-box {
+  background: rgba(15, 23, 42, 0.045);
+  border-color: rgba(49, 64, 100, 0.16);
+}
+body.theme-light .sg-cast-secondary-btn {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(49, 64, 100, 0.16);
+}
+body.theme-light .sg-cast-secondary-btn:hover {
+  background: rgba(15, 23, 42, 0.075);
+}
+body.theme-light .sg-cast-airplayer-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(14, 165, 233, 0.10));
+  border-color: rgba(16, 185, 129, 0.45);
+}
+body.theme-light .sg-cast-airplayer-tag {
+  background: rgba(16, 185, 129, 0.16);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.40);
+}
