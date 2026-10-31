@@ -1752,9 +1752,11 @@
       const grid = document.getElementById('perm-sites-grid');
       const isAll = !group.sites || group.sites[0] === '*';
       const allowed = group.sites || [];
+      const allowedSet = new Set(allowed.map(x => String(x || '').trim()));
 
       grid.innerHTML = parsedSites.map(site => {
-        const checked = isAll || allowed.includes(site.name);
+        const sName = String(site.name || '').trim();
+        const checked = isAll || allowed.includes(site.name) || allowedSet.has(sName);
         return `
           <label class="perm-site-chip">
             <input type="checkbox" class="site-perm-checkbox" data-sitename="${escapeHtml(site.name)}" ${checked ? 'checked' : ''}>
@@ -2908,7 +2910,13 @@
       let sites = (parsedSites || []).filter(s => s && s.api && !disabledSites.includes(s.name));
       if (currentUser && currentUser.role !== 'admin') {
         const group = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
-        if (group && group.sites && group.sites[0] !== '*') sites = sites.filter(s => group.sites.includes(s.name));
+        if (group && group.sites && group.sites[0] !== '*') {
+          const allowedNames = new Set((group.sites || []).map(x => String(x || '').trim()));
+          sites = sites.filter(s => {
+            const name = String(s.name || '').trim();
+            return allowedNames.has(name) || group.sites.includes(s.name);
+          });
+        }
       }
       return sites;
     }
@@ -3697,11 +3705,29 @@
       domNodeCache.clear();
       const kw = keyword.toLowerCase().trim();
 
+      // 初次加载若 D1 批量数据异步请求进行中，等待拉取完成以获取最新源列表
+      if ((!parsedSites || !parsedSites.length) && window._d1BootPromise) {
+        try { await window._d1BootPromise; } catch (_) {}
+      }
+      if (!parsedSites || !parsedSites.length) {
+        try {
+          const cached = localStorage.getItem(KEY_SITES);
+          if (cached) {
+            const p = JSON.parse(cached);
+            if (Array.isArray(p) && p.length > 0) parsedSites = p;
+          }
+        } catch (_) {}
+      }
+
       let availableSites = parsedSites.filter(s => !disabledSites.includes(s.name));
       if (currentUser && currentUser.role !== 'admin') {
         const userGroup = sourceGroups.find(g => g.id === currentUser.groupId) || sourceGroups.find(g => g.isDefault) || sourceGroups[0];
         if (userGroup && userGroup.sites && userGroup.sites[0] !== '*') {
-          availableSites = availableSites.filter(s => userGroup.sites.includes(s.name));
+          const allowedNames = new Set((userGroup.sites || []).map(x => String(x || '').trim()));
+          availableSites = availableSites.filter(s => {
+            const name = String(s.name || '').trim();
+            return allowedNames.has(name) || userGroup.sites.includes(s.name);
+          });
         }
       }
 
@@ -5857,7 +5883,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       ];
       if (userThemeKey) bootKeys.push(userThemeKey);
 
-      getD1BatchData(bootKeys).then(data => {
+      window._d1BootPromise = getD1BatchData(bootKeys).then(data => {
         if (data[KEY_SITES]) {
           try { const p = JSON.parse(data[KEY_SITES]); if (Array.isArray(p)) parsedSites = p; } catch (_) {}
         }
