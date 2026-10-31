@@ -4449,3 +4449,114 @@ body.theme-light #channel-list .channel-row {
     margin: 0 0 12px !important;
   }
 }
+
+/* =====================================================================
+   AURORA 3.23.2: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
+   ===================================================================== */
+.sg-account-theme-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+body.theme-light .sg-account-theme-section {
+  border-top-color: rgba(77, 138, 208, 0.20);
+}
+.sg-account-theme-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f2f7ff;
+}
+body.theme-light .sg-account-theme-title {
+  color: #1c304b;
+}
+.sg-account-theme-title small {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5deeff;
+}
+body.theme-light .sg-account-theme-title small {
+  color: #0284c7;
+}
+
+/* 3-segment switcher container */
+.sg-theme-segment {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 3px !important;
+  padding: 3px !important;
+  border-radius: 13px !important;
+  background: rgba(4, 15, 30, 0.65) !important;
+  border: 1px solid rgba(153, 196, 248, 0.18) !important;
+  box-sizing: border-box !important;
+}
+body.theme-light .sg-theme-segment {
+  background: rgba(220, 232, 248, 0.6) !important;
+  border-color: rgba(120, 154, 194, 0.3) !important;
+}
+
+/* Single segment button */
+.sg-theme-seg-btn {
+  appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  min-height: 32px !important;
+  padding: 4px 6px !important;
+  border-radius: 9px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #9cb5d9 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: all 0.18s ease !important;
+}
+body.theme-light .sg-theme-seg-btn {
+  color: #556c8a !important;
+}
+.sg-theme-seg-btn span {
+  font-size: 12px !important;
+}
+.sg-theme-seg-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+body.theme-light .sg-theme-seg-btn:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: #0f172a !important;
+}
+
+/* Active glowing state matching mockups */
+.sg-theme-seg-btn.active {
+  background: linear-gradient(135deg, #0284c7, #0ea5e9) !important;
+  color: #ffffff !important;
+  border-color: rgba(125, 211, 252, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35) !important;
+  font-weight: 850 !important;
+}
+body.theme-light .sg-theme-seg-btn.active {
+  background: #ffffff !important;
+  color: #0284c7 !important;
+  border-color: rgba(2, 132, 199, 0.38) !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.14) !important;
+  font-weight: 850 !important;
+}
+
+/* Settings modal layout adjustments */
+.sg-modal-theme-segment {
+  margin-top: 6px !important;
+  margin-bottom: 14px !important;
+  padding: 4px !important;
+}
+.sg-modal-theme-segment .sg-theme-seg-btn {
+  min-height: 38px !important;
+  font-size: 13px !important;
+}
+
