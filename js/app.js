@@ -4913,15 +4913,20 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         clearTimeout(networkRecoveryTimer); networkRecoveryTimer = null;
       };
       // The current playback session owns all its buffer event listeners.
-      const onWaiting = () => {
+      const onWaiting = (evt) => {
         if (!isCurrent() || !hasStarted || manualStartNeeded ||
             video.paused || video.seeking || document.hidden || bufferRecoveryTimer) return;
+        if (liveSession && evt?.type === 'stalled') return;
+        const waitingStartPos = Number(video.currentTime) || 0;
         bufferNoticeTimer = setTimeout(() => {
           if (isCurrent() && !video.paused && !video.seeking && !document.hidden) {
+            // True stall verification: if video time has advanced, media is playing smoothly!
+            const curPos = Number(video.currentTime) || 0;
+            if (Math.abs(curPos - waitingStartPos) > 0.05) return;
             hasBufferStatus = true;
             setStatus('正在缓冲…');
           }
-        }, 2500);
+        }, liveSession ? 3500 : 2500);
         bufferRecoveryTimer = setTimeout(() => {
           if (!isCurrent() || video.paused || video.seeking || document.hidden) return;
           if (recoveryAttempts >= 1) return;
@@ -4959,6 +4964,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
           if (hasBufferStatus) {
             hasBufferStatus = false;
             setStatus('', false);
+            if (statusLayer) statusLayer.style.display = 'none';
           }
         }
       };
@@ -4971,7 +4977,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       // Release the old media BEFORE attaching the new error handlers.
       try { video.pause(); video.removeAttribute('src'); video.load(); } catch (_) {}
       video.addEventListener('waiting', onWaiting);
-      video.addEventListener('stalled', onWaiting);
+      if (!liveSession) video.addEventListener('stalled', onWaiting);
       video.addEventListener('timeupdate', onProgressTime);
       video.addEventListener('pause', onPause);
       video.addEventListener('seeked', onSeeked);
@@ -4979,7 +4985,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       sgPlaybackMonitorCleanup = () => {
         stopSessionTimers();
         video.removeEventListener('waiting', onWaiting);
-        video.removeEventListener('stalled', onWaiting);
+        if (!liveSession) video.removeEventListener('stalled', onWaiting);
         video.removeEventListener('timeupdate', onProgressTime);
         video.removeEventListener('pause', onPause);
         video.removeEventListener('seeked', onSeeked);
@@ -5032,6 +5038,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       // The first frame/metadata is not proof of actual playback.
       video.onplaying = () => {
         if (typeof sgEnsureVideoAndAudioTracks === 'function') sgEnsureVideoAndAudioTracks(video);
+        if (hasBufferStatus) {
+          hasBufferStatus = false;
+          clearBufferTimers();
+          setStatus('', false);
+          if (statusLayer) statusLayer.style.display = 'none';
+        }
         markPlaying();
       };
       video.onloadeddata = () => {
