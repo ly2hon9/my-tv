@@ -4451,7 +4451,7 @@ body.theme-light #channel-list .channel-row {
 }
 
 /* =====================================================================
-   AURORA 3.23.2: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
+   AURORA 3.23.3: 3-SEGMENT THEME SWITCHER CAPSULE (ACCOUNT MENU & ADMIN MODAL)
    ===================================================================== */
 .sg-account-theme-section {
   margin-top: 10px;
@@ -4549,14 +4549,4 @@ body.theme-light .sg-theme-seg-btn.active {
   font-weight: 850 !important;
 }
 
-/* Settings modal layout adjustments */
-.sg-modal-theme-segment {
-  margin-top: 6px !important;
-  margin-bottom: 14px !important;
-  padding: 4px !important;
-}
-.sg-modal-theme-segment .sg-theme-seg-btn {
-  min-height: 38px !important;
-  font-size: 13px !important;
-}
 
