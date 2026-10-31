@@ -1454,7 +1454,6 @@
 
     function syncThemeSegmentsUI(currentMode) {
       const mode = currentMode || currentThemeSetting || 'auto';
-      // 1. 同步个人中心快捷菜单
       const quickBtns = document.querySelectorAll('#sg-quick-theme-segment .sg-theme-seg-btn');
       quickBtns.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.themeMode === mode);
@@ -1463,14 +1462,6 @@
       if (hint) {
         hint.textContent = mode === 'light' ? '白天浅色' : mode === 'dark' ? '夜间深色' : '跟随系统';
       }
-
-      // 2. 同步主设置弹窗内的隐藏字段和胶囊按钮
-      const hiddenInput = document.getElementById('sys-theme-select');
-      if (hiddenInput) hiddenInput.value = mode;
-      const modalBtns = document.querySelectorAll('#sg-modal-theme-segment .sg-theme-seg-btn');
-      modalBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.themeMode === mode);
-      });
     }
 
     async function handleQuickThemeChange(mode) {
@@ -1490,14 +1481,6 @@
       }, 180);
     }
 
-    function selectModalTheme(mode) {
-      const hiddenInput = document.getElementById('sys-theme-select');
-      if (hiddenInput) hiddenInput.value = mode;
-      const modalBtns = document.querySelectorAll('#sg-modal-theme-segment .sg-theme-seg-btn');
-      modalBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.themeMode === mode);
-      });
-    }
 
 
     function toggleGlobalThemeClick() {
@@ -2081,7 +2064,7 @@
       document.getElementById('source-m3u-input').value = localStorage.getItem(KEY_M3U) || '';
       document.getElementById('auto-sync-interval').value = localStorage.getItem(KEY_SYNC_INTERVAL) || '0';
       document.getElementById('auth-require-toggle').checked = !!authConfig.requireLogin;
-      document.getElementById('sys-theme-select').value = currentThemeSetting; try { syncThemeSegmentsUI(currentThemeSetting); } catch (_) {}
+      
 
       getD1Data(KEY_SUB, '').then(val => {
         if (val) document.getElementById('sub-url-input').value = val;
@@ -2100,8 +2083,7 @@
     }
 
     function closeSourceModal() {
-      const sel = document.getElementById('sys-theme-select');
-      if (sel) sel.value = currentThemeSetting; try { syncThemeSegmentsUI(currentThemeSetting); } catch (_) {}
+      
       const authToggle = document.getElementById('auth-require-toggle');
       if (authToggle) authToggle.checked = !!authConfig.requireLogin;
       document.getElementById('modal-mask').style.display = 'none';
@@ -2112,9 +2094,6 @@
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
       const interval = document.getElementById('auto-sync-interval').value;
-      const prevTheme = currentThemeSetting;
-      const selectedTheme = document.getElementById('sys-theme-select')?.value || currentThemeSetting;
-      const themeChanged = Boolean(selectedTheme && selectedTheme !== prevTheme);
       const requireLoginChecked = document.getElementById('auth-require-toggle')
         ? document.getElementById('auth-require-toggle').checked
         : !!authConfig.requireLogin;
@@ -2126,10 +2105,6 @@
       if (m3uUrl) localStorage.setItem(KEY_M3U, m3uUrl);
 
       document.getElementById('modal-mask').style.display = 'none';
-      if (selectedTheme) {
-        applyGlobalTheme(selectedTheme);
-        localStorage.setItem(KEY_THEME_PREF, selectedTheme);
-      }
       showGestureTip("✓ 设置已保存");
 
       const tasks = [];
@@ -2147,10 +2122,6 @@
       if (adminAccount) tasks.push(setD1Data(KEY_ADMIN_INFO, adminAccount));
 
       await Promise.allSettled(tasks);
-      if (themeChanged) {
-        try { if (typeof sgSavePageState === 'function') sgSavePageState(); } catch (_) {}
-        window.location.reload();
-      }
     }
 
     async function manualSyncSubscription() {
