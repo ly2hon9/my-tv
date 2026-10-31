@@ -2,12 +2,19 @@ const CACHE_KEY = 'aurora_trending_cache_v1';
 const SHORT_DRAMA = /短剧|微短剧|竖屏剧|爽剧|付费短剧|小程序剧|mini\s*drama|vertical\s*drama/i;
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
+function genreIds(item) {
+  return (Array.isArray(item?.genreIds) ? item.genreIds : Array.isArray(item?.genre_ids) ? item.genre_ids : Array.isArray(item?.genres) ? item.genres : [])
+    .map(x => Number(x && typeof x === 'object' ? x.id : x)).filter(Number.isFinite);
+}
+
 function clean(item, type) {
   const title = String(item.title || item.name || item.original_title || item.original_name || '').trim();
   const overview = String(item.overview || '').trim();
   if (!title || SHORT_DRAMA.test(title) || SHORT_DRAMA.test(overview)) return null;
   if (!item.poster_path) return null;
   const date = String(item.release_date || item.first_air_date || '');
+  const voteAverage = Number(item.vote_average ?? item.voteAverage ?? 0);
+  const voteCount = Number(item.vote_count ?? item.voteCount ?? 0);
   return {
     id: Number(item.id),
     title,
@@ -15,13 +22,18 @@ function clean(item, type) {
     type,
     year: date.slice(0, 4),
     releaseDate: date,
-    overview: overview.slice(0, 420),
+    overview: overview.slice(0, 600),
     poster: `${IMAGE_BASE}${item.poster_path}`,
     backdrop: item.backdrop_path ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}` : '',
-    vote_average: Number(item.vote_average || 0),
-    vote_count: Number(item.vote_count || 0),
+    voteAverage,
+    voteCount,
+    vote_average: voteAverage,
+    vote_count: voteCount,
     popularity: Number(item.popularity || 0),
-    source: 'TMDB 实时热门'
+    genreIds: genreIds(item),
+    originCountry: item.origin_country || item.originCountry || [],
+    originalLanguage: item.original_language || item.originalLanguage || '',
+    source: item.source || 'TMDB 实时热门'
   };
 }
 
@@ -31,11 +43,12 @@ async function fetchTrending(type, env) {
     const endpoint = type === '电影' ? 'movie' : 'tv';
     url = new URL(`https://api.themoviedb.org/3/trending/${endpoint}/day`);
   } else {
-    // 影视分类页也要有真实数据：综艺使用真人秀/脱口秀类型，动漫使用动画类型。
+    // 影视分类页也要有真实数据：综艺使用真人秀/脱口秀类型(OR)，动漫使用动画类型。
     url = new URL('https://api.themoviedb.org/3/discover/tv');
     url.searchParams.set('sort_by', 'popularity.desc');
     url.searchParams.set('include_adult', 'false');
-    url.searchParams.set('with_genres', type === '动漫' ? '16' : '10764,10767');
+    url.searchParams.set('with_genres', type === '动漫' ? '16' : '10764|10767');
+    url.searchParams.set('without_genres', type === '动漫' ? '10764|10767' : '16');
   }
   url.searchParams.set('language', 'zh-CN');
   url.searchParams.set('api_key', env.TMDB_API_KEY);
@@ -48,7 +61,7 @@ async function fetchTrending(type, env) {
   return (Array.isArray(payload.results) ? payload.results : [])
     .map(item => clean(item, type)).filter(Boolean)
     .sort((a, b) => b.popularity - a.popularity)
-    .slice(0, 18);
+    .slice(0, 24);
 }
 
 async function syncRecommendations(env) {
@@ -66,15 +79,24 @@ async function syncRecommendations(env) {
     if (shows[i]) items.push(shows[i]);
   }
   items.push(...variety, ...anime);
+  const counts = {
+    movies: movies.length,
+    shows: shows.length,
+    variety: variety.length,
+    anime: anime.length,
+    total: items.length
+  };
   const payload = JSON.stringify({
     source: 'TMDB',
+    catalogVersion: 4,
     updatedAt: new Date().toISOString(),
-    items: items.slice(0, 72)
+    counts,
+    items: items.slice(0, 96)
   });
   await env.DB.prepare(
     'INSERT INTO user_data (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
   ).bind(CACHE_KEY, payload).run();
-  return { count: items.length, movies: movies.length, shows: shows.length, variety: variety.length, anime: anime.length };
+  return { count: items.length, ...counts };
 }
 
 export default {
