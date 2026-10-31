@@ -1427,62 +1427,13 @@
       }
 
       const bgHex = isDark ? '#061326' : '#eaf2fd';
-      if (window.__sgThemeSyncTimers) {
-        window.__sgThemeSyncTimers.forEach(t => clearTimeout(t));
-      }
-      window.__sgThemeSyncTimers = [];
-
-      const syncSafariViewportTint = (remapMeta = false) => {
-        document.documentElement.classList.toggle('theme-light', !isDark);
-        document.documentElement.style.backgroundColor = bgHex;
-        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-        document.body.classList.toggle('theme-light', !isDark);
-        document.body.style.backgroundColor = bgHex;
-
-        const topnav = document.getElementById('aurora-topnav');
-        if (topnav) topnav.style.backgroundColor = bgHex;
-
-        const openMask = document.getElementById('modal-mask');
-        if (openMask) {
-          openMask.style.backgroundColor = bgHex;
-          openMask.style.backgroundImage = 'none';
-        }
-
-        const oldMeta = document.getElementById('sg-theme-color-meta') || document.querySelector('meta[name="theme-color"]');
-        if (oldMeta) {
-          oldMeta.setAttribute('content', bgHex);
-          if (remapMeta && oldMeta.parentNode) {
-            const freshMeta = oldMeta.cloneNode(true);
-            freshMeta.setAttribute('content', bgHex);
-            oldMeta.parentNode.replaceChild(freshMeta, oldMeta);
-          }
-        }
-      };
-
-      // Force a real two-frame layer commit when #modal-mask is open so iOS Safari's
-      // UIProcess samples the underlying page & topnav exactly like when closing the modal
-      const pulseModalForSafariBarSample = () => {
-        syncSafariViewportTint(true);
-        const openMask = document.getElementById('modal-mask');
-        if (openMask && openMask.style.display === 'flex') {
-          openMask.style.animation = 'none';
-          openMask.style.display = 'none';
-          requestAnimationFrame(() => {
-            const tId = setTimeout(() => {
-              if (openMask.style.display === 'none') {
-                openMask.style.display = 'flex';
-              }
-            }, 28);
-            window.__sgThemeSyncTimers.push(tId);
-          });
-        }
-      };
-
-      syncSafariViewportTint(true);
-      pulseModalForSafariBarSample();
-      // Repeat after iOS native <select> picker popover finishes its dismiss animation (~300ms)
-      window.__sgThemeSyncTimers.push(setTimeout(pulseModalForSafariBarSample, 180));
-      window.__sgThemeSyncTimers.push(setTimeout(pulseModalForSafariBarSample, 380));
+      document.documentElement.classList.toggle('theme-light', !isDark);
+      document.documentElement.style.backgroundColor = bgHex;
+      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+      document.body.classList.toggle('theme-light', !isDark);
+      document.body.style.backgroundColor = bgHex;
+      const themeMeta = document.getElementById('sg-theme-color-meta') || document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.setAttribute('content', bgHex);
 
       const gateScreen = document.getElementById('auth-gate-screen');
       if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
@@ -1506,22 +1457,11 @@
       showGestureTip(newMode === 'light' ? "☀️ 已切至白天白色主题" : "🌙 已切至夜间黑色主题");
     }
 
-    var sgSavedThemeBeforeModal = null;
-
     function changeSystemTheme(val) {
-      const modalOpen = sgSavedThemeBeforeModal !== null || document.getElementById('modal-mask')?.style.display === 'flex';
-      const sel = document.getElementById('sys-theme-select');
-      if (sel && typeof sel.blur === 'function') {
-        try { sel.blur(); } catch (_) {}
-      }
       applyGlobalTheme(val);
-      if (!modalOpen) {
-        localStorage.setItem(KEY_THEME_PREF, val);
-        setD1Data(KEY_THEME_PREF, val);
-        showGestureTip("✓ 主题外观已更新");
-      } else {
-        showGestureTip("已预览主题，请点击“保存配置”生效");
-      }
+      localStorage.setItem(KEY_THEME_PREF, val);
+      setD1Data(KEY_THEME_PREF, val);
+      showGestureTip("✓ 主题外观已更新");
     }
 
     function showGateError(msg) {
@@ -2087,7 +2027,6 @@
       document.getElementById('source-m3u-input').value = localStorage.getItem(KEY_M3U) || '';
       document.getElementById('auto-sync-interval').value = localStorage.getItem(KEY_SYNC_INTERVAL) || '0';
       document.getElementById('auth-require-toggle').checked = !!authConfig.requireLogin;
-      sgSavedThemeBeforeModal = localStorage.getItem(KEY_THEME_PREF) || currentThemeSetting;
       document.getElementById('sys-theme-select').value = currentThemeSetting;
 
       getD1Data(KEY_SUB, '').then(val => {
@@ -2106,26 +2045,15 @@
       document.getElementById('modal-mask').style.display = 'flex';
     }
 
-    function closeSourceModal(keepThemeChange = false) {
-      document.getElementById('modal-mask').style.display = 'none';
-      if (!keepThemeChange && sgSavedThemeBeforeModal !== null && currentThemeSetting !== sgSavedThemeBeforeModal) {
-        applyGlobalTheme(sgSavedThemeBeforeModal);
-      }
-      sgSavedThemeBeforeModal = null;
-    }
+    function closeSourceModal() { document.getElementById('modal-mask').style.display = 'none'; }
 
     async function saveToD1() {
       if (!currentUser || currentUser.role !== 'admin') return;
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
       const interval = document.getElementById('auto-sync-interval').value;
-      const selectedTheme = document.getElementById('sys-theme-select')?.value || currentThemeSetting;
 
-      sgSavedThemeBeforeModal = selectedTheme;
-      applyGlobalTheme(selectedTheme);
-      localStorage.setItem(KEY_THEME_PREF, selectedTheme);
-
-      closeSourceModal(true);
+      closeSourceModal();
       showGestureTip("✓ 设置已保存");
 
       const tasks = [];
@@ -2199,7 +2127,7 @@
 
       syncBtn.textContent = "🔄 同步更新源";
       syncBtn.disabled = false;
-      closeSourceModal(true);
+      closeSourceModal();
       alert("同步完成:\n" + msg.join('\n'));
     }
 
