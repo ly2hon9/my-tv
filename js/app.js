@@ -1433,24 +1433,7 @@
       document.body.classList.toggle('theme-light', !isDark);
       document.body.style.backgroundColor = bgHex;
       const themeMeta = document.getElementById('sg-theme-color-meta') || document.querySelector('meta[name="theme-color"]');
-      if (themeMeta) {
-        themeMeta.setAttribute('content', bgHex);
-        // iOS Safari caches <meta name="theme-color"> unless the node is re-inserted
-        if (themeMeta.parentNode) {
-          const freshMeta = themeMeta.cloneNode(true);
-          freshMeta.setAttribute('content', bgHex);
-          themeMeta.parentNode.replaceChild(freshMeta, themeMeta);
-        }
-      }
-      // Force iOS Safari to re-sample top status bar and bottom floating address bar tint immediately
-      document.documentElement.style.background = bgHex;
-      document.body.style.background = bgHex;
-      requestAnimationFrame(() => {
-        document.documentElement.style.backgroundColor = bgHex;
-        document.body.style.backgroundColor = bgHex;
-        window.scrollBy(0, 1);
-        window.scrollBy(0, -1);
-      });
+      if (themeMeta) themeMeta.setAttribute('content', bgHex);
 
       const gateScreen = document.getElementById('auth-gate-screen');
       if (gateScreen) gateScreen.classList.toggle('dark-theme', isDark);
@@ -2075,7 +2058,9 @@
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
       const m3uUrl = (document.getElementById('source-m3u-input').value || '').trim();
       const interval = document.getElementById('auto-sync-interval').value;
+      const prevTheme = currentThemeSetting;
       const selectedTheme = document.getElementById('sys-theme-select')?.value || currentThemeSetting;
+      const themeChanged = Boolean(selectedTheme && selectedTheme !== prevTheme);
       const requireLoginChecked = document.getElementById('auth-require-toggle')
         ? document.getElementById('auth-require-toggle').checked
         : !!authConfig.requireLogin;
@@ -2108,6 +2093,10 @@
       if (adminAccount) tasks.push(setD1Data(KEY_ADMIN_INFO, adminAccount));
 
       await Promise.allSettled(tasks);
+      if (themeChanged) {
+        try { if (typeof sgSavePageState === 'function') sgSavePageState(); } catch (_) {}
+        window.location.reload();
+      }
     }
 
     async function manualSyncSubscription() {
