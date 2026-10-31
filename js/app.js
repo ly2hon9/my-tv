@@ -115,6 +115,13 @@
       };
     }
 
+    function safeLocalSet(key, val) {
+      if (key === KEY_ADMIN_INFO || key === KEY_USERS_LIST) return;
+      try {
+        localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+      } catch (_) {}
+    }
+
     async function getD1Data(key, defaultVal = '') {
       try {
         // 关键：增加时间戳 _t 与 cache: 'no-store'，彻底杜绝 Safari 命中旧缓存
@@ -122,12 +129,12 @@
         if (res.ok) {
           const data = await res.json();
           if (data && data.value !== null && data.value !== undefined) {
-            localStorage.setItem(key, data.value);
+            safeLocalSet(key, data.value);
             return data.value;
           }
         }
       } catch (_) {}
-      return localStorage.getItem(key) || defaultVal;
+      try { return localStorage.getItem(key) || defaultVal; } catch (_) { return defaultVal; }
     }
 
     async function getD1BatchData(keys) {
@@ -138,7 +145,7 @@
           if (data && typeof data === 'object') {
             for (const [k, v] of Object.entries(data)) {
               if (v !== null && v !== undefined) {
-                localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+                safeLocalSet(k, v);
               }
             }
             return data;
@@ -147,16 +154,17 @@
       } catch (_) {}
       const fallback = {};
       for (const k of keys) {
-        const v = localStorage.getItem(k);
-        if (v !== null) fallback[k] = v;
+        try {
+          const v = localStorage.getItem(k);
+          if (v !== null) fallback[k] = v;
+        } catch (_) {}
       }
       return fallback;
     }
 
-
     async function setD1Data(key, value) {
       const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
-      if (key !== KEY_ADMIN_INFO && key !== KEY_USERS_LIST) localStorage.setItem(key, valStr);
+      safeLocalSet(key, valStr);
       try {
         const response = await fetch('/api/data', {
           method: 'POST',
@@ -168,16 +176,9 @@
     }
 
     async function purgeD1Key(key) {
-      localStorage.removeItem(key);
+      try { localStorage.removeItem(key); } catch (_) {}
       try {
         await fetch(`/api/data?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
-      } catch (_) {}
-      try {
-        await fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, value: '[]' })
-        });
       } catch (_) {}
     }
 
@@ -200,7 +201,7 @@
     const KEY_THEME_PREF = "sys_theme_appearance_v1";
     const KEY_CURRENT_USER = "local_current_session_user";
     const KEY_SAVED_CREDS = "local_saved_remember_creds";
-    const SG_APP_VERSION = "3.23.8";
+    const SG_APP_VERSION = "3.24.0";
     const KEY_APP_VERSION = "sg_app_version";
     const KEY_SESSION_VOD_STATE = "session_active_vod_state_v4";
     const KEY_SESSION_PAGE_STATE = 'sg_page_restore_v2';
@@ -560,13 +561,12 @@
     async function getFavoritesList(forceCloud = false) {
       if (forceCloud) {
         const data = await getD1Data(getCurrentFavKey(), '[]');
-        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+        try { const parsed = JSON.parse(data); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; }
       }
       const local = getLocalFavorites();
-      getD1Data(getCurrentFavKey(), '[]').catch(() => {});
       if (local && local.length > 0) return local;
       const data = await getD1Data(getCurrentFavKey(), '[]');
-      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+      try { const parsed = JSON.parse(data); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; }
     }
 
     function getLocalHistory() {
@@ -582,13 +582,12 @@
     async function getHistoryList(forceCloud = false) {
       if (forceCloud) {
         const data = await getD1Data(getCurrentHistoryKey(), '[]');
-        try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+        try { const parsed = JSON.parse(data); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; }
       }
       const local = getLocalHistory();
-      getD1Data(getCurrentHistoryKey(), '[]').catch(() => {});
       if (local && local.length > 0) return local;
       const data = await getD1Data(getCurrentHistoryKey(), '[]');
-      try { return Array.isArray(JSON.parse(data)) ? JSON.parse(data) : []; } catch (_) { return []; }
+      try { const parsed = JSON.parse(data); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; }
     }
 
     function getCanonicalFavTitleKey(rawTitle) {
@@ -1150,7 +1149,7 @@
     async function renderHistoryView() {
       const container = document.getElementById('channel-list');
       container.classList.remove('sg-results-grid');
-      const history = await getHistoryList();
+      const history = await getHistoryList(true);
 
       if (history.length === 0) {
         container.innerHTML = `<div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">🕒 观看历史 (0)</span><button type="button" class="sg-personal-clear" onclick="clearAllHistory()">清空</button></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
@@ -1245,9 +1244,9 @@
           const container = document.getElementById('channel-list');
           const cards = container.querySelectorAll('.history-card');
           const titleEl = container.querySelector('.sources-header-title');
-          if (titleEl) titleEl.textContent = `🕒 播放历史 (${cards.length})`;
+          if (titleEl) titleEl.textContent = `🕒 观看历史 (${cards.length})`;
           if (cards.length === 0) {
-            container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
+            container.innerHTML = `<div class="top-unified-bar sg-personal-titlebar"><span class="sources-header-title">🕒 观看历史 (0)</span><button type="button" class="sg-personal-clear" onclick="clearAllHistory()">清空</button></div><div style="padding:40px 16px;text-align:center;color:var(--text-sub);font-size:13px;">暂无播放历史记录<br><span style="font-size:11px;color:var(--text-mute);">播放视频时将自动在此记录进度</span></div>`;
           }
         }, 200);
       }
@@ -1533,6 +1532,7 @@
       const u = document.getElementById('gate-username').value.trim();
       const p = document.getElementById('gate-password').value;
       if (!u || !p) { showGateError('请输入账号和密码'); return; }
+      const rememberChecked = document.getElementById('gate-remember-pwd')?.checked !== false;
       const btn = document.getElementById('gate-submit-btn');
       btn.disabled = true;
       try {
@@ -1540,11 +1540,15 @@
         const response = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action,username:u,password:p})});
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || '登录失败');
-        localStorage.removeItem(KEY_SAVED_CREDS);
+        if (rememberChecked) {
+          safeLocalSet(KEY_SAVED_CREDS, JSON.stringify({ username: u, remember: true }));
+        } else {
+          try { localStorage.removeItem(KEY_SAVED_CREDS); } catch (_) {}
+        }
         if (result && result.user && result.user.username) {
-          localStorage.setItem(KEY_CURRENT_USER, JSON.stringify({ username: result.user.username, role: result.user.role }));
+          safeLocalSet(KEY_CURRENT_USER, JSON.stringify({ username: result.user.username, role: result.user.role }));
           if (action === 'register' || action === 'bootstrap') {
-            localStorage.setItem(`theme_u_${result.user.username}`, 'auto');
+            safeLocalSet(`theme_u_${result.user.username}`, 'auto');
           }
         }
         document.getElementById('gate-password').value = '';
@@ -1568,23 +1572,21 @@
 
       currentUser = null;
       try { sessionStorage.removeItem(KEY_SESSION_PAGE_STATE); sessionStorage.removeItem(KEY_SESSION_VOD_STATE); } catch (_) {}
-      localStorage.removeItem(KEY_CURRENT_USER);
-      localStorage.removeItem(KEY_SAVED_CREDS);
+      try { localStorage.removeItem(KEY_CURRENT_USER); } catch (_) {}
       updateMainRoleButton();
       closeSourceModal();
       closeSitesModal();
       closeAccountsModal();
       closeUserAccountModal();
-      document.getElementById('gate-username').value = '';
+      let rememberedUser = '';
+      try {
+        const saved = JSON.parse(localStorage.getItem(KEY_SAVED_CREDS) || 'null');
+        if (saved && saved.remember && saved.username) rememberedUser = String(saved.username);
+      } catch (_) {}
+      document.getElementById('gate-username').value = rememberedUser;
       document.getElementById('gate-password').value = '';
       checkGateInputsReady();
-      
-      if (true) {
-        document.getElementById('auth-gate-screen').style.display = 'flex';
-      } else {
-        document.getElementById('auth-gate-screen').style.display = 'none';
-        showGestureTip("✓ 已退出登录");
-      }
+      document.getElementById('auth-gate-screen').style.display = 'flex';
     }
 
     function updateMainRoleButton() {
@@ -1854,8 +1856,11 @@
 
     async function adminAddNewUser() {
       const u = (document.getElementById('new-user-name').value || '').trim();
-      const p = (document.getElementById('new-user-pass').value || '').trim();
-      if (!u || !p) { alert("账号或密码错误"); return; }
+      const p = String(document.getElementById('new-user-pass').value || '');
+      if (!/^[\w一-龥.-]{2,32}$/.test(u) || p.length < 8 || p.length > 128) {
+        alert("账号需2-32位（字母、数字、中文、下划线、点或连字符），密码至少8位");
+        return;
+      }
       if ((adminAccount && u === adminAccount.username) || userList.some(item => item.username === u)) {
         alert("账号已存在");
         return;
@@ -2122,6 +2127,18 @@
       document.getElementById('modal-mask').style.display = 'none';
     }
 
+    function formatSyncTimestamp(d = new Date()) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    function parseSyncTimestamp(raw) {
+      if (!raw) return NaN;
+      const direct = Date.parse(String(raw).trim().replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T'));
+      if (Number.isFinite(direct)) return direct;
+      return new Date(raw).getTime();
+    }
+
     async function saveToD1() {
       if (!currentUser || currentUser.role !== 'admin') return;
       const subUrl = (document.getElementById('sub-url-input').value || '').trim();
@@ -2132,27 +2149,26 @@
         : !!authConfig.requireLogin;
 
       authConfig.requireLogin = requireLoginChecked;
-      localStorage.setItem(KEY_AUTH_CONFIG, JSON.stringify(authConfig));
-      localStorage.setItem(KEY_SYNC_INTERVAL, interval);
-      if (subUrl) localStorage.setItem(KEY_SUB, subUrl);
-      if (m3uUrl) localStorage.setItem(KEY_M3U, m3uUrl);
+      safeLocalSet(KEY_AUTH_CONFIG, JSON.stringify(authConfig));
+      safeLocalSet(KEY_SYNC_INTERVAL, interval);
+      safeLocalSet(KEY_SUB, subUrl);
+      safeLocalSet(KEY_M3U, m3uUrl);
 
       document.getElementById('modal-mask').style.display = 'none';
       showGestureTip("✓ 设置已保存");
 
-      const tasks = [];
-      if (subUrl) tasks.push(setD1Data(KEY_SUB, subUrl));
-      if (m3uUrl) tasks.push(setD1Data(KEY_M3U, m3uUrl));
-      tasks.push(setD1Data(KEY_SYNC_INTERVAL, interval));
-      tasks.push(setD1Data(KEY_DISABLED_SITES, disabledSites));
-      tasks.push(setD1Data(KEY_SOURCE_FAILURES, sourceFailures));
-      tasks.push(setD1Data(KEY_FAIL_THRESHOLD, String(failThreshold)));
+      const tasks = [
+        setD1Data(KEY_SUB, subUrl),
+        setD1Data(KEY_M3U, m3uUrl),
+        setD1Data(KEY_SYNC_INTERVAL, interval),
+        setD1Data(KEY_DISABLED_SITES, disabledSites),
+        setD1Data(KEY_SOURCE_FAILURES, sourceFailures),
+        setD1Data(KEY_FAIL_THRESHOLD, String(failThreshold)),
+        setD1Data(KEY_AUTH_CONFIG, authConfig),
+        setD1Data(KEY_THEME_PREF, currentThemeSetting)
+      ];
       if (parsedSites && parsedSites.length > 0) tasks.push(setD1Data(KEY_SITES, parsedSites));
-      tasks.push(setD1Data(KEY_AUTH_CONFIG, authConfig));
-      if (userList && userList.length > 0) tasks.push(setD1Data(KEY_USERS_LIST, userList));
       if (sourceGroups && sourceGroups.length > 0) tasks.push(setD1Data(KEY_SOURCE_GROUPS, sourceGroups));
-      tasks.push(setD1Data(KEY_THEME_PREF, currentThemeSetting));
-      if (adminAccount) tasks.push(setD1Data(KEY_ADMIN_INFO, adminAccount));
 
       await Promise.allSettled(tasks);
     }
@@ -2192,7 +2208,7 @@
 
       if (m3uUrl) {
         try {
-          const text = await fetchTvM3uContent(m3uUrl)
+          const text = await fetchTvM3uContent(m3uUrl);
           if (text && text.includes('#EXTINF')) {
             parseM3U(text, true);
             msg.push(`电视直播源已更新: ${totalChannelsCount} 个频道 (共 ${totalStreamsCount} 个源)`);
@@ -2205,7 +2221,7 @@
         } catch (e) { msg.push(`电视源失败: ${e.message}`); }
       }
 
-      const nowStr = new Date().toLocaleString();
+      const nowStr = formatSyncTimestamp();
       setD1Data(KEY_LAST_SYNC, nowStr);
       document.getElementById('last-sync-time-label').textContent = `最后更新时间：${nowStr}`;
 
@@ -2216,6 +2232,7 @@
     }
 
     async function checkAutoSyncSchedule() {
+      if (!currentUser || currentUser.role !== 'admin') return;
       const intervalHours = parseInt(await getD1Data(KEY_SYNC_INTERVAL, '0'), 10);
       if (intervalHours <= 0) return;
 
@@ -2224,16 +2241,17 @@
         await triggerSilentSync();
         return;
       }
-      const lastTime = new Date(lastTimeStr).getTime();
+      const lastTime = parseSyncTimestamp(lastTimeStr);
       const now = Date.now();
       const diffHours = (now - lastTime) / (1000 * 60 * 60);
 
-      if (diffHours >= intervalHours) {
+      if (!Number.isFinite(lastTime) || diffHours >= intervalHours) {
         await triggerSilentSync();
       }
     }
 
     async function triggerSilentSync() {
+      if (!currentUser || currentUser.role !== 'admin') return;
       const subUrl = await getD1Data(KEY_SUB, '');
       const m3uUrl = await getD1Data(KEY_M3U, '');
       let hasUpdated = false;
@@ -2261,7 +2279,7 @@
       }
 
       if (hasUpdated) {
-        setD1Data(KEY_LAST_SYNC, new Date().toLocaleString());
+        setD1Data(KEY_LAST_SYNC, formatSyncTimestamp());
       }
     }
 
@@ -2922,7 +2940,10 @@
       openAuroraWorkspace();
       switchMode('vod');
       const input = document.getElementById('filter');
-      if (input && term) { input.value = term; triggerSearch(); }
+      const topInput = document.getElementById('aurora-nav-search-input');
+      if (topInput) topInput.value = term;
+      if (input && term) { input.value = term; toggleClearBtn(term); triggerSearch(); }
+      else if (topInput) topInput.focus();
       else if (input) input.focus();
       document.querySelectorAll('[data-aurora-nav]').forEach(b => b.classList.toggle('active', b.dataset.auroraNav === (term === '电影' ? 'movie' : term === '电视剧' ? 'series' : term === '综艺' ? 'variety' : term === '动漫' ? 'anime' : '')));
       window.scrollTo({top:0,behavior:'smooth'});
@@ -3334,6 +3355,11 @@
       if (filterInput) {
         filterInput.value = '';
         toggleClearBtn('');
+      }
+      const topSearchInput = document.getElementById('aurora-nav-search-input');
+      if (topSearchInput && !sgUiRestoring) {
+        topSearchInput.value = '';
+        topSearchInput.placeholder = mode === 'tv' ? '搜索电视频道…' : '搜索电影、电视剧、片名或频道…';
       }
 
       const btnFav = document.getElementById('btn-show-fav');
@@ -5389,7 +5415,10 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
       if (saveToStorage && totalChannelsCount > 0) {
         const payload = { groups, totalChannelsCount, totalStreamsCount, tvEpgSourceUrl };
-        setD1Data(KEY_TV_CHANNELS, payload);
+        safeLocalSet(KEY_TV_CHANNELS, payload);
+        if (currentUser && currentUser.role === 'admin') {
+          setD1Data(KEY_TV_CHANNELS, payload);
+        }
       }
     }
 
@@ -5882,10 +5911,28 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
 
       renderGateEyeIcon(false);
 
+      const topSearchEl = document.getElementById('aurora-nav-search-input');
+      if (topSearchEl) {
+        const syncLiveClear = () => {
+          if (currentMode === 'tv' && currentView === 'normal' && !document.body.classList.contains('aurora-home-view') && !topSearchEl.value.trim()) {
+            const liveInput = document.getElementById('filter');
+            if (liveInput && liveInput.value) {
+              liveInput.value = '';
+              toggleClearBtn('');
+              handleSearchTv();
+            }
+          }
+        };
+        topSearchEl.addEventListener('search', syncLiveClear);
+        topSearchEl.addEventListener('input', syncLiveClear);
+      }
+
       try {
         const prevVer = localStorage.getItem(KEY_APP_VERSION);
         if (prevVer !== SG_APP_VERSION) {
           sessionStorage.clear();
+          localStorage.removeItem(AURORA_LAST_CHECK_KEY);
+          localStorage.removeItem(AURORA_RECOMMENDATIONS_LOCAL_KEY);
           localStorage.setItem(KEY_APP_VERSION, SG_APP_VERSION);
         } else {
           for (let i = sessionStorage.length - 1; i >= 0; i--) {
@@ -5941,9 +5988,15 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       }
 
       // 服务端是唯一可信的登录状态来源，忽略旧版本保存在本地的角色和密码摘要。
-      localStorage.removeItem(KEY_SAVED_CREDS);
-      localStorage.removeItem(KEY_ADMIN_INFO);
-      localStorage.removeItem(KEY_USERS_LIST);
+      try {
+        localStorage.removeItem(KEY_ADMIN_INFO);
+        localStorage.removeItem(KEY_USERS_LIST);
+        const savedCreds = JSON.parse(localStorage.getItem(KEY_SAVED_CREDS) || 'null');
+        if (savedCreds && savedCreds.remember && savedCreds.username) {
+          const gateUserEl = document.getElementById('gate-username');
+          if (gateUserEl && !gateUserEl.value) gateUserEl.value = String(savedCreds.username);
+        }
+      } catch (_) {}
       let serverAuth = null;
       try {
         const res = await fetch('/api/auth', {cache:'no-store'});
@@ -5951,12 +6004,12 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       } catch (_) {}
       if (serverAuth && serverAuth.user) {
         currentUser = serverAuth.user;
-        localStorage.setItem(KEY_CURRENT_USER, JSON.stringify({ username: currentUser.username, role: currentUser.role }));
+        safeLocalSet(KEY_CURRENT_USER, JSON.stringify({ username: currentUser.username, role: currentUser.role }));
         const savedUserTheme = localStorage.getItem(`theme_u_${currentUser.username}`);
         currentThemeSetting = savedUserTheme || 'auto';
         applyGlobalTheme(currentThemeSetting);
       } else {
-        localStorage.removeItem(KEY_CURRENT_USER);
+        try { localStorage.removeItem(KEY_CURRENT_USER); } catch (_) {}
       }
       if (serverAuth && serverAuth.adminExists === false) {
         gateAuthMode = 'init_admin';
@@ -5982,7 +6035,7 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
       ];
       if (userThemeKey) bootKeys.push(userThemeKey);
 
-      window._d1BootPromise = getD1BatchData(bootKeys).then(data => {
+      window._d1BootPromise = (currentUser ? getD1BatchData(bootKeys) : Promise.resolve({})).then(data => {
         if (data[KEY_SITES]) {
           try { const p = JSON.parse(data[KEY_SITES]); if (Array.isArray(p)) parsedSites = p; } catch (_) {}
         }
@@ -6027,23 +6080,17 @@ function playCurrentVodSource(item, targetEpParam = 0, isSourceSwitch = false) {
         if (data[KEY_SOURCE_GROUPS]) {
           try { const p = JSON.parse(data[KEY_SOURCE_GROUPS]); if (Array.isArray(p) && p.length > 0) sourceGroups = p; } catch (_) {}
         }
-        const wasLightBeforeD1 = document.body.classList.contains('theme-light');
         if (userThemeKey) {
-          const cloudUserTheme = data[userThemeKey] || 'auto';
+          const cloudUserTheme = (data[userThemeKey] && ['auto', 'light', 'dark'].includes(data[userThemeKey])) ? data[userThemeKey] : 'auto';
           currentThemeSetting = cloudUserTheme;
-          localStorage.setItem(userThemeKey, cloudUserTheme);
-          if (!data[userThemeKey]) {
+          safeLocalSet(userThemeKey, cloudUserTheme);
+          if (!data[userThemeKey] || !['auto', 'light', 'dark'].includes(data[userThemeKey])) {
             setD1Data(userThemeKey, 'auto');
           }
           applyGlobalTheme(currentThemeSetting);
         } else if (data[KEY_THEME_PREF]) {
           currentThemeSetting = data[KEY_THEME_PREF];
           applyGlobalTheme(currentThemeSetting);
-        }
-        const isLightAfterD1 = document.body.classList.contains('theme-light');
-        if (wasLightBeforeD1 !== isLightAfterD1) {
-          window.location.reload();
-          return;
         }
         if (data[KEY_SUB]) {
           localStorage.setItem(KEY_SUB, data[KEY_SUB]);
